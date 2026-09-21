@@ -1,0 +1,14 @@
+.idea/
+**/bin/
+**/obj/
+*.user
+*.suo
+.env
+**/.env*
+!.env.example
+**/.venv*/
+**/__pycache__/
+**/*.egg-info/
+design-qa*.png
+design-qa.md
+.superpowers/

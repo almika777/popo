@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Popo.Frontend/package-lock.json
+
+      - name: Restore .NET dependencies
+        run: dotnet restore Popo.sln
+
+      - name: Build .NET solution
+        run: dotnet build Popo.sln --configuration Release --no-restore
+
+      - name: Run .NET tests
+        run: dotnet test Popo.sln --configuration Release --no-restore --no-build
+
+      - name: Install frontend dependencies
+        working-directory: src/Popo.Frontend
+        run: npm ci
+
+      - name: Audit frontend dependencies
+        working-directory: src/Popo.Frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build frontend
+        working-directory: src/Popo.Frontend
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: src/Popo.Frontend
+        run: npm test
+
+  docker-build:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Check local files are not tracked
+        shell: bash
+        run: |
+          tracked_local_files=$(git ls-files | grep -E '(^|/)\.env$|(^|/)backups(/|$)' || true)
+          if [ -n "$tracked_local_files" ]; then
+            echo "В репозитории отслеживаются локальные файлы:"
+            echo "$tracked_local_files"
+            exit 1
+          fi
+
+      - name: Build Docker images
+        run: docker compose build --pull

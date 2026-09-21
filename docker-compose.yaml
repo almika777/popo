@@ -1,0 +1,138 @@
+name: popo
+
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: popo
+      POSTGRES_USER: popo
+      POSTGRES_PASSWORD: popo
+    volumes:
+      - popo-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5434:5432"
+    networks:
+      - default
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY . .
+        RUN dotnet restore src/Popo.Api/Popo.Api.csproj
+        RUN dotnet publish src/Popo.Api/Popo.Api.csproj --configuration Release --output /app --no-restore
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        RUN apt-get update \
+            && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+            && rm -rf /var/lib/apt/lists/*
+        COPY --from=build /app .
+        ENV ASPNETCORE_HTTP_PORTS=8080
+        ENTRYPOINT ["dotnet", "Popo.Api.dll"]
+    environment:
+      ConnectionStrings__DefaultConnection: "${POPO_DB_CONNECTION_STRING:-Host=database;Port=5432;Database=popo;Username=popo;Password=popo}"
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5109:8080"
+    healthcheck:
+      test: ["CMD", "dotnet", "Popo.Api.dll", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - default
+      - database
+
+  jobs:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+        WORKDIR /src
+        COPY . .
+        RUN dotnet restore src/Popo.Jobs/Popo.Jobs.csproj
+        RUN dotnet publish src/Popo.Jobs/Popo.Jobs.csproj --configuration Release --output /app --no-restore
+
+        FROM mcr.microsoft.com/dotnet/aspnet:10.0
+        WORKDIR /app
+        RUN apt-get update \
+            && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+            && rm -rf /var/lib/apt/lists/*
+        COPY --from=build /app .
+        ENV ASPNETCORE_HTTP_PORTS=8080
+        ENTRYPOINT ["dotnet", "Popo.Jobs.dll"]
+    environment:
+      ConnectionStrings__DefaultConnection: "${POPO_DB_CONNECTION_STRING:-Host=database;Port=5432;Database=popo;Username=popo;Password=popo}"
+    ports:
+      - "127.0.0.1:5110:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - default
+      - database
+
+  frontend:
+    restart: unless-stopped
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: /api
+      dockerfile_inline: |
+        FROM node:22-alpine AS build
+        WORKDIR /app
+        COPY src/Popo.Frontend/package.json src/Popo.Frontend/package-lock.json ./
+        RUN npm ci
+        COPY src/Popo.Frontend/. .
+        RUN mkdir -p /app/public
+        ARG NEXT_PUBLIC_API_URL
+        ENV NEXT_PUBLIC_API_URL=$${NEXT_PUBLIC_API_URL}
+        RUN npm run build
+
+        FROM node:22-alpine
+        WORKDIR /app
+        ENV NODE_ENV=production
+        COPY --from=build /app/package.json /app/package-lock.json ./
+        COPY --from=build /app/node_modules ./node_modules
+        COPY --from=build /app/.next ./.next
+        COPY --from=build /app/public ./public
+        EXPOSE 3000
+        CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]
+    ports:
+      - "7955:3000"
+    environment:
+      POPO_LAN_HOST: "${POPO_LAN_HOST:-}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  default:
+    name: popo_default
+  database:
+    name: ${POPO_DATABASE_NETWORK_NAME:-popo_database}
+    external: ${POPO_DATABASE_NETWORK_EXTERNAL:-false}
+
+volumes:
+  popo-postgres-data:
