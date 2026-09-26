@@ -1,3 +1,5 @@
+using Popo.Core.PortfolioReturns;
+
 namespace Popo.Core.Portfolio;
 
 public static class PortfolioCashCalculator
@@ -6,7 +8,8 @@ public static class PortfolioCashCalculator
         IReadOnlyCollection<CashSnapshot> snapshots,
         IReadOnlyCollection<PortfolioTrade> trades,
         DateOnly asOf,
-        IReadOnlyCollection<MoneyMarketFundOperation>? fundOperations = null)
+        IReadOnlyCollection<MoneyMarketFundOperation>? fundOperations = null,
+        IReadOnlyCollection<PortfolioCashFlowInput>? cashFlows = null)
     {
         ValidateTrades(trades);
 
@@ -37,6 +40,14 @@ public static class PortfolioCashCalculator
                         balance += MoneyMarketFundOperationCalculator.CashDelta(
                             (fundOperations ?? [])
                                 .Where(x => x.Date > snapshot.SnapshotDate && x.Date <= asOf));
+                        balance += (cashFlows ?? [])
+                            .Where(x => x.Date > snapshot.SnapshotDate && x.Date <= asOf)
+                            .Sum(x => x.Type switch
+                            {
+                                PortfolioCashFlowType.Deposit => x.Amount,
+                                PortfolioCashFlowType.Withdrawal or PortfolioCashFlowType.Tax => -x.Amount,
+                                _ => 0
+                            });
                     }
                 }
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Popo.Core.Portfolio;
+using Popo.Core.PortfolioReturns;
 using Popo.Storage.Entities;
 
 namespace Popo.Storage.Providers.Portfolio;
@@ -136,7 +137,8 @@ public sealed class PortfolioLedgerProvider(IDbContextFactory<PopoDbContext> dbC
         var snapshots = await GetCashSnapshotInputsAsync(cancellationToken);
         var trades = await GetTradeInputsAsync(cancellationToken);
         var fundOperations = await GetMoneyMarketFundOperationInputsAsync(cancellationToken);
-        return PortfolioCashCalculator.Calculate(snapshots, trades, asOf, fundOperations);
+        var cashFlows = await GetCashFlowInputsAsync(cancellationToken);
+        return PortfolioCashCalculator.Calculate(snapshots, trades, asOf, fundOperations, cashFlows);
     }
 
     public async Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken)
@@ -255,6 +257,14 @@ public sealed class PortfolioLedgerProvider(IDbContextFactory<PopoDbContext> dbC
         return await dbContext.MoneyMarketFundOperations.AsNoTracking()
             .OrderBy(x => x.Date).ThenBy(x => x.Id)
             .Select(x => new MoneyMarketFundOperation(x.SecId, x.Date, x.Side, x.Quantity, x.Price, x.Commission))
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<PortfolioCashFlowInput>> GetCashFlowInputsAsync(CancellationToken cancellationToken)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await dbContext.PortfolioCashFlows.AsNoTracking()
+            .Select(x => new PortfolioCashFlowInput(x.Date, x.Type, x.Amount))
             .ToListAsync(cancellationToken);
     }
 

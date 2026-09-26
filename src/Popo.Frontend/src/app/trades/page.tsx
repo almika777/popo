@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import BrokerReportImportDialog from "../../components/BrokerReportImportDialog";
 import { portfolioLedgerApi, type BondSearchResult, type PortfolioTrade, type TradeSide } from "../../lib/portfolio-ledger-api";
 
 type TradeForm = { secId: string; tradeDate: Dayjs; side: TradeSide; quantity: number; price: number; accruedInterestTotal: number; commission: number };
@@ -20,6 +21,7 @@ export default function TradesPage() {
   const [editingId, setEditingId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
+  const [brokerReportImportOpen, setBrokerReportImportOpen] = useState(false);
   const { message } = AntdApp.useApp();
 
   const load = async () => { setLoading(true); try { setRows(await portfolioLedgerApi.getTrades()); } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось загрузить сделки"); } finally { setLoading(false); } };
@@ -47,7 +49,10 @@ export default function TradesPage() {
   ];
 
   return <main className="app-content">
-    <Typography.Title level={1}>Сделки</Typography.Title>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <Typography.Title level={1} style={{ margin: 0 }}>Сделки</Typography.Title>
+      <Button icon={<UploadOutlined />} onClick={() => setBrokerReportImportOpen(true)}>Импорт из брокерского отчёта</Button>
+    </div>
     <Typography.Paragraph type="secondary">Сделка хранится в валюте торгов, выбранной из карточки облигации. Позиции пересчитываются автоматически.</Typography.Paragraph>
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       <Card title={editingId ? "Изменить сделку" : "Добавить сделку"} className="trade-editor-card">
@@ -70,5 +75,10 @@ export default function TradesPage() {
       </Card>
       <Card title="Журнал сделок"><Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (_page, size) => setPageSize(size) }} /></Card>
     </Space>
+    <BrokerReportImportDialog
+      open={brokerReportImportOpen}
+      onClose={() => setBrokerReportImportOpen(false)}
+      onImported={() => void load()}
+    />
   </main>;
 }
