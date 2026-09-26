@@ -13,6 +13,7 @@ import { type PositionRecommendationAction, type PositionRecommendationState } f
 import { findPositionRecommendation, formatPositionRecommendationReason } from "../../lib/position-recommendations";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nominalNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 });
 const integer = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 const liquidityTextType: Record<PositionLiquidityLevel, "success" | "warning" | "danger"> = {
   low: "success",
@@ -83,8 +84,24 @@ export default function PositionsPage() {
         <Tag color={presentation.color}>{presentation.label}</Tag>
       </Tooltip>;
     } },
-    { title: "Средняя цена", dataIndex: "averageBuyPrice", render: (value: number) => number.format(value) },
-    { title: "Цена оценки MOEX", dataIndex: "marketPrice", render: (value: number | null) => value == null ? "Нет данных" : number.format(value) },
+    { title: "Средняя цена", dataIndex: "averageBuyPriceAtCurrentFaceValue", render: (value: number | null, row) => value == null
+      ? "Нет данных"
+      : <Tooltip title="Цена покупки пересчитана по проценту от номинала на дату сделки и выражена в текущем номинале.">
+          <div>
+            <div>{number.format(value)}</div>
+            <Typography.Text type="secondary">{row.averageBuyPricePercent == null ? "Цена покупки: нет данных" : `${number.format(row.averageBuyPricePercent)}% ном.`}</Typography.Text>
+          </div>
+        </Tooltip>
+    },
+    { title: "Цена оценки MOEX", dataIndex: "marketPrice", render: (value: number | null, row) => value == null ? "Нет данных" :
+      <div>
+        <div>{number.format(value)}</div>
+        <Typography.Text type="secondary">
+          {row.marketPricePercent == null ? "Цена, %: нет данных" : `${number.format(row.marketPricePercent)}%`}
+          {row.currentFaceValue == null ? "" : ` · ном. ${nominalNumber.format(row.currentFaceValue)} ${row.faceUnit ?? ""}`}
+        </Typography.Text>
+      </div>
+    },
     { title: "Стоимость", dataIndex: "marketValue", render: (value: number | null) => value == null ? "Нет данных" : number.format(value) },
     { title: "По чистой цене", dataIndex: "unrealizedPnl", align: "center", render: (value: number | null, row) => value == null
       ? "Нет данных"
@@ -111,13 +128,13 @@ export default function PositionsPage() {
 
   return <main className="app-content">
     <Typography.Title level={1}>Текущие позиции</Typography.Title>
-    <Typography.Paragraph type="secondary">Позиции рассчитываются из сохранённых сделок и не редактируются напрямую. Нереализованный результат считается по последней доступной цене MOEX.</Typography.Paragraph>
+    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат остаётся приблизительной оценкой.</Typography.Paragraph>
     {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
     <Card>
       <Flex gap="large" justify="space-between" align="center" wrap>
         <Typography.Text strong>Итого</Typography.Text>
         <Space size={8}><Typography.Text type="secondary">Рыночная стоимость</Typography.Text><Typography.Text strong>{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text></Space>
-        <Space size={8}><Typography.Text type="secondary">Вложено</Typography.Text><Typography.Text strong>{totals == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text></Space>
+        <Space size={8}><Typography.Text type="secondary">Текущая себестоимость</Typography.Text><Typography.Text strong>{totals == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text></Space>
         <Space size={8}><Typography.Text type="secondary">Результат</Typography.Text><Typography.Text strong type={resultType}>{totals == null ? "Нет данных" : `${formatResult(totals.unrealizedPnlRub)} ₽ (${formatResult(totals.unrealizedPnlPercent)}%)`}</Typography.Text></Space>
       </Flex>
       <Divider style={{ marginBlock: 12 }} />

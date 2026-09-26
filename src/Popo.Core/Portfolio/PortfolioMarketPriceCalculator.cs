@@ -2,6 +2,33 @@ namespace Popo.Core.Portfolio;
 
 public static class PortfolioMarketPriceCalculator
 {
+    public static double? CalculatePricePercent(
+        double price,
+        double faceValue,
+        string faceUnit,
+        string tradingCurrency,
+        double? faceCurrencyRateToRub,
+        double? tradingCurrencyRateToRub)
+    {
+        if (!double.IsFinite(price) || price <= 0
+            || !double.IsFinite(faceValue) || faceValue <= 0
+            || string.IsNullOrWhiteSpace(faceUnit)
+            || string.IsNullOrWhiteSpace(tradingCurrency))
+        {
+            return null;
+        }
+
+        var faceRate = IsRubleCurrency(faceUnit) ? 1 : faceCurrencyRateToRub;
+        var tradingRate = IsRubleCurrency(tradingCurrency) ? 1 : tradingCurrencyRateToRub;
+        if (!IsPositiveFinite(faceRate) || !IsPositiveFinite(tradingRate))
+        {
+            return null;
+        }
+
+        var pricePercent = price * tradingRate!.Value / faceRate!.Value / faceValue * 100;
+        return double.IsFinite(pricePercent) && pricePercent > 0 ? pricePercent : null;
+    }
+
     public static double? Calculate(
         double faceValue,
         string faceUnit,
@@ -40,4 +67,7 @@ public static class PortfolioMarketPriceCalculator
     private static bool IsRubleCurrency(string currency) =>
         string.Equals(currency, "RUB", StringComparison.OrdinalIgnoreCase)
         || string.Equals(currency, "SUR", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPositiveFinite(double? value) =>
+        value.HasValue && double.IsFinite(value.Value) && value.Value > 0;
 }

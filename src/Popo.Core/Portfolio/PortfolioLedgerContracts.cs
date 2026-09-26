@@ -125,7 +125,12 @@ public sealed record PortfolioPositionRecord(
     double? MedianDailyVolume = null,
     double? ApproximateCouponIncome = null,
     double? ApproximateTotalPnl = null,
-    double? ApproximateTotalPnlPercent = null);
+    double? ApproximateTotalPnlPercent = null,
+    double? AverageBuyPriceAtCurrentFaceValue = null,
+    double? AverageBuyPricePercent = null,
+    double? CurrentFaceValue = null,
+    string? FaceUnit = null,
+    double? MarketPricePercent = null);
 
 public sealed record PortfolioPositionValuation(
     double? MarketPrice,

@@ -5,14 +5,19 @@ public sealed record PositionIncomeTrade(
     TradeSide Side,
     double Quantity,
     double CleanPrice,
-    double Commission);
+    double Commission,
+    double? CleanPricePercent = null);
 
 public sealed record PortfolioPositionIncome(
     double RemainingCleanCost,
     double PaidBuyCommission,
     double CouponIncome,
     double TotalPnl,
-    double TotalPnlPercent);
+    double TotalPnlPercent,
+    double RemainingQuantity = 0,
+    double? AverageBuyPricePercent = null,
+    double? UnrealizedPnl = null,
+    double? UnrealizedPnlPercent = null);
 
 public static class PortfolioPositionIncomeCalculator
 {
@@ -44,6 +49,7 @@ public static class PortfolioPositionIncomeCalculator
                     trade.TradeDate,
                     trade.Quantity,
                     trade.CleanPrice,
+                    trade.CleanPricePercent,
                     trade.Commission / trade.Quantity));
                 continue;
             }
@@ -70,11 +76,15 @@ public static class PortfolioPositionIncomeCalculator
         var remainingQuantity = remainingLots.Sum(x => x.Quantity);
         var remainingCleanCost = remainingLots.Sum(x => x.Quantity * x.CleanPrice);
         var paidBuyCommission = remainingLots.Sum(x => x.Quantity * x.CommissionPerUnit);
+        double? averageBuyPricePercent = remainingQuantity == 0 || remainingLots.Any(x => !x.CleanPricePercent.HasValue)
+            ? null
+            : remainingLots.Sum(x => x.Quantity * x.CleanPricePercent!.Value) / remainingQuantity;
         var dailyCoupon = couponPeriodDays == 0 ? 0 : couponValue / couponPeriodDays;
         var couponIncome = remainingLots.Sum(x =>
             x.Quantity * dailyCoupon * Math.Max(0, asOf.DayNumber - x.TradeDate.DayNumber));
-        var totalPnl = remainingQuantity * currentCleanPrice
-                       - remainingCleanCost
+        var unrealizedPnl = remainingQuantity * currentCleanPrice - remainingCleanCost;
+        var unrealizedPnlPercent = remainingCleanCost == 0 ? 0 : unrealizedPnl / remainingCleanCost * 100;
+        var totalPnl = unrealizedPnl
                        + couponIncome
                        - paidBuyCommission;
         var totalPnlPercent = remainingCleanCost == 0 ? 0 : totalPnl / remainingCleanCost * 100;
@@ -84,7 +94,11 @@ public static class PortfolioPositionIncomeCalculator
             paidBuyCommission,
             couponIncome,
             totalPnl,
-            totalPnlPercent);
+            totalPnlPercent,
+            remainingQuantity,
+            averageBuyPricePercent,
+            unrealizedPnl,
+            unrealizedPnlPercent);
     }
 
     private static void ValidateTrade(PositionIncomeTrade trade, DateOnly asOf)
@@ -93,6 +107,8 @@ public static class PortfolioPositionIncomeCalculator
             || trade.TradeDate > asOf
             || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0
             || !double.IsFinite(trade.CleanPrice) || trade.CleanPrice <= 0
+            || trade.CleanPricePercent.HasValue
+                && (!double.IsFinite(trade.CleanPricePercent.Value) || trade.CleanPricePercent.Value <= 0)
             || !double.IsFinite(trade.Commission) || trade.Commission < 0)
         {
                 throw new ArgumentException("Данные сделки для расчёта результата позиции некорректны.");
@@ -103,11 +119,13 @@ public static class PortfolioPositionIncomeCalculator
         DateOnly tradeDate,
         double quantity,
         double cleanPrice,
+        double? cleanPricePercent,
         double commissionPerUnit)
     {
         public DateOnly TradeDate { get; } = tradeDate;
         public double Quantity { get; set; } = quantity;
         public double CleanPrice { get; } = cleanPrice;
+        public double? CleanPricePercent { get; } = cleanPricePercent;
         public double CommissionPerUnit { get; } = commissionPerUnit;
     }
 }

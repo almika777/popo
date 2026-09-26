@@ -233,6 +233,31 @@ public sealed class PortfolioLedgerTests
       }
 
       [Test]
+      public void PositionIncome_NormalizesPurchasePriceToCurrentNominalAfterAmortization()
+      {
+          var purchasePricePercent = PortfolioMarketPriceCalculator.CalculatePricePercent(
+              500, 500, "RUB", "RUB", null, null);
+          var purchasePriceAtCurrentNominal = PortfolioMarketPriceCalculator.Calculate(
+              250, "RUB", "RUB", purchasePricePercent, null, null);
+
+          var result = PortfolioPositionIncomeCalculator.Calculate(
+              [
+                  new PositionIncomeTrade(
+                      new DateOnly(2026, 8, 1), TradeSide.Buy, 1,
+                      purchasePriceAtCurrentNominal!.Value, 0, purchasePricePercent)
+              ],
+              new DateOnly(2026, 8, 28),
+              250,
+              0,
+              0);
+
+          Assert.That(purchasePricePercent, Is.EqualTo(100).Within(0.001));
+          Assert.That(result.RemainingCleanCost, Is.EqualTo(250).Within(0.001));
+          Assert.That(result.AverageBuyPricePercent, Is.EqualTo(100).Within(0.001));
+          Assert.That(result.UnrealizedPnl, Is.EqualTo(0).Within(0.001));
+      }
+
+      [Test]
       public void ApproximateIncome_UsesHoldingDaysAndSubtractsPaidBuyCommission()
       {
           var result = PortfolioPositionIncomeCalculator.Calculate(

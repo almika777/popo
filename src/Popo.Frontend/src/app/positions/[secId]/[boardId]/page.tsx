@@ -54,7 +54,8 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
   const save = async (values: TradeForm) => {
     if (!instrument) { message.error("Не удалось определить параметры инструмента"); return; }
     try {
-      await portfolioLedgerApi.saveTrade({ secId, boardId, currencyId: instrument.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side: values.side, quantity: values.quantity, price: values.price, faceValue: instrument.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
+      const originalTrade = editingId ? trades.find((trade) => trade.id === editingId) : undefined;
+      await portfolioLedgerApi.saveTrade({ secId, boardId, currencyId: instrument.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side: values.side, quantity: values.quantity, price: values.price, faceValue: originalTrade?.faceValue ?? instrument.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
       message.success(editingId ? "Сделка обновлена" : "Сделка сохранена");
       setEditingId(undefined);
       form.resetFields();
@@ -88,9 +89,10 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
       <Card title="Текущая позиция" loading={loading}>
         {position ? <Row gutter={[24, 16]}>
           <Col xs={12} md={6}><Typography.Text type="secondary">Количество</Typography.Text><div>{integer.format(position.quantity)}</div></Col>
-          <Col xs={12} md={6}><Typography.Text type="secondary">Средняя цена</Typography.Text><div>{number.format(position.averageBuyPrice)}</div></Col>
+          <Col xs={12} md={6}><Typography.Text type="secondary">Средняя цена, текущий номинал</Typography.Text><div>{position.averageBuyPriceAtCurrentFaceValue == null ? "Нет данных" : number.format(position.averageBuyPriceAtCurrentFaceValue)}</div>{position.averageBuyPricePercent != null && <Typography.Text type="secondary">{number.format(position.averageBuyPricePercent)}% номинала</Typography.Text>}</Col>
           <Col xs={12} md={6}><Typography.Text type="secondary">Стоимость</Typography.Text><div>{position.marketValue == null ? "Нет данных" : number.format(position.marketValue)}</div></Col>
           <Col xs={12} md={6}><Typography.Text type="secondary">Результат</Typography.Text><div><Typography.Text type={(position.unrealizedPnl ?? 0) >= 0 ? "success" : "danger"}>{position.unrealizedPnl == null ? "Нет данных" : `${position.unrealizedPnl >= 0 ? "+" : ""}${number.format(position.unrealizedPnl)}`}</Typography.Text></div></Col>
+          <Col xs={12} md={6}><Typography.Text type="secondary">Текущий номинал</Typography.Text><div>{position.currentFaceValue == null ? "Нет данных" : `${number.format(position.currentFaceValue)} ${position.faceUnit ?? ""}`}</div>{position.marketPricePercent != null && <Typography.Text type="secondary">Котировка {number.format(position.marketPricePercent)}%</Typography.Text>}</Col>
         </Row> : <Typography.Text type="secondary">Открытой позиции нет. Сделки сохранены в журнале ниже.</Typography.Text>}
       </Card>
       <Card title={editingId ? "Изменить сделку" : "Добавить сделку"}>

@@ -194,6 +194,9 @@ public sealed class PortfolioPositionsService(
             var security = selection.security;
             var quoteDate = quote?.SysTime is { } sysTime ? DateOnly.FromDateTime(sysTime) : MoscowTime.Today;
             var tradingCurrencyRateToRub = GetCurrencyRate(rates, position.CurrencyId, quoteDate);
+            var faceCurrencyRateToRub = security is null
+                ? null
+                : GetCurrencyRate(rates, security.FaceUnit, quoteDate);
             var marketPrice = security is null || quote is null
                 ? null
                 : PortfolioMarketPriceCalculator.Calculate(
@@ -201,9 +204,8 @@ public sealed class PortfolioPositionsService(
                     security.FaceUnit,
                     position.CurrencyId,
                     quote.CurrentPrice,
-                    GetCurrencyRate(rates, security.FaceUnit, quoteDate),
+                    faceCurrencyRateToRub,
                     tradingCurrencyRateToRub);
-            var valuation = PortfolioPositionValuationCalculator.Calculate(position, marketPrice);
             var latestCoupon = security is null
                 ? null
                 : couponHistory.FirstOrDefault(x =>
@@ -215,19 +217,63 @@ public sealed class PortfolioPositionsService(
                 : security is null
                     ? null
                     : ConvertCurrencyAmount(security.CouponValue, security.FaceUnit, position.CurrencyId, rates, quoteDate);
-            var income = marketPrice.HasValue && couponValue.HasValue && security is not null
+            PositionTradePricing[] positionTrades = security is null
+                ? []
+                : trades
+                    .Where(x => x.SecId == position.SecId
+                        && x.BoardId == position.BoardId
+                        && string.Equals(x.CurrencyId, position.CurrencyId, StringComparison.OrdinalIgnoreCase))
+                    .Select(trade =>
+                    {
+                        var purchasePricePercent = PortfolioMarketPriceCalculator.CalculatePricePercent(
+                            trade.Price,
+                            trade.FaceValue,
+                            security.FaceUnit,
+                            trade.CurrencyId,
+                            GetCurrencyRate(rates, security.FaceUnit, trade.TradeDate),
+                            GetCurrencyRate(rates, trade.CurrencyId, trade.TradeDate));
+                        var purchasePriceAtCurrentFaceValue = purchasePricePercent.HasValue
+                            ? PortfolioMarketPriceCalculator.Calculate(
+                                security.FaceValue,
+                                security.FaceUnit,
+                                position.CurrencyId,
+                                purchasePricePercent.Value,
+                                faceCurrencyRateToRub,
+                                tradingCurrencyRateToRub)
+                            : null;
+
+                        return new PositionTradePricing(trade, purchasePricePercent, purchasePriceAtCurrentFaceValue);
+                    })
+                    .ToArray();
+            var canNormalizeOpenCost = positionTrades
+                .Where(x => x.Trade.Side == TradeSide.Buy)
+                .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
+            var income = marketPrice.HasValue
+                         && quote?.CurrentPrice is { } marketPricePercent
+                         && security is not null
+                         && canNormalizeOpenCost
                 ? PortfolioPositionIncomeCalculator.Calculate(
-                    trades
-                        .Where(x => x.SecId == position.SecId
-                            && x.BoardId == position.BoardId
-                            && string.Equals(x.CurrencyId, position.CurrencyId, StringComparison.OrdinalIgnoreCase))
-                        .Select(x => new PositionIncomeTrade(x.TradeDate, x.Side, x.Quantity, x.Price, x.Commission))
+                    positionTrades
+                        .Select(x => new PositionIncomeTrade(
+                            x.Trade.TradeDate,
+                            x.Trade.Side,
+                            x.Trade.Quantity,
+                            x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
+                            x.Trade.Commission,
+                            x.PurchasePricePercent))
                         .ToArray(),
                     MoscowTime.Today,
                     marketPrice.Value,
-                    couponValue.Value,
+                    couponValue.GetValueOrDefault(),
                     security.CouponPeriod)
                 : null;
+            double? averageBuyPriceAtCurrentFaceValue = income is { RemainingQuantity: > 0 }
+                ? income.RemainingCleanCost / income.RemainingQuantity
+                : null;
+            var valuation = PortfolioPositionValuationCalculator.Calculate(
+                position,
+                marketPrice,
+                averageBuyPriceAtCurrentFaceValue);
 
             return new ValuedPosition(
                 position with
@@ -239,9 +285,14 @@ public sealed class PortfolioPositionsService(
                     ShortName = security?.ShortName ?? position.SecId,
                     AverageDailyVolume = volumeStatistics.GetValueOrDefault(position.SecId)?.Average,
                     MedianDailyVolume = volumeStatistics.GetValueOrDefault(position.SecId)?.Median,
-                    ApproximateCouponIncome = income?.CouponIncome,
-                    ApproximateTotalPnl = income?.TotalPnl,
-                    ApproximateTotalPnlPercent = income?.TotalPnlPercent
+                    ApproximateCouponIncome = couponValue.HasValue ? income?.CouponIncome : null,
+                    ApproximateTotalPnl = couponValue.HasValue ? income?.TotalPnl : null,
+                    ApproximateTotalPnlPercent = couponValue.HasValue ? income?.TotalPnlPercent : null,
+                    AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
+                    AverageBuyPricePercent = income?.AverageBuyPricePercent,
+                    CurrentFaceValue = security?.FaceValue,
+                    FaceUnit = security?.FaceUnit,
+                    MarketPricePercent = quote?.CurrentPrice
                 },
                 tradingCurrencyRateToRub);
         }).ToArray();
@@ -296,6 +347,10 @@ public sealed class PortfolioPositionsService(
 
     private sealed record CurrencyRateSnapshot(DateOnly RateDate, string CurrencyCode, double UnitRate);
     private sealed record ValuedPosition(PortfolioPositionRecord Position, double? TradingCurrencyRateToRub);
+    private sealed record PositionTradePricing(
+        PortfolioTradeRecord Trade,
+        double? PurchasePricePercent,
+        double? PurchasePriceAtCurrentFaceValue);
 }
 
 public sealed record PortfolioOverview(
