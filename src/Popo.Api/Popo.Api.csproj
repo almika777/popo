@@ -16,6 +16,10 @@
     <PackageReference Include="Polly" Version="7.2.4" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Popo.Core\Popo.Core.csproj" />
     <ProjectReference Include="..\Popo.HttpClients\Popo.HttpClients.csproj" />
     <ProjectReference Include="..\Popo.Storage\Popo.Storage.csproj" />

@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICashFlowProvider, CashFlowProvider>();
         services.AddScoped<IPortfolioReturnInputsProvider, PortfolioReturnInputsProvider>();
         services.AddScoped<IPortfolioLedgerProvider, PortfolioLedgerProvider>();
+        services.AddScoped<IBrokerReportImportProvider, BrokerReportImportProvider>();
         services.AddScoped<IPortfolioCouponProvider, PortfolioCouponProvider>();
         services.AddScoped<ICashInvestmentRecommendationStore, InvestmentStrategySettingsStore>();
         services.AddScoped<IPositionRecommendationStore, PositionRecommendationStore>();

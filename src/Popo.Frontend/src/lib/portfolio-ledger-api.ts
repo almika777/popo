@@ -15,6 +15,9 @@ export type MoneyMarketFundOption = { secId: string; boardId: string; name: stri
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
 export type MoneyMarketFundOperation = { id: string; secId: string; date: string; side: TradeSide; quantity: number; price: number; commission: number; amount: number };
 export type CashPage = { snapshots: CashSnapshot[]; balances: CashBalance[]; currencies: string[]; moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[]; moneyMarketFundOperations: MoneyMarketFundOperation[] };
+export type BrokerReportOperationKind = "BondTrade" | "FundOperation" | "Deposit" | "Withdrawal";
+export type BrokerReportOperation = { id: string; kind: BrokerReportOperationKind; date: string; description: string; secId: string | null; boardId: string | null; currencyId: string | null; side: TradeSide | null; quantity: number | null; unitPrice: number | null; faceValue: number | null; accruedInterestTotal: number | null; commission: number | null; amount: number | null; canImport: boolean; warning: string | null };
+export type BrokerReportImportResult = { tradesAdded: number; fundOperationsAdded: number; cashFlowsAdded: number };
 
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
 type CashSnapshotPayload = Omit<CashSnapshot, "id">;
@@ -38,6 +41,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+async function uploadPdf<T>(path: string, file: File): Promise<T> {
+  const formData = new FormData();
+  formData.append("file", file);
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, { method: "POST", body: formData });
+  } catch {
+    throw new Error("Не удалось подключиться к серверу.");
+  }
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message && !message.trimStart().startsWith("<") ? message : `Ошибка запроса: ${response.status}`);
+  }
+  try {
+    return await response.json() as T;
+  } catch {
+    throw new Error("Сервер вернул некорректный ответ.");
+  }
+}
+
 export const portfolioLedgerApi = {
   searchBonds: (query: string) => request<BondSearchResult[]>(`/bonds/search?q=${encodeURIComponent(query)}`),
   getTrades: () => request<PortfolioTrade[]>("/trades"),
@@ -52,5 +75,7 @@ export const portfolioLedgerApi = {
   addMoneyMarketFund: (payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>("/cash/money-market-funds", { method: "POST", body: JSON.stringify(payload) }),
   updateMoneyMarketFund: (id: string, payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>(`/cash/money-market-funds/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteMoneyMarketFund: (id: string) => request<void>(`/cash/money-market-funds/${id}`, { method: "DELETE" }),
-  addMoneyMarketFundOperation: (payload: Omit<MoneyMarketFundOperation, "id" | "amount">) => request<MoneyMarketFundOperation>("/cash/money-market-fund-operations", { method: "POST", body: JSON.stringify(payload) })
+  addMoneyMarketFundOperation: (payload: Omit<MoneyMarketFundOperation, "id" | "amount">) => request<MoneyMarketFundOperation>("/cash/money-market-fund-operations", { method: "POST", body: JSON.stringify(payload) }),
+  previewBrokerReport: (file: File) => uploadPdf<{ operations: BrokerReportOperation[]; duplicatesHidden: number; outsideHistoryHidden: number; unsupportedOperationsHidden: number }>("/broker-reports/preview", file),
+  importBrokerReportOperations: (operations: Omit<BrokerReportOperation, "description" | "canImport" | "warning">[]) => request<BrokerReportImportResult>("/broker-reports/import", { method: "POST", body: JSON.stringify({ operations }) })
 };
