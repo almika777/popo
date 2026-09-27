@@ -14,7 +14,7 @@ public sealed record PortfolioTrade(
     TradeSide Side,
     double Quantity,
     double Price,
-    double FaceValue = 100,
+    double FaceValue = 1_000,
     double AccruedInterest = 0,
     double CommissionPercent = 0)
 {
@@ -25,62 +25,6 @@ public sealed record PortfolioTrade(
     public double Amount => TradeSettlementCalculator.Calculate(Side, Quantity, Price, AccruedInterest, CommissionPercent).NetAmount;
     public double CashDelta => Side == TradeSide.Buy ? -Amount : Amount;
 }
-
-public sealed record PortfolioPosition(
-    string SecId,
-    string BoardId,
-    string CurrencyId,
-    double Quantity,
-    double BoughtQuantity,
-    double SoldQuantity,
-    double BoughtCleanAmount,
-    double BoughtAmount,
-    double SoldAmount);
-
-public sealed record CashSnapshot(
-    string CurrencyId,
-    DateOnly SnapshotDate,
-    double Amount);
-
-public sealed record CashBalance(
-    string CurrencyId,
-    double Amount);
-
-public sealed record MoneyMarketFund(
-    string SecId,
-    string BoardId,
-    double Quantity,
-    double AveragePrice);
-
-public sealed record MoneyMarketFundOperation(
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission);
-
-public sealed record MoneyMarketFundOperationRecord(
-    Guid Id,
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission,
-    double Amount);
-
-public sealed record MoneyMarketFundRecord(
-    Guid Id,
-    string SecId,
-    string BoardId,
-    double Quantity,
-    double AveragePrice,
-    double? CurrentPrice = null,
-    double? CurrentValue = null,
-    double? Pnl = null,
-    double? PnlPercent = null,
-    DateTime? QuoteTime = null);
 
 public sealed record PortfolioTradeRecord(
     Guid Id,
@@ -97,13 +41,6 @@ public sealed record PortfolioTradeRecord(
     double CommissionPercent,
     double Amount,
     string ShortName = "");
-
-public sealed record CashSnapshotRecord(
-    Guid Id,
-    string CurrencyId,
-    DateOnly SnapshotDate,
-    double Amount,
-    string Comment);
 
 public sealed record PortfolioPositionRecord(
     string SecId,
@@ -130,7 +67,8 @@ public sealed record PortfolioPositionRecord(
     double? AverageBuyPricePercent = null,
     double? CurrentFaceValue = null,
     string? FaceUnit = null,
-    double? MarketPricePercent = null);
+    double? MarketPricePercent = null,
+    bool IsNominalIndexed = false);
 
 public sealed record PortfolioPositionValuation(
     double? MarketPrice,
@@ -145,25 +83,3 @@ public sealed record PortfolioSummaryRecord(
     double CashValueRub,
     double MoneyMarketFundsValueRub,
     double UnrealizedPnlRub);
-
-public interface IPortfolioLedgerProvider
-{
-    Task<IReadOnlyList<PortfolioTradeRecord>> GetTradesAsync(CancellationToken cancellationToken);
-    Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken);
-    Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken);
-    Task<bool> UpdateTradeAsync(Guid id, PortfolioTrade trade, CancellationToken cancellationToken);
-    Task<bool> DeleteTradeAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<PortfolioPositionRecord>> GetPositionsAsync(CancellationToken cancellationToken);
-    Task<IReadOnlyList<CashSnapshotRecord>> GetCashSnapshotsAsync(CancellationToken cancellationToken);
-    Task<CashSnapshotRecord?> GetCashSnapshotAsync(Guid id, CancellationToken cancellationToken);
-    Task<CashSnapshotRecord> AddCashSnapshotAsync(CashSnapshot snapshot, string comment, CancellationToken cancellationToken);
-    Task<CashSnapshotRecord?> UpdateCashSnapshotAsync(Guid id, CashSnapshot snapshot, string comment, CancellationToken cancellationToken);
-    Task<bool> DeleteCashSnapshotAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<CashBalance>> GetCashBalancesAsync(DateOnly asOf, CancellationToken cancellationToken);
-    Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
-    Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken);
-    Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken);
-    Task<bool> DeleteMoneyMarketFundAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(CancellationToken cancellationToken);
-    Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(MoneyMarketFundOperation operation, CancellationToken cancellationToken);
-}

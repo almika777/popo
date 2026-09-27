@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Popo.Api.Models;
 using Popo.Api.Services;
+using Popo.Api.Services.Position;
 
 namespace Popo.Api.Controllers;
 
@@ -13,5 +14,4 @@ public sealed class PositionsController(
     public async Task<ActionResult<PositionsPageResponse>> GetPositions(
         CancellationToken cancellationToken) =>
         Ok(await positionsService.GetPageAsync(cancellationToken));
-
 }

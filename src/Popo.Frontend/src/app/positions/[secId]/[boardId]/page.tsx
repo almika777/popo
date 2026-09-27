@@ -4,9 +4,10 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import dayjs, { type Dayjs } from "dayjs";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Table, Typography } from "antd";
+import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { filterPositionTrades } from "../../../../lib/position-details";
+import { getPositionAverageBuyPrice } from "../../../../lib/position-average-price";
 import { portfolioLedgerApi, type BondSearchResult, type PortfolioPosition, type PortfolioTrade, type TradeSide } from "../../../../lib/portfolio-ledger-api";
 
 type TradeForm = { tradeDate: Dayjs; side: TradeSide; quantity: number; price: number; accruedInterestTotal: number; commission: number };
@@ -81,6 +82,13 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
     { title: "Действия", render: (_, trade) => <Space><Button size="small" onClick={() => edit(trade)}>Изменить</Button><Button size="small" danger onClick={() => void portfolioLedgerApi.deleteTrade(trade.id).then(load)}>Удалить</Button></Space> },
   ];
 
+  const averagePrice = position ? getPositionAverageBuyPrice(position) : null;
+  const averagePriceTooltip = averagePrice?.basis === "indexed-nominal"
+    ? "Фактическая средневзвешенная цена покупки. Индексация номинала увеличивает стоимость и финансовый результат позиции, но не меняет вложенную сумму. Без НКД и комиссии."
+    : averagePrice?.basis === "current-nominal"
+      ? "Средневзвешенная чистая цена оставшихся покупок, пересчитанная к текущему номиналу после амортизации. Без НКД и комиссии."
+      : "Фактическая средневзвешенная чистая цена оставшихся покупок; пересчёт к текущему номиналу недоступен. Без НКД и комиссии.";
+
   return <main className="app-content">
     <Link href="/positions"><ArrowLeftOutlined /> К позициям</Link>
     <Typography.Title level={1} style={{ marginBottom: 4 }}>{position?.shortName || trades[0]?.shortName || secId}</Typography.Title>
@@ -89,7 +97,7 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
       <Card title="Текущая позиция" loading={loading}>
         {position ? <Row gutter={[24, 16]}>
           <Col xs={12} md={6}><Typography.Text type="secondary">Количество</Typography.Text><div>{integer.format(position.quantity)}</div></Col>
-          <Col xs={12} md={6}><Typography.Text type="secondary">Средняя цена, текущий номинал</Typography.Text><div>{position.averageBuyPriceAtCurrentFaceValue == null ? "Нет данных" : number.format(position.averageBuyPriceAtCurrentFaceValue)}</div>{position.averageBuyPricePercent != null && <Typography.Text type="secondary">{number.format(position.averageBuyPricePercent)}% номинала</Typography.Text>}</Col>
+          <Col xs={12} md={6}><Typography.Text type="secondary">Средняя цена покупки</Typography.Text><div><Tooltip title={averagePriceTooltip}>{averagePrice?.value == null ? "Нет данных" : number.format(averagePrice.value)}</Tooltip></div></Col>
           <Col xs={12} md={6}><Typography.Text type="secondary">Стоимость</Typography.Text><div>{position.marketValue == null ? "Нет данных" : number.format(position.marketValue)}</div></Col>
           <Col xs={12} md={6}><Typography.Text type="secondary">Результат</Typography.Text><div><Typography.Text type={(position.unrealizedPnl ?? 0) >= 0 ? "success" : "danger"}>{position.unrealizedPnl == null ? "Нет данных" : `${position.unrealizedPnl >= 0 ? "+" : ""}${number.format(position.unrealizedPnl)}`}</Typography.Text></div></Col>
           <Col xs={12} md={6}><Typography.Text type="secondary">Текущий номинал</Typography.Text><div>{position.currentFaceValue == null ? "Нет данных" : `${number.format(position.currentFaceValue)} ${position.faceUnit ?? ""}`}</div>{position.marketPricePercent != null && <Typography.Text type="secondary">Котировка {number.format(position.marketPricePercent)}%</Typography.Text>}</Col>

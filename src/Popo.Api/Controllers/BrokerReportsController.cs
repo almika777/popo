@@ -8,39 +8,14 @@ namespace Popo.Api.Controllers;
 [Route("api/broker-reports")]
 public sealed class BrokerReportsController(BrokerReportImportService importService) : ControllerBase
 {
-    private const long MaximumPdfSizeBytes = 20 * 1024 * 1024;
-
     [HttpPost("preview")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(MaximumPdfSizeBytes)]
+    [RequestSizeLimit(BrokerReportPreviewRequest.MaximumFileSizeBytes)]
     public async Task<ActionResult<BrokerReportPreviewResponse>> Preview(
-        [FromForm] IFormFile? file,
+        [FromForm] BrokerReportPreviewRequest request,
         CancellationToken cancellationToken)
     {
-        if (file is null || file.Length == 0)
-            return BadRequest("Выберите PDF-файл брокерского отчёта.");
-
-        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-            || file.Length > MaximumPdfSizeBytes)
-        {
-            return BadRequest("Загрузите PDF-файл размером не более 20 МБ.");
-        }
-
-        await using var stream = file.OpenReadStream();
-        var header = new byte[5];
-        try
-        {
-            await stream.ReadExactlyAsync(header, cancellationToken);
-        }
-        catch (EndOfStreamException)
-        {
-            return BadRequest("Загруженный файл не является корректным PDF-документом.");
-        }
-
-        if (!header.AsSpan().SequenceEqual("%PDF-"u8))
-            return BadRequest("Загруженный файл не является корректным PDF-документом.");
-
-        stream.Position = 0;
+        await using var stream = request.File!.OpenReadStream();
         try
         {
             return Ok(await importService.PreviewAsync(stream, cancellationToken));

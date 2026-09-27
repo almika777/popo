@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Popo.Api.Models;
 using Popo.Core.Bonds;
 
 namespace Popo.Api.Controllers;
@@ -9,14 +10,10 @@ public sealed class BondsController(IBondsService bondsService) : ControllerBase
 {
     [HttpGet("search")]
     public async Task<ActionResult<IReadOnlyList<BondSearchResult>>> Search(
-        [FromQuery] string? q,
+        [FromQuery] BondSearchRequest request,
         CancellationToken cancellationToken)
     {
-        var query = q?.Trim();
-        
-        if (query is null || query.Length < 3)
-            return BadRequest("Введите не менее 3 символов для поиска.");
-        
+        var query = request.Query!.Trim();
         return Ok(await bondsService.SearchAsync(query, cancellationToken));
     }
 }

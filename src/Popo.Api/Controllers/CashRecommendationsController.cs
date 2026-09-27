@@ -69,12 +69,9 @@ public sealed class CashRecommendationsController(
 
     [HttpPut("cash/settings")]
     public async Task<ActionResult<InvestmentStrategySettingsResponse>> UpdateSettings(
-        [FromBody] InvestmentStrategySettingsRequest? request,
+        [FromBody] InvestmentStrategySettingsRequest request,
         CancellationToken cancellationToken)
     {
-        if (request is null)
-            return BadRequest("Параметры стратегии не переданы.");
-
         var settings = request.ToDomain();
         if (!await store.SaveSettingsAsync(settings, cancellationToken))
             return Conflict("Не удалось сохранить настройки стратегии.");

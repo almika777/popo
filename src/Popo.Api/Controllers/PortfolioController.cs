@@ -8,7 +8,8 @@ namespace Popo.Api.Controllers;
 [ApiController]
 [Route("api/portfolio")]
 public sealed class PortfolioController(
-    IPortfolioReturnInputsProvider inputsProvider,
+    IPortfolioValuationsProvider valuationsProvider,
+    IPortfolioCashFlowsProvider cashFlowsProvider,
     PortfolioReturnCalculator calculator,
     PortfolioPageService pageService) : ControllerBase
 {
@@ -23,18 +24,12 @@ public sealed class PortfolioController(
         [FromBody] UpsertPortfolioValuationRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = ValidateValuation(request);
-        if (validationError is not null)
-        {
-            return BadRequest(validationError);
-        }
-
-        if ((await inputsProvider.GetValuationsAsync(cancellationToken)).Any(x => x.Date == request.Date))
+        if ((await valuationsProvider.GetValuationsAsync(cancellationToken)).Any(x => x.Date == request.Date))
         {
             return Conflict($"Оценка портфеля на дату {request.Date:dd.MM.yyyy} уже существует.");
         }
 
-        var record = await inputsProvider.AddValuationAsync(
+        var record = await valuationsProvider.AddValuationAsync(
             request.Date,
             request.TotalValue,
             request.Comment?.Trim() ?? string.Empty,
@@ -48,13 +43,7 @@ public sealed class PortfolioController(
         [FromBody] UpsertPortfolioValuationRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = ValidateValuation(request);
-        if (validationError is not null)
-        {
-            return BadRequest(validationError);
-        }
-
-        var valuations = await inputsProvider.GetValuationsAsync(cancellationToken);
+        var valuations = await valuationsProvider.GetValuationsAsync(cancellationToken);
         if (valuations.All(x => x.Id != id))
         {
             return NotFound();
@@ -65,7 +54,7 @@ public sealed class PortfolioController(
             return Conflict($"Оценка портфеля на дату {request.Date:dd.MM.yyyy} уже существует.");
         }
 
-        var updated = await inputsProvider.UpdateValuationAsync(
+        var updated = await valuationsProvider.UpdateValuationAsync(
             id,
             request.Date,
             request.TotalValue,
@@ -76,20 +65,14 @@ public sealed class PortfolioController(
 
     [HttpDelete("valuations/{id:guid}")]
     public async Task<ActionResult> DeleteValuation(Guid id, CancellationToken cancellationToken) =>
-        await inputsProvider.DeleteValuationAsync(id, cancellationToken) ? NoContent() : NotFound();
+        await valuationsProvider.DeleteValuationAsync(id, cancellationToken) ? NoContent() : NotFound();
 
     [HttpPost("cash-flows")]
     public async Task<ActionResult<PortfolioCashFlowRecord>> AddCashFlow(
         [FromBody] UpsertPortfolioCashFlowRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = ValidateCashFlow(request);
-        if (validationError is not null)
-        {
-            return BadRequest(validationError);
-        }
-
-        var record = await inputsProvider.AddCashFlowAsync(
+        var record = await cashFlowsProvider.AddCashFlowAsync(
             request.Date,
             request.Type,
             request.Amount,
@@ -104,18 +87,12 @@ public sealed class PortfolioController(
         [FromBody] UpsertPortfolioCashFlowRequest request,
         CancellationToken cancellationToken)
     {
-        var validationError = ValidateCashFlow(request);
-        if (validationError is not null)
-        {
-            return BadRequest(validationError);
-        }
-
-        if (await inputsProvider.GetCashFlowAsync(id, cancellationToken) is null)
+        if (await cashFlowsProvider.GetCashFlowAsync(id, cancellationToken) is null)
         {
             return NotFound();
         }
 
-        var updated = await inputsProvider.UpdateCashFlowAsync(
+        var updated = await cashFlowsProvider.UpdateCashFlowAsync(
             id,
             request.Date,
             request.Type,
@@ -127,21 +104,20 @@ public sealed class PortfolioController(
 
     [HttpDelete("cash-flows/{id:guid}")]
     public async Task<ActionResult> DeleteCashFlow(Guid id, CancellationToken cancellationToken) =>
-        await inputsProvider.DeleteCashFlowAsync(id, cancellationToken) ? NoContent() : NotFound();
+        await cashFlowsProvider.DeleteCashFlowAsync(id, cancellationToken) ? NoContent() : NotFound();
 
     [HttpGet("return")]
     public async Task<ActionResult<PortfolioReturnResult>> CalculateReturn(
-        [FromQuery] DateOnly from,
-        [FromQuery] DateOnly to,
+        [FromQuery] PortfolioReturnQuery request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var valuations = await inputsProvider.GetValuationsAsync(cancellationToken);
-            var cashFlows = await inputsProvider.GetCashFlowsAsync(cancellationToken);
+            var valuations = await valuationsProvider.GetValuationsAsync(cancellationToken);
+            var cashFlows = await cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
             var result = calculator.Calculate(
-                from,
-                to,
+                request.From,
+                request.To,
                 valuations.Select(x => new PortfolioValuationInput(x.Date, x.TotalValue)).ToArray(),
                 cashFlows.Select(x => new PortfolioCashFlowInput(x.Date, x.Type, x.Amount)).ToArray());
             return Ok(result);
@@ -160,15 +136,4 @@ public sealed class PortfolioController(
         }
     }
 
-    private static string? ValidateValuation(UpsertPortfolioValuationRequest request) =>
-        !double.IsFinite(request.TotalValue) || request.TotalValue < 0
-            ? "Стоимость портфеля должна быть неотрицательной."
-            : null;
-
-    private static string? ValidateCashFlow(UpsertPortfolioCashFlowRequest request) =>
-        !Enum.IsDefined(request.Type)
-            ? "Тип операции должен быть: пополнение, вывод или налог."
-            : !double.IsFinite(request.Amount) || request.Amount <= 0
-                ? "Сумма должна быть положительной."
-                : null;
 }

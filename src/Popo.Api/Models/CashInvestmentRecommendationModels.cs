@@ -1,4 +1,3 @@
-using FluentValidation;
 using Popo.Core.Recommendations;
 
 namespace Popo.Api.Models;
@@ -86,37 +85,6 @@ public sealed record BondYieldCashFlowResponse(
 public sealed record CashRecommendationResponse(
     DateTimeOffset SnapshotTime,
     IReadOnlyList<CashRecommendationBondResponse> Bonds);
-
-public sealed class InvestmentStrategySettingsRequestValidator
-    : AbstractValidator<InvestmentStrategySettingsRequest>
-{
-    public InvestmentStrategySettingsRequestValidator()
-    {
-        RuleFor(x => x.MinimumRating).IsInEnum();
-        RuleFor(x => x.MinimumMaturityDays)
-            .GreaterThanOrEqualTo(0)
-            .When(x => x.MinimumMaturityDays.HasValue);
-        RuleFor(x => x.MaximumMaturityDays)
-            .GreaterThanOrEqualTo(0)
-            .When(x => x.MaximumMaturityDays.HasValue);
-        RuleFor(x => x.MaximumMaturityDays)
-            .GreaterThanOrEqualTo(x => x.MinimumMaturityDays)
-            .When(x => x.MinimumMaturityDays.HasValue && x.MaximumMaturityDays.HasValue);
-        RuleFor(x => x.MinimumMedianDailyVolume)
-            .Must(double.IsFinite)
-            .GreaterThanOrEqualTo(1d);
-        RuleFor(x => x.OfferWindowDays).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.MaximumYtm)
-            .Must(double.IsFinite)
-            .InclusiveBetween(double.Epsilon, 100d);
-        RuleFor(x => x.MinimumYtm)
-            .Must(double.IsFinite)
-            .InclusiveBetween(double.Epsilon, 100d)
-            .LessThanOrEqualTo(x => x.MaximumYtm);
-        RuleFor(x => x.FaceUnit).MaximumLength(16);
-        RuleFor(x => x.CurrencyId).MaximumLength(16);
-    }
-}
 
 public static class CashInvestmentRecommendationApiMapper
 {

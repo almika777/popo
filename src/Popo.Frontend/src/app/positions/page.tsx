@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
 import { portfolioLedgerApi, type PortfolioPosition, type PositionTotals } from "../../lib/portfolio-ledger-api";
+import { getPositionAverageBuyPrice } from "../../lib/position-average-price";
 import { positionDetailsPath } from "../../lib/position-details";
 import { getPositionLiquidityLevel, type PositionLiquidityLevel } from "../../lib/position-liquidity";
 import { type PositionRecommendationAction, type PositionRecommendationState } from "../../lib/position-recommendations-api";
@@ -84,15 +85,18 @@ export default function PositionsPage() {
         <Tag color={presentation.color}>{presentation.label}</Tag>
       </Tooltip>;
     } },
-    { title: "Средняя цена", dataIndex: "averageBuyPriceAtCurrentFaceValue", render: (value: number | null, row) => value == null
-      ? "Нет данных"
-      : <Tooltip title="Цена покупки пересчитана по проценту от номинала на дату сделки и выражена в текущем номинале.">
-          <div>
-            <div>{number.format(value)}</div>
-            <Typography.Text type="secondary">{row.averageBuyPricePercent == null ? "Цена покупки: нет данных" : `${number.format(row.averageBuyPricePercent)}% ном.`}</Typography.Text>
-          </div>
-        </Tooltip>
-    },
+    { title: "Средняя цена покупки", key: "averageBuyPrice", render: (_, row) => {
+      const averagePrice = getPositionAverageBuyPrice(row);
+      if (averagePrice.value == null) return "Нет данных";
+
+      const tooltip = averagePrice.basis === "indexed-nominal"
+        ? "Фактическая средневзвешенная цена покупки. Индексация номинала увеличивает стоимость и финансовый результат позиции, но не меняет вложенную сумму. Без НКД и комиссии."
+        : averagePrice.basis === "current-nominal"
+          ? "Средневзвешенная чистая цена оставшихся покупок, пересчитанная к текущему номиналу после амортизации. Без НКД и комиссии."
+          : "Фактическая средневзвешенная чистая цена оставшихся покупок; пересчёт к текущему номиналу недоступен. Без НКД и комиссии.";
+
+      return <Tooltip title={tooltip}>{number.format(averagePrice.value)}</Tooltip>;
+    } },
     { title: "Цена оценки MOEX", dataIndex: "marketPrice", render: (value: number | null, row) => value == null ? "Нет данных" :
       <div>
         <div>{number.format(value)}</div>

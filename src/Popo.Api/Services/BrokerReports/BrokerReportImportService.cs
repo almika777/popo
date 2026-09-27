@@ -5,6 +5,7 @@ using Popo.Api.Models;
 using Popo.Core.Bonds;
 using Popo.Core.Common;
 using Popo.Core.Portfolio;
+using Popo.Core.Portfolio.Trades;
 using Popo.Core.PortfolioReturns;
 
 namespace Popo.Api.Services.BrokerReports;
@@ -12,8 +13,9 @@ namespace Popo.Api.Services.BrokerReports;
 public sealed class BrokerReportImportService(
     TBankBrokerReportPdfParser parser,
     IBondsService bondsService,
-    IPortfolioLedgerProvider ledgerProvider,
-    IPortfolioReturnInputsProvider returnInputsProvider,
+    IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
+    IPortfolioTradesProvider tradesProvider,
+    IPortfolioCashFlowsProvider cashFlowsProvider,
     IBrokerReportImportProvider importProvider)
 {
     private const int MaximumQuantitySubsetStates = 50_000;
@@ -217,10 +219,10 @@ public sealed class BrokerReportImportService(
 
     private async Task<LedgerState> LoadLedgerStateAsync(CancellationToken cancellationToken)
     {
-        var tradesTask = ledgerProvider.GetTradesAsync(cancellationToken);
-        var fundOperationsTask = ledgerProvider.GetMoneyMarketFundOperationsAsync(cancellationToken);
-        var fundsTask = ledgerProvider.GetMoneyMarketFundsAsync(cancellationToken);
-        var cashFlowsTask = returnInputsProvider.GetCashFlowsAsync(cancellationToken);
+        var tradesTask = tradesProvider.GetTradesAsync(cancellationToken);
+        var fundOperationsTask = moneyMarketFundsProvider.GetMoneyMarketFundOperationsAsync(cancellationToken);
+        var fundsTask = moneyMarketFundsProvider.GetMoneyMarketFundsAsync(cancellationToken);
+        var cashFlowsTask = cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
         await Task.WhenAll(tradesTask, fundOperationsTask, fundsTask, cashFlowsTask);
 
         return new LedgerState(

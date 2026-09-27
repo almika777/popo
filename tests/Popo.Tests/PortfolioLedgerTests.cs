@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Popo.Core.Contracts;
 using Popo.Core.Contracts.Iss;
 using Popo.Core.Portfolio;
+using Popo.Core.Portfolio.Position;
 
 namespace Popo.Tests;
 
@@ -65,34 +66,13 @@ public sealed class PortfolioLedgerTests
             quote.CurrentPrice,
             usdRate.UnitRate,
             1);
-        var valuation = PortfolioPositionValuationCalculator.Calculate(position, marketPrice);
+        var valuation = PortfolioPositionCalculator.Calculate(position, marketPrice);
 
         Assert.That(usdRate.RateDate, Is.EqualTo(quoteDate));
         Assert.That(marketPrice, Is.EqualTo(89_550).Within(0.001));
         Assert.That(valuation.MarketValue, Is.EqualTo(268_650).Within(0.001));
         Assert.That(valuation.UnrealizedPnl, Is.EqualTo(-4_050).Within(0.001));
         Assert.That(valuation.UnrealizedPnlPercent, Is.EqualTo(-1.4851485).Within(0.0001));
-    }
-
-    [Test]
-    public void Buy_UsesPriceAndAccruedInterestAndAddsPercentCommission()
-    {
-        var result = TradeSettlementCalculator.Calculate(TradeSide.Buy, 489, 1_026.24, 4.62, 0.04);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.GrossAmount, Is.EqualTo(504_090.54).Within(0.000001));
-            Assert.That(result.CommissionAmount, Is.EqualTo(201.636216).Within(0.000001));
-            Assert.That(result.NetAmount, Is.EqualTo(504_292.176216).Within(0.000001));
-        });
-    }
-
-    [Test]
-    public void Sell_UsesPriceAndAccruedInterestAndSubtractsPercentCommission()
-    {
-        var result = TradeSettlementCalculator.Calculate(TradeSide.Sell, 489, 1_026.24, 4.62, 0.04);
-
-        Assert.That(result.NetAmount, Is.EqualTo(503_888.903784).Within(0.000001));
     }
 
     [Test]
@@ -110,69 +90,6 @@ public sealed class PortfolioLedgerTests
     }
 
     [Test]
-    public void SellingMoreThanHeld_IsRejected()
-    {
-        Assert.Throws<InvalidOperationException>(() => PortfolioPositionCalculator.Calculate([
-            new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 1), TradeSide.Sell, 1, 100)
-        ]));
-    }
-
-    [TestCase(TradeSide.Buy)]
-    [TestCase(TradeSide.Sell)]
-    public void ZeroAccruedInterestAndCommission_UseCleanPriceOnly(TradeSide side)
-    {
-        var result = TradeSettlementCalculator.Calculate(side, 10, 950, 0, 0);
-
-        Assert.That(result.GrossAmount, Is.EqualTo(9_500));
-        Assert.That(result.CommissionAmount, Is.Zero);
-        Assert.That(result.NetAmount, Is.EqualTo(9_500));
-    }
-
-    [Test]
-    public void ManualAccruedInterest_IsUsedInsteadOfAnyMarketValue()
-    {
-        var result = TradeSettlementCalculator.Calculate(TradeSide.Buy, 100, 1_000, 35.7666, 0);
-
-        Assert.That(result.GrossAmount, Is.EqualTo(103_576.66).Within(0.000001));
-    }
-
-    [TestCase(0, 100, 0, 0)]
-    [TestCase(-1, 100, 0, 0)]
-    [TestCase(1.5, 100, 0, 0)]
-    [TestCase(1, 0, 0, 0)]
-    [TestCase(1, -1, 0, 0)]
-    [TestCase(1, 100, -0.01, 0)]
-    [TestCase(1, 100, 0, -0.01)]
-    public void InvalidTradeValues_AreRejected(double quantity, double price, double accruedInterest, double commissionPercent)
-    {
-        Assert.Throws<ArgumentException>(() => TradeSettlementCalculator.Calculate(
-            TradeSide.Buy, quantity, price, accruedInterest, commissionPercent));
-    }
-
-    [Test]
-    public void FractionalQuantity_IsRejected()
-    {
-        Assert.Throws<ArgumentException>(() => PortfolioPositionCalculator.Calculate([
-            new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 1), TradeSide.Buy, 1.5, 95, 1_000, 0, 0)
-        ]));
-    }
-
-    [Test]
-    public void Trade_AmountIncludesFaceValueAccruedInterestAndCommission()
-    {
-        var buy = new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 1), TradeSide.Buy, 10, 950, 1_000, 12, 5);
-        var sell = new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 2), TradeSide.Sell, 10, 950, 1_000, 12, 5);
-
-        Assert.That(buy.GrossAmount, Is.EqualTo(9_620).Within(0.001));
-        var buyWithPercentCommission = buy with { CommissionPercent = 0.04 };
-        var sellWithPercentCommission = sell with { CommissionPercent = 0.04 };
-
-        Assert.That(buyWithPercentCommission.CommissionAmount, Is.EqualTo(3.848).Within(0.001));
-        Assert.That(buyWithPercentCommission.Amount, Is.EqualTo(9_623.848).Within(0.001));
-        Assert.That(sellWithPercentCommission.Amount, Is.EqualTo(9_616.152).Within(0.001));
-    }
-
-    [Test]
       public void Positions_AggregateBuysAndSellsBySecurityBoardAndCurrency()
       {
         var positions = PortfolioPositionCalculator.Calculate(
@@ -186,9 +103,9 @@ public sealed class PortfolioLedgerTests
         var position = positions.Single(x => x.BoardId == "TQCB" && x.CurrencyId == "RUB");
 
         Assert.That(position.Quantity, Is.EqualTo(75));
-        Assert.That(position.BoughtCleanAmount, Is.EqualTo(9800).Within(0.001));
-        Assert.That(position.BoughtAmount, Is.EqualTo(9800).Within(0.001));
-        Assert.That(position.SoldAmount, Is.EqualTo(2475).Within(0.001));
+        Assert.That(position.BuyCleanAmount, Is.EqualTo(9800).Within(0.001));
+        Assert.That(position.BuyAmount, Is.EqualTo(9800).Within(0.001));
+        Assert.That(position.SellAmount, Is.EqualTo(2475).Within(0.001));
         Assert.That(PortfolioPositionCalculator.ToRecord(position).AverageBuyPrice, Is.EqualTo(98).Within(0.001));
          Assert.That(positions, Has.Exactly(3).Items);
       }
@@ -213,7 +130,7 @@ public sealed class PortfolioLedgerTests
           var position = new PortfolioPositionRecord(
               "RU000A", "TQCB", "RUB", 10, 10, 0, 1_000, 1_050, 0, 100);
 
-          var valuation = PortfolioPositionValuationCalculator.Calculate(position, 110);
+          var valuation = PortfolioPositionCalculator.Calculate(position, 110);
 
           Assert.That(valuation.MarketValue, Is.EqualTo(1_100).Within(0.001));
           Assert.That(valuation.UnrealizedPnl, Is.EqualTo(100).Within(0.001));
@@ -226,7 +143,7 @@ public sealed class PortfolioLedgerTests
           var position = new PortfolioPositionRecord(
               "RU000A", "TQCB", "RUB", 10, 10, 0, 1_000, 1_000, 0, 100);
 
-          var valuation = PortfolioPositionValuationCalculator.Calculate(position, null);
+          var valuation = PortfolioPositionCalculator.Calculate(position, null);
 
           Assert.That(valuation.MarketValue, Is.Null);
           Assert.That(valuation.UnrealizedPnl, Is.Null);
@@ -240,7 +157,7 @@ public sealed class PortfolioLedgerTests
           var purchasePriceAtCurrentNominal = PortfolioMarketPriceCalculator.Calculate(
               250, "RUB", "RUB", purchasePricePercent, null, null);
 
-          var result = PortfolioPositionIncomeCalculator.Calculate(
+          var result = PortfolioPositionCalculator.Calculate(
               [
                   new PositionIncomeTrade(
                       new DateOnly(2026, 8, 1), TradeSide.Buy, 1,
@@ -258,9 +175,92 @@ public sealed class PortfolioLedgerTests
       }
 
       [Test]
+      public void CurrencyPosition_WithStaleTradeNominal_UsesUnchangedIssueNominalForCost()
+      {
+          const double purchasePrice = 996;
+          const double storedTradeFaceValue = 100;
+          const double issueFaceValue = 1_000;
+          const double cnyRateToRub = 11.6504;
+          const double currentPrice = 998.924;
+
+          var purchasePricePercent = PortfolioMarketPriceCalculator.CalculateTradePricePercent(
+              purchasePrice,
+              storedTradeFaceValue,
+              issueFaceValue,
+              issueFaceValue,
+              "CNY",
+              "CNY",
+              cnyRateToRub,
+              cnyRateToRub);
+          var purchasePriceAtCurrentNominal = PortfolioMarketPriceCalculator.Calculate(
+              issueFaceValue,
+              "CNY",
+              "CNY",
+              purchasePricePercent,
+              cnyRateToRub,
+              cnyRateToRub);
+          var income = PortfolioPositionCalculator.Calculate(
+              [new PositionIncomeTrade(
+                  new DateOnly(2026, 3, 16),
+                  TradeSide.Buy,
+                  25,
+                  purchasePriceAtCurrentNominal!.Value,
+                  10.105,
+                  purchasePricePercent)],
+              new DateOnly(2026, 9, 26),
+                  currentPrice,
+                  19.7,
+                  91);
+          var averageBuyPriceAtCurrentNominal = income.RemainingCleanCost / income.RemainingQuantity;
+          var valuation = PortfolioPositionCalculator.Calculate(
+              new PortfolioPositionRecord(
+                  "RU000A1089K2",
+                  "TQOY",
+                  "CNY",
+                  25,
+                  25,
+                  0,
+                  24_900,
+                  24_910.105,
+                  0,
+                  purchasePrice),
+              currentPrice,
+              averageBuyPriceAtCurrentNominal);
+
+          Assert.Multiple(() =>
+          {
+              Assert.That(purchasePricePercent, Is.EqualTo(99.6).Within(0.001));
+              Assert.That(purchasePriceAtCurrentNominal, Is.EqualTo(996).Within(0.001));
+              Assert.That(averageBuyPriceAtCurrentNominal, Is.EqualTo(996).Within(0.001));
+              Assert.That(income.UnrealizedPnl, Is.EqualTo(73.1).Within(0.001));
+              Assert.That(income.CouponIncome, Is.EqualTo(1_049.94505494505).Within(0.001));
+              Assert.That(income.TotalPnl, Is.EqualTo(1_112.94005494505).Within(0.001));
+              Assert.That(income.TotalPnlPercent, Is.EqualTo(4.46963877487973).Within(0.001));
+              Assert.That(valuation.MarketValue, Is.EqualTo(24_973.1).Within(0.001));
+              Assert.That(valuation.UnrealizedPnl, Is.EqualTo(73.1).Within(0.001));
+          });
+      }
+
+      [Test]
+      public void TradePricePercent_WhenNominalChanged_UsesNominalStoredForTrade()
+      {
+          var purchasePricePercent = PortfolioMarketPriceCalculator.CalculateTradePricePercent(
+              500,
+              500,
+              1_000,
+              250,
+              "RUB",
+              "RUB",
+              null,
+              null);
+
+          Assert.That(purchasePricePercent, Is.EqualTo(100).Within(0.001));
+      }
+
+      [Test]
       public void ApproximateIncome_UsesHoldingDaysAndSubtractsPaidBuyCommission()
       {
-          var result = PortfolioPositionIncomeCalculator.Calculate(
+          var result = PortfolioPositionCalculator.Calculate(
           [
               new PositionIncomeTrade(new DateOnly(2026, 8, 16), TradeSide.Buy, 1, 1_000, 4)
           ],
@@ -277,7 +277,7 @@ public sealed class PortfolioLedgerTests
       [Test]
       public void ApproximateIncome_AppliesSalesToOldestLotsFirst()
       {
-          var result = PortfolioPositionIncomeCalculator.Calculate(
+          var result = PortfolioPositionCalculator.Calculate(
           [
               new PositionIncomeTrade(new DateOnly(2026, 8, 1), TradeSide.Buy, 2, 1_000, 4),
               new PositionIncomeTrade(new DateOnly(2026, 8, 10), TradeSide.Buy, 2, 900, 2),

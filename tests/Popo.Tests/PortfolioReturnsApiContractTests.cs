@@ -1,8 +1,13 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Popo.Api;
 using Popo.Api.Controllers;
 using Popo.Api.Models;
 using Popo.Api.Services;
+using Popo.Api.Services.Position;
 using Popo.Core.Portfolio;
 using Popo.Core.PortfolioReturns;
 
@@ -11,15 +16,25 @@ namespace Popo.Tests;
 public sealed class PortfolioReturnsApiContractTests
 {
     [Test]
-    public async Task AddValuation_RejectsNegativeValue()
+    public async Task ValuationValidator_RejectsNegativeValueWithRussianMessage()
     {
-        var controller = CreateController();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["POPO_DB_CONNECTION_STRING"] = "Host=127.0.0.1;Database=unused;Username=unused;Password=unused"
+            })
+            .Build();
+        using var services = new ServiceCollection()
+            .AddPopoApiServices(configuration)
+            .BuildServiceProvider();
+        var validator = services.GetRequiredService<IValidator<UpsertPortfolioValuationRequest>>();
 
-        var result = await controller.AddValuation(
-            new UpsertPortfolioValuationRequest(new DateOnly(2026, 1, 1), -1, null),
-            CancellationToken.None);
+        var result = await validator.ValidateAsync(
+            new UpsertPortfolioValuationRequest(new DateOnly(2026, 1, 1), -1, null));
 
-        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Errors.Select(error => error.ErrorMessage),
+            Does.Contain("Стоимость портфеля должна быть неотрицательной."));
     }
 
     [Test]
@@ -72,8 +87,7 @@ public sealed class PortfolioReturnsApiContractTests
         var controller = CreateController(provider);
 
         var result = await controller.CalculateReturn(
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 2, 1),
+            new PortfolioReturnQuery { From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 1) },
             CancellationToken.None);
 
         var response = result.Result as OkObjectResult;
@@ -97,8 +111,7 @@ public sealed class PortfolioReturnsApiContractTests
         var controller = CreateController(provider);
 
         var result = await controller.CalculateReturn(
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 2, 1),
+            new PortfolioReturnQuery { From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 1) },
             CancellationToken.None);
 
         var response = result.Result as OkObjectResult;
@@ -121,8 +134,7 @@ public sealed class PortfolioReturnsApiContractTests
         var controller = CreateController(provider);
 
         var result = await controller.CalculateReturn(
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 2, 1),
+            new PortfolioReturnQuery { From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 1) },
             CancellationToken.None);
 
         var response = result.Result as BadRequestObjectResult;
@@ -137,8 +149,9 @@ public sealed class PortfolioReturnsApiContractTests
         var positionsService = new FakePositionsService();
         return new PortfolioController(
             provider,
+            provider,
             new PortfolioReturnCalculator(),
-            new PortfolioPageService(provider, positionsService));
+            new PortfolioPageService(provider, provider, positionsService));
     }
 
     private sealed class FakePositionsService : IPortfolioPositionsService
@@ -159,7 +172,7 @@ public sealed class PortfolioReturnsApiContractTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeProvider : IPortfolioReturnInputsProvider
+    private sealed class FakeProvider : IPortfolioValuationsProvider, IPortfolioCashFlowsProvider
     {
         public List<PortfolioValuationRecord> Valuations { get; } = [];
         public List<PortfolioCashFlowRecord> CashFlows { get; } = [];

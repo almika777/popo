@@ -10,6 +10,7 @@ public sealed class FluentValidationActionFilter : IAsyncActionFilter
         ActionExecutingContext context,
         ActionExecutionDelegate next)
     {
+        string? validationMessage = null;
         foreach (var argument in context.ActionArguments.Values)
         {
             if (argument is null)
@@ -30,12 +31,13 @@ public sealed class FluentValidationActionFilter : IAsyncActionFilter
             foreach (var error in validationResult.Errors)
             {
                 context.ModelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                validationMessage ??= error.ErrorMessage;
             }
         }
 
         if (!context.ModelState.IsValid)
         {
-            context.Result = new BadRequestObjectResult("Проверьте введённые данные.");
+            context.Result = new BadRequestObjectResult(validationMessage ?? "Проверьте введённые данные.");
             return;
         }
 
