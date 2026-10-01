@@ -40,7 +40,7 @@ public sealed record ParsedBrokerReport(
     IReadOnlyList<ParsedBrokerCashFlow> CashFlows,
     int UnsupportedOperationsHidden);
 
-public sealed class TBankBrokerReportPdfParser
+public sealed class TBankBrokerReportPdfParser : IBrokerReportPdfParser
 {
     private const string TradeSectionHeading = "1.1 Информация о совершенных и исполненных сделках";
     private const string CashSectionHeading = "Операции с денежными средствами";

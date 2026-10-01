@@ -11,12 +11,13 @@ using Popo.Core.PortfolioReturns;
 namespace Popo.Api.Services.BrokerReports;
 
 public sealed class BrokerReportImportService(
-    TBankBrokerReportPdfParser parser,
+    IBrokerReportPdfParser parser,
     IBondsService bondsService,
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
     IPortfolioTradesProvider tradesProvider,
     IPortfolioCashFlowsProvider cashFlowsProvider,
-    IBrokerReportImportProvider importProvider)
+    IBrokerReportImportProvider importProvider,
+    BrokerReportFaceValueResolver faceValueResolver)
 {
     private const int MaximumQuantitySubsetStates = 50_000;
 
@@ -28,6 +29,8 @@ public sealed class BrokerReportImportService(
         var state = await LoadLedgerStateAsync(cancellationToken);
         var cutoffDate = FindCutoffDate(state);
         var bondDetails = await ResolveBondDetailsAsync(parsedReport.Trades, cancellationToken);
+        var historicalFaceValues = await faceValueResolver.ResolveAsync(
+            parsedReport.Trades, bondDetails, cancellationToken);
         var tradeDuplicateAnalysis = FindDuplicateTradeIndexes(parsedReport.Trades, state);
         var duplicateCashFlowIndexes = FindDuplicateCashFlowIndexes(parsedReport.CashFlows, state.CashFlows);
         var operations = new List<BrokerReportOperationResponse>();
@@ -93,6 +96,7 @@ public sealed class BrokerReportImportService(
             }
 
             var boardId = string.IsNullOrWhiteSpace(trade.TradingMode) ? bond?.BoardId : trade.TradingMode;
+            historicalFaceValues.TryGetValue(tradeIndex, out var historicalFaceValue);
             operations.Add(new BrokerReportOperationResponse(
                 operationId,
                 BrokerReportOperationKind.BondTrade,
@@ -104,7 +108,7 @@ public sealed class BrokerReportImportService(
                 trade.Side,
                 (double)trade.Quantity,
                 (double)trade.UnitPrice,
-                bond?.FaceValue,
+                historicalFaceValue ?? bond?.FaceValue,
                 (double)trade.AccruedInterestTotal,
                 (double)trade.Commission,
                 (double)trade.TotalAmount,

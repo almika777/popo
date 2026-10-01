@@ -68,7 +68,8 @@ public sealed record PortfolioPositionRecord(
     double? CurrentFaceValue = null,
     string? FaceUnit = null,
     double? MarketPricePercent = null,
-    bool IsNominalIndexed = false);
+    bool IsNominalIndexed = false,
+    double? ApproximateAnnualizedTotalPnlPercent = null);
 
 public sealed record PortfolioPositionValuation(
     double? MarketPrice,

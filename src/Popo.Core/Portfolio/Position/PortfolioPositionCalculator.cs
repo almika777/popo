@@ -6,7 +6,7 @@ public static class PortfolioPositionCalculator
 {
     public static IReadOnlyList<PortfolioPosition> Calculate(IReadOnlyCollection<PortfolioTrade> trades)
     {
-        PortfolioPositionsValidate.ValidateTrades(trades);
+        PortfolioPositionsValidate.ValidateTradeSequence(trades);
 
         var positions = trades
             .GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId))
@@ -114,6 +114,18 @@ public static class PortfolioPositionCalculator
                        + couponIncome
                        - paidBuyCommission;
         var totalPnlPercent = pnlCost == 0 ? 0 : totalPnl / pnlCost * 100;
+        var annualizedPnlAmount = remainingLots.Sum(lot =>
+        {
+            var lotCostPerUnit = includeIndexedNominalIncreaseInPnl ? lot.ActualCleanPrice : lot.CleanPrice;
+            var holdingDays = Math.Max(1, asOf.DayNumber - lot.TradeDate.DayNumber);
+            var lotPnl = lot.Quantity * (currentCleanPrice - lotCostPerUnit)
+                         + lot.Quantity * dailyCoupon * holdingDays
+                         - lot.Quantity * lot.CommissionPerUnit;
+            return lotPnl * 365 / holdingDays;
+        });
+        double? annualizedTotalPnlPercent = pnlCost <= 0
+            ? null
+            : annualizedPnlAmount / pnlCost * 100;
 
         return new PortfolioPositionIncome(
             remainingCleanCost,
@@ -125,7 +137,8 @@ public static class PortfolioPositionCalculator
             averageBuyPricePercent,
             unrealizedPnl,
             unrealizedPnlPercent,
-            actualRemainingCleanCost);
+            actualRemainingCleanCost,
+            annualizedTotalPnlPercent);
     }
     public static PortfolioPositionValuation Calculate(
         PortfolioPositionRecord position,

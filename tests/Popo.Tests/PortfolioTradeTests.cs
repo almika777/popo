@@ -49,6 +49,19 @@ public sealed class PortfolioTradeTests
             couponPeriodDays: 0));
     }
 
+    [Test]
+    public void Calculate_RejectsSaleBeforeLaterPurchaseEvenWhenFinalQuantityIsPositive()
+    {
+        var secId = "RU000A";
+        const string boardId = "TQCB";
+        const string currencyId = "RUB";
+
+        Assert.Throws<InvalidOperationException>(() => PortfolioPositionCalculator.Calculate([
+            new PortfolioTrade(secId, boardId, currencyId, new DateOnly(2026, 1, 1), TradeSide.Sell, 5, 99),
+            new PortfolioTrade(secId, boardId, currencyId, new DateOnly(2026, 1, 2), TradeSide.Buy, 10, 98)
+        ]));
+    }
+
     [TestCase(TradeSide.Buy)]
     [TestCase(TradeSide.Sell)]
     public void ZeroAccruedInterestAndCommission_UseCleanPriceOnly(TradeSide side)

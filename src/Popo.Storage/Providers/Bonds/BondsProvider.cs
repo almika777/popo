@@ -83,4 +83,51 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
                 x.FaceValue))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<BondFaceValueResult>> GetHistoricalFaceValuesAsync(
+        IReadOnlyList<BondFaceValueRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
+        if (requests.Count == 0)
+            return [];
+
+        var normalizedRequests = requests.Select(request => request with
+        {
+            SecId = request.SecId.Trim().ToUpperInvariant(),
+            BoardId = request.BoardId.Trim().ToUpperInvariant()
+        }).ToArray();
+        var secIds = normalizedRequests.Select(x => x.SecId).Distinct().ToArray();
+        var latestRequestedDate = normalizedRequests.Max(x => x.TradeDate);
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var history = await dbContext.MoexHistoryYieldsEntities
+            .AsNoTracking()
+            .Where(x => secIds.Contains(x.SecId)
+                        && x.TradeDate <= latestRequestedDate
+                        && x.FaceValue > 0)
+            .Select(x => new HistoricalFaceValuePoint(x.SecId, x.BoardId, x.TradeDate, x.FaceValue))
+            .ToListAsync(cancellationToken);
+
+        return normalizedRequests.Select(request =>
+        {
+            var faceValue = history
+                .Where(x => x.SecId == request.SecId
+                            && x.BoardId == request.BoardId
+                            && x.TradeDate <= request.TradeDate
+                            && double.IsFinite(x.FaceValue))
+                .OrderByDescending(x => x.TradeDate)
+                .Select(x => (double?)x.FaceValue)
+                .FirstOrDefault();
+
+            return new BondFaceValueResult(
+                request.SecId, request.BoardId, request.TradeDate, faceValue);
+        }).ToArray();
+    }
+
+    private sealed record HistoricalFaceValuePoint(
+        string SecId,
+        string BoardId,
+        DateOnly TradeDate,
+        double FaceValue);
 }

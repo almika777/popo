@@ -443,6 +443,7 @@ public sealed class PortfolioPositionsService(
             ApproximateCouponIncome = couponValue.HasValue ? income?.CouponIncome : null,
             ApproximateTotalPnl = couponValue.HasValue ? income?.TotalPnl : null,
             ApproximateTotalPnlPercent = couponValue.HasValue ? income?.TotalPnlPercent : null,
+            ApproximateAnnualizedTotalPnlPercent = couponValue.HasValue ? income?.AnnualizedTotalPnlPercent : null,
             AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
             AverageBuyPricePercent = income?.AverageBuyPricePercent,
             CurrentFaceValue = data.Security?.FaceValue,

@@ -128,11 +128,20 @@ export default function PositionsPage() {
         </Typography.Text>
       </Tooltip>;
     } },
+    { title: "Годовых, оценка", dataIndex: "approximateAnnualizedTotalPnlPercent", align: "center", width: 140, render: (value: number | null) => {
+      if (value == null) return "Нет данных";
+
+      return <Tooltip title="Линейная экстраполяция результата каждой оставшейся покупки на 365 дней с весом по её себестоимости. Для покупки сегодня принимается 1 день владения. Это не прогноз и не YTM; купонный результат приблизительный, фактические амортизации, НКД сделок и будущая комиссия продажи не учтены.">
+        <Typography.Text type={value >= 0 ? "success" : "danger"}>
+          {formatResult(value)}%
+        </Typography.Text>
+      </Tooltip>;
+    } },
   ];
 
   return <main className="app-content">
     <Typography.Title level={1}>Текущие позиции</Typography.Title>
-    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат остаётся приблизительной оценкой.</Typography.Paragraph>
+    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
     {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
     <Card>
       <Flex gap="large" justify="space-between" align="center" wrap>

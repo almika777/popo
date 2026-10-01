@@ -6,6 +6,10 @@ public interface IBondsProvider
         string query,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<BondFaceValueResult>> GetHistoricalFaceValuesAsync(
+        IReadOnlyList<BondFaceValueRequest> requests,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken);

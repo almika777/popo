@@ -274,6 +274,38 @@ public sealed class PortfolioLedgerTests
           Assert.That(result.TotalPnlPercent, Is.EqualTo(-0.2).Within(0.001));
       }
 
+    [Test]
+    public void ApproximateAnnualizedIncome_AnnualizesOnePercentOverTenDaysLinearly()
+    {
+        var result = PortfolioPositionCalculator.Calculate(
+        [
+            new PositionIncomeTrade(new DateOnly(2026, 9, 21), TradeSide.Buy, 1, 1_000, 0)
+        ],
+        new DateOnly(2026, 10, 1),
+        1_010,
+        0,
+        0);
+
+        Assert.That(result.TotalPnlPercent, Is.EqualTo(1).Within(0.001));
+        Assert.That(result.AnnualizedTotalPnlPercent, Is.EqualTo(36.5).Within(0.001));
+    }
+
+    [Test]
+    public void ApproximateAnnualizedIncome_WeightsEachOpenLotByItsCost()
+    {
+        var result = PortfolioPositionCalculator.Calculate(
+        [
+            new PositionIncomeTrade(new DateOnly(2026, 9, 1), TradeSide.Buy, 1, 100, 0),
+            new PositionIncomeTrade(new DateOnly(2026, 9, 21), TradeSide.Buy, 1, 100, 0)
+        ],
+        new DateOnly(2026, 10, 1),
+        101,
+        0,
+        0);
+
+        Assert.That(result.AnnualizedTotalPnlPercent, Is.EqualTo(24.3333333333).Within(0.001));
+    }
+
       [Test]
       public void ApproximateIncome_AppliesSalesToOldestLotsFirst()
       {

@@ -30,4 +30,5 @@ public sealed record PortfolioPositionIncome(
     double? AverageBuyPricePercent = null,
     double? UnrealizedPnl = null,
     double? UnrealizedPnlPercent = null,
-    double? ActualRemainingCleanCost = null);
+    double? ActualRemainingCleanCost = null,
+    double? AnnualizedTotalPnlPercent = null);

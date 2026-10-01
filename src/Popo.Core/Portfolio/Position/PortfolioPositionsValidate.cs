@@ -25,6 +25,29 @@ public class PortfolioPositionsValidate
         }
     }
 
+    public static void ValidateTradeSequence(IEnumerable<PortfolioTrade> trades)
+    {
+        ArgumentNullException.ThrowIfNull(trades);
+
+        var tradeList = trades.ToArray();
+        ValidateTrades(tradeList);
+
+        foreach (var positionTrades in tradeList.GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId)))
+        {
+            var availableQuantity = 0d;
+            foreach (var trade in positionTrades
+                         .OrderBy(x => x.TradeDate)
+                         .ThenBy(x => x.Side == TradeSide.Buy ? 0 : 1))
+            {
+                availableQuantity += trade.Side == TradeSide.Buy ? trade.Quantity : -trade.Quantity;
+                if (availableQuantity < 0)
+                {
+                    throw new InvalidOperationException("Количество продажи не может превышать доступный остаток на дату сделки.");
+                }
+            }
+        }
+    }
+
     public static void ValidateTrade(PositionIncomeTrade trade, DateOnly asOf)
     {
         if (!Enum.IsDefined(trade.Side)
