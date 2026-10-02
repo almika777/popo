@@ -2,6 +2,29 @@ namespace Popo.Core.Portfolio;
 
 public static class PortfolioMarketPriceCalculator
 {
+    public static double? CalculateTradePricePercent(
+        double price,
+        double tradeFaceValue,
+        double initialFaceValue,
+        double currentFaceValue,
+        string faceUnit,
+        string tradingCurrency,
+        double? faceCurrencyRateToRub,
+        double? tradingCurrencyRateToRub)
+    {
+        var faceValueAtTrade = HasUnchangedNominal(initialFaceValue, currentFaceValue)
+            ? currentFaceValue
+            : tradeFaceValue;
+
+        return CalculatePricePercent(
+            price,
+            faceValueAtTrade,
+            faceUnit,
+            tradingCurrency,
+            faceCurrencyRateToRub,
+            tradingCurrencyRateToRub);
+    }
+
     public static double? CalculatePricePercent(
         double price,
         double faceValue,
@@ -70,4 +93,10 @@ public static class PortfolioMarketPriceCalculator
 
     private static bool IsPositiveFinite(double? value) =>
         value.HasValue && double.IsFinite(value.Value) && value.Value > 0;
+
+    private static bool HasUnchangedNominal(double initialFaceValue, double currentFaceValue) =>
+        IsPositiveFinite(initialFaceValue)
+        && IsPositiveFinite(currentFaceValue)
+        && Math.Abs(initialFaceValue - currentFaceValue)
+            <= Math.Max(initialFaceValue, currentFaceValue) * 1e-9;
 }

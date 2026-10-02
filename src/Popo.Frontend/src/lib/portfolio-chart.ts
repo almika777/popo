@@ -78,7 +78,7 @@ export function buildCashFlowAdjustedValuations<T extends PortfolioChartPoint>(
   }
 
   let adjustedValue = valuations[0].totalValue;
-  return valuations.map((valuation, index) => {
+  const adjustedValuations = valuations.map((valuation, index) => {
     if (index > 0) {
       const rawChange = valuation.totalValue - valuations[index - 1].totalValue;
       adjustedValue += rawChange - cashDeltaByInterval[index];
@@ -86,6 +86,15 @@ export function buildCashFlowAdjustedValuations<T extends PortfolioChartPoint>(
 
     return { ...valuation, totalValue: adjustedValue };
   });
+
+  const lastIndex = adjustedValuations.length - 1;
+  const anchorAdjustment = valuations[lastIndex].totalValue - adjustedValuations[lastIndex].totalValue;
+  return adjustedValuations.map((valuation, index) => ({
+    ...valuation,
+    totalValue: index === lastIndex
+      ? valuations[index].totalValue
+      : valuation.totalValue + anchorAdjustment
+  }));
 }
 
 export function toRelativePortfolioChanges<T extends PortfolioChartPoint>(rows: T[]): T[] {

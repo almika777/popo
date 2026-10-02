@@ -5,16 +5,19 @@ using Popo.Api.Models;
 using Popo.Core.Bonds;
 using Popo.Core.Common;
 using Popo.Core.Portfolio;
+using Popo.Core.Portfolio.Trades;
 using Popo.Core.PortfolioReturns;
 
 namespace Popo.Api.Services.BrokerReports;
 
 public sealed class BrokerReportImportService(
-    TBankBrokerReportPdfParser parser,
+    IBrokerReportPdfParser parser,
     IBondsService bondsService,
-    IPortfolioLedgerProvider ledgerProvider,
-    IPortfolioReturnInputsProvider returnInputsProvider,
-    IBrokerReportImportProvider importProvider)
+    IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
+    IPortfolioTradesProvider tradesProvider,
+    IPortfolioCashFlowsProvider cashFlowsProvider,
+    IBrokerReportImportProvider importProvider,
+    BrokerReportFaceValueResolver faceValueResolver)
 {
     private const int MaximumQuantitySubsetStates = 50_000;
 
@@ -26,6 +29,8 @@ public sealed class BrokerReportImportService(
         var state = await LoadLedgerStateAsync(cancellationToken);
         var cutoffDate = FindCutoffDate(state);
         var bondDetails = await ResolveBondDetailsAsync(parsedReport.Trades, cancellationToken);
+        var historicalFaceValues = await faceValueResolver.ResolveAsync(
+            parsedReport.Trades, bondDetails, cancellationToken);
         var tradeDuplicateAnalysis = FindDuplicateTradeIndexes(parsedReport.Trades, state);
         var duplicateCashFlowIndexes = FindDuplicateCashFlowIndexes(parsedReport.CashFlows, state.CashFlows);
         var operations = new List<BrokerReportOperationResponse>();
@@ -91,6 +96,7 @@ public sealed class BrokerReportImportService(
             }
 
             var boardId = string.IsNullOrWhiteSpace(trade.TradingMode) ? bond?.BoardId : trade.TradingMode;
+            historicalFaceValues.TryGetValue(tradeIndex, out var historicalFaceValue);
             operations.Add(new BrokerReportOperationResponse(
                 operationId,
                 BrokerReportOperationKind.BondTrade,
@@ -102,7 +108,7 @@ public sealed class BrokerReportImportService(
                 trade.Side,
                 (double)trade.Quantity,
                 (double)trade.UnitPrice,
-                bond?.FaceValue,
+                historicalFaceValue ?? bond?.FaceValue,
                 (double)trade.AccruedInterestTotal,
                 (double)trade.Commission,
                 (double)trade.TotalAmount,
@@ -217,10 +223,10 @@ public sealed class BrokerReportImportService(
 
     private async Task<LedgerState> LoadLedgerStateAsync(CancellationToken cancellationToken)
     {
-        var tradesTask = ledgerProvider.GetTradesAsync(cancellationToken);
-        var fundOperationsTask = ledgerProvider.GetMoneyMarketFundOperationsAsync(cancellationToken);
-        var fundsTask = ledgerProvider.GetMoneyMarketFundsAsync(cancellationToken);
-        var cashFlowsTask = returnInputsProvider.GetCashFlowsAsync(cancellationToken);
+        var tradesTask = tradesProvider.GetTradesAsync(cancellationToken);
+        var fundOperationsTask = moneyMarketFundsProvider.GetMoneyMarketFundOperationsAsync(cancellationToken);
+        var fundsTask = moneyMarketFundsProvider.GetMoneyMarketFundsAsync(cancellationToken);
+        var cashFlowsTask = cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
         await Task.WhenAll(tradesTask, fundOperationsTask, fundsTask, cashFlowsTask);
 
         return new LedgerState(

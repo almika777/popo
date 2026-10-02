@@ -5,16 +5,16 @@ using Popo.Storage.Providers.PortfolioReturns;
 namespace Popo.Storage.Tests;
 
 [TestFixture]
-public sealed class PortfolioReturnInputsProviderTests
+public sealed class PortfolioValuationsProviderTests
 {
     private IsolatedTestDatabase _database = null!;
-    private PortfolioReturnInputsProvider _provider = null!;
+    private PortfolioValuationsProvider _provider = null!;
 
     [OneTimeSetUp]
     public async Task OneTimeSetUp()
     {
         _database = await TestDatabase.CreateIsolatedAsync();
-        _provider = new PortfolioReturnInputsProvider(_database.ContextFactory);
+        _provider = new PortfolioValuationsProvider(_database.ContextFactory);
     }
 
     [OneTimeTearDown]
@@ -42,23 +42,5 @@ public sealed class PortfolioReturnInputsProviderTests
             Is.EqualTo(101_000));
         Assert.That(await _provider.DeleteValuationAsync(created.Id, CancellationToken.None), Is.True);
         Assert.That(await _provider.GetValuationAsync(created.Id, CancellationToken.None), Is.Null);
-    }
-
-    [Test]
-    public async Task CashFlow_PreservesTypeAndAmount()
-    {
-        var created = await _provider.AddCashFlowAsync(
-            new DateOnly(2026, 1, 10),
-            PortfolioCashFlowType.Deposit,
-            25_000,
-            "deposit",
-            CancellationToken.None);
-
-        var stored = await _provider.GetCashFlowAsync(created.Id, CancellationToken.None);
-
-        Assert.That(stored, Is.Not.Null);
-        Assert.That(stored!.Type, Is.EqualTo(PortfolioCashFlowType.Deposit));
-        Assert.That(stored.Amount, Is.EqualTo(25_000));
-        Assert.That(await _provider.DeleteCashFlowAsync(created.Id, CancellationToken.None), Is.True);
     }
 }

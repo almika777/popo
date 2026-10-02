@@ -1,16 +1,18 @@
+using Popo.Core.Common;
 using Popo.Core.Portfolio;
+using Popo.Core.Portfolio.Position;
 
 namespace Popo.Core.Recommendations;
 
 public sealed class PositionRecommendationService(
-    IPortfolioLedgerProvider portfolioLedgerProvider,
+    IPortfolioPositionsProvider positionsProvider,
     ICashInvestmentRecommendationStore settingsStore,
     IBondAssessmentService assessmentService) : IPositionRecommendationService
 {
     public async Task<PositionRecommendationSnapshot> CalculateAsync(CancellationToken cancellationToken)
     {
         var settings = await settingsStore.GetSettingsAsync(cancellationToken);
-        var positions = (await portfolioLedgerProvider.GetPositionsAsync(cancellationToken))
+        var positions = (await positionsProvider.GetPositionsAsync(MoscowTime.Today, cancellationToken))
             .Where(x => x.Quantity > 0)
             .ToArray();
         var assessments = (await assessmentService.GetAssessmentsAsync(settings, cancellationToken))

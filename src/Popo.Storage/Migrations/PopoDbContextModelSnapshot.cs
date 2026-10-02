@@ -954,8 +954,10 @@ namespace Popo.Storage.Migrations
                         .HasColumnType("text");
 
                     b.Property<double>("FaceValue")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(1000.0);
 
                     b.Property<double>("Price")
                         .HasPrecision(20, 6)

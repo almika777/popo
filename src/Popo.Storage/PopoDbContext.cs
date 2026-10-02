@@ -79,7 +79,7 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
             entity.HasIndex(x => new { x.TradeDate, x.SecId, x.BoardId });
             entity.Property(x => x.Quantity).HasPrecision(20, 6);
             entity.Property(x => x.Price).HasPrecision(20, 6);
-            entity.Property(x => x.FaceValue).HasPrecision(20, 6);
+            entity.Property(x => x.FaceValue).HasPrecision(20, 6).HasDefaultValue(1_000d);
             entity.Property(x => x.AccruedInterest).HasPrecision(20, 6);
             entity.Property(x => x.Commission).HasPrecision(20, 6);
         });

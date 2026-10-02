@@ -32,6 +32,16 @@ public sealed class PopoSchemaTests
     }
 
     [Test]
+    public void Portfolio_trade_face_value_has_database_default_of_one_thousand()
+    {
+        using var context = CreateContext();
+        var property = context.Model.FindEntityType(typeof(Popo.Storage.Entities.PortfolioTradeEntity))!
+            .FindProperty(nameof(Popo.Storage.Entities.PortfolioTradeEntity.FaceValue))!;
+
+        Assert.That(property.GetDefaultValue(), Is.EqualTo(1_000));
+    }
+
+    [Test]
     public void Investment_strategy_settings_store_nominal_and_trading_currency_filters()
     {
         using var context = CreateContext();

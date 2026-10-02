@@ -9,6 +9,8 @@ using Popo.Storage.Providers.PortfolioReturns;
 using Popo.Storage.Providers.Portfolio;
 using Popo.Core.Recommendations;
 using Popo.Core.Initialization;
+using Popo.Core.Portfolio.Position;
+using Popo.Core.Portfolio.Trades;
 using Popo.Storage.Providers;
 using Popo.Storage.Providers.Ratings;
 
@@ -25,8 +27,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IHistoryProvider, HistoryProvider>();
         services.AddScoped<DailyVolumeStatisticsStore>();
         services.AddScoped<ICashFlowProvider, CashFlowProvider>();
-        services.AddScoped<IPortfolioReturnInputsProvider, PortfolioReturnInputsProvider>();
-        services.AddScoped<IPortfolioLedgerProvider, PortfolioLedgerProvider>();
+        services.AddScoped<IPortfolioValuationsProvider, PortfolioValuationsProvider>();
+        services.AddScoped<IPortfolioCashFlowsProvider, PortfolioCashFlowsProvider>();
+        services.AddScoped<IPortfolioMoneyMarketFundsProvider, PortfolioMoneyMarketFundsProvider>();
+        services.AddScoped<IPortfolioCashProvider, PortfolioCashProvider>();
+        services.AddScoped<IPortfolioTradesProvider, PortfolioTradesProvider>();
+        services.AddScoped<IPortfolioPositionsProvider, PortfolioPositionsProvider>();
         services.AddScoped<IBrokerReportImportProvider, BrokerReportImportProvider>();
         services.AddScoped<IPortfolioCouponProvider, PortfolioCouponProvider>();
         services.AddScoped<ICashInvestmentRecommendationStore, InvestmentStrategySettingsStore>();

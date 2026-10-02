@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
 import { portfolioLedgerApi, type PortfolioPosition, type PositionTotals } from "../../lib/portfolio-ledger-api";
+import { getPositionAverageBuyPrice } from "../../lib/position-average-price";
 import { positionDetailsPath } from "../../lib/position-details";
 import { getPositionLiquidityLevel, type PositionLiquidityLevel } from "../../lib/position-liquidity";
 import { type PositionRecommendationAction, type PositionRecommendationState } from "../../lib/position-recommendations-api";
@@ -84,15 +85,18 @@ export default function PositionsPage() {
         <Tag color={presentation.color}>{presentation.label}</Tag>
       </Tooltip>;
     } },
-    { title: "Средняя цена", dataIndex: "averageBuyPriceAtCurrentFaceValue", render: (value: number | null, row) => value == null
-      ? "Нет данных"
-      : <Tooltip title="Цена покупки пересчитана по проценту от номинала на дату сделки и выражена в текущем номинале.">
-          <div>
-            <div>{number.format(value)}</div>
-            <Typography.Text type="secondary">{row.averageBuyPricePercent == null ? "Цена покупки: нет данных" : `${number.format(row.averageBuyPricePercent)}% ном.`}</Typography.Text>
-          </div>
-        </Tooltip>
-    },
+    { title: "Средняя цена покупки", key: "averageBuyPrice", render: (_, row) => {
+      const averagePrice = getPositionAverageBuyPrice(row);
+      if (averagePrice.value == null) return "Нет данных";
+
+      const tooltip = averagePrice.basis === "indexed-nominal"
+        ? "Фактическая средневзвешенная цена покупки. Индексация номинала увеличивает стоимость и финансовый результат позиции, но не меняет вложенную сумму. Без НКД и комиссии."
+        : averagePrice.basis === "current-nominal"
+          ? "Средневзвешенная чистая цена оставшихся покупок, пересчитанная к текущему номиналу после амортизации. Без НКД и комиссии."
+          : "Фактическая средневзвешенная чистая цена оставшихся покупок; пересчёт к текущему номиналу недоступен. Без НКД и комиссии.";
+
+      return <Tooltip title={tooltip}>{number.format(averagePrice.value)}</Tooltip>;
+    } },
     { title: "Цена оценки MOEX", dataIndex: "marketPrice", render: (value: number | null, row) => value == null ? "Нет данных" :
       <div>
         <div>{number.format(value)}</div>
@@ -124,11 +128,20 @@ export default function PositionsPage() {
         </Typography.Text>
       </Tooltip>;
     } },
+    { title: "Годовых, оценка", dataIndex: "approximateAnnualizedTotalPnlPercent", align: "center", width: 140, render: (value: number | null) => {
+      if (value == null) return "Нет данных";
+
+      return <Tooltip title="Линейная экстраполяция результата каждой оставшейся покупки на 365 дней с весом по её себестоимости. Для покупки сегодня принимается 1 день владения. Это не прогноз и не YTM; купонный результат приблизительный, фактические амортизации, НКД сделок и будущая комиссия продажи не учтены.">
+        <Typography.Text type={value >= 0 ? "success" : "danger"}>
+          {formatResult(value)}%
+        </Typography.Text>
+      </Tooltip>;
+    } },
   ];
 
   return <main className="app-content">
     <Typography.Title level={1}>Текущие позиции</Typography.Title>
-    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат остаётся приблизительной оценкой.</Typography.Paragraph>
+    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
     {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
     <Card>
       <Flex gap="large" justify="space-between" align="center" wrap>
