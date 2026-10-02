@@ -17,13 +17,14 @@ public sealed class BondFaceValueHistoryTests
         var firstDate = new DateOnly(2024, 5, 3);
         var reducedDate = new DateOnly(2024, 6, 20);
         var futureDate = new DateOnly(2024, 7, 2);
+        var storedSecId = secId.ToUpperInvariant();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.MoexHistoryYieldsEntities.AddRange(
-                new MoexHistoryYieldsEntity { SecId = secId, BoardId = "TQCB", TradeDate = firstDate, FaceValue = 500 },
-                new MoexHistoryYieldsEntity { SecId = secId, BoardId = "TQCB", TradeDate = reducedDate, FaceValue = 250 },
-                new MoexHistoryYieldsEntity { SecId = secId, BoardId = "TQCB", TradeDate = futureDate, FaceValue = 100 },
-                new MoexHistoryYieldsEntity { SecId = secId, BoardId = "TQOB", TradeDate = reducedDate, FaceValue = 900 });
+                new MoexHistoryYieldsEntity { SecId = storedSecId, BoardId = "TQCB", TradeDate = firstDate, FaceValue = 500 },
+                new MoexHistoryYieldsEntity { SecId = storedSecId, BoardId = "TQCB", TradeDate = reducedDate, FaceValue = 250 },
+                new MoexHistoryYieldsEntity { SecId = storedSecId, BoardId = "TQCB", TradeDate = futureDate, FaceValue = 100 },
+                new MoexHistoryYieldsEntity { SecId = storedSecId, BoardId = "TQOB", TradeDate = reducedDate, FaceValue = 900 });
             await db.SaveChangesAsync();
         }
 
