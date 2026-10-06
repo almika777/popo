@@ -2,6 +2,7 @@ export type PositionAveragePriceSource = {
   averageBuyPrice: number | null;
   averageBuyPriceAtCurrentFaceValue: number | null;
   isNominalIndexed: boolean;
+  hasAmbiguousTradeOrder?: boolean;
 };
 
 export type PositionAveragePriceDisplay = {
@@ -12,8 +13,16 @@ export type PositionAveragePriceDisplay = {
 export function getPositionAverageBuyPrice(
   position: PositionAveragePriceSource
 ): PositionAveragePriceDisplay {
+  if (position.hasAmbiguousTradeOrder) {
+    return { value: null, basis: "actual" };
+  }
+
   if (position.isNominalIndexed) {
     return { value: position.averageBuyPrice, basis: "indexed-nominal" };
+  }
+
+  if (position.averageBuyPrice != null) {
+    return { value: position.averageBuyPrice, basis: "actual" };
   }
 
   if (position.averageBuyPriceAtCurrentFaceValue != null) {
@@ -23,5 +32,5 @@ export function getPositionAverageBuyPrice(
     };
   }
 
-  return { value: position.averageBuyPrice, basis: "actual" };
+  return { value: null, basis: "actual" };
 }

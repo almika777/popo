@@ -65,7 +65,11 @@ public static class PortfolioPositionCalculator
         }
 
         var lots = new Queue<OpenLot>();
-        foreach (var trade in trades.OrderBy(x => x.TradeDate).ThenBy(x => x.Side == TradeSide.Buy ? 0 : 1))
+        foreach (var trade in PortfolioPositionsValidate.OrderByExecution(
+                     trades,
+                     x => x.TradeDate,
+                     x => x.Side,
+                     x => x.TradeTime))
         {
             PortfolioPositionsValidate.ValidateTrade(trade, asOf);
             if (trade.Side == TradeSide.Buy)

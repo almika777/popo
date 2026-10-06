@@ -18,7 +18,9 @@ public sealed record PositionIncomeTrade(
     double CleanPrice,
     double Commission,
     double? CleanPricePercent = null,
-    double? ActualCleanPrice = null);
+    double? ActualCleanPrice = null,
+    double AccruedInterest = 0,
+    TimeOnly? TradeTime = null);
 
 public sealed record PortfolioPositionIncome(
     double RemainingCleanCost,
@@ -31,4 +33,8 @@ public sealed record PortfolioPositionIncome(
     double? UnrealizedPnl = null,
     double? UnrealizedPnlPercent = null,
     double? ActualRemainingCleanCost = null,
-    double? AnnualizedTotalPnlPercent = null);
+    double? AnnualizedTotalPnlPercent = null,
+    double HistoricalCouponIncome = 0,
+    double PaidBuyAccruedInterest = 0,
+    double CurrentAccruedInterest = 0,
+    bool IsCouponIncomeComplete = true);

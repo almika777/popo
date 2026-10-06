@@ -45,6 +45,7 @@ public sealed class TradesController(
         new(request.SecId.Trim(), request.BoardId.Trim(), request.CurrencyId.Trim(), request.TradeDate,
             request.Side, request.Quantity, request.Price, request.FaceValue,
             request.AccruedInterestTotal / request.Quantity,
-            request.CommissionPercent);
+            request.CommissionPercent,
+            request.TradeTime);
 
 }

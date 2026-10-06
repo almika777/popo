@@ -123,7 +123,7 @@ public class MoexBond
     /// <summary>
     /// Периодичность выплаты купона в год
     /// </summary>
-    public int CouponFrequency { get; set; }
+    public int? CouponFrequency { get; set; }
 
     /// <summary>
     /// Дата выплаты купона

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using NUnit.Framework;
 using Popo.Core.Portfolio;
-using Popo.Storage.Entities;
+using Popo.Storage;
 using Popo.Storage.Entities.Moex;
 
 namespace Popo.Storage.Tests;
@@ -41,37 +41,17 @@ public sealed class PortfolioTradeFaceValueMigrationTests
                 TradeDate = trade.Date,
                 FaceValue = trade.ExpectedFaceValue
             });
-            db.PortfolioTrades.Add(new PortfolioTradeEntity
-            {
-                Id = Guid.NewGuid(),
-                SecId = secId,
-                BoardId = boardId,
-                CurrencyId = "RUB",
-                TradeDate = trade.Date,
-                Side = TradeSide.Buy,
-                Quantity = trade.Quantity,
-                Price = trade.Price,
-                FaceValue = 1000,
-                AccruedInterest = 0,
-                Commission = 0
-            });
+            await InsertLegacyTradeAsync(
+                db,
+                secId,
+                boardId,
+                trade.Date,
+                trade.Quantity,
+                trade.Price);
         }
 
         var noHistoryTradeDate = new DateOnly(2026, 9, 1);
-        db.PortfolioTrades.Add(new PortfolioTradeEntity
-        {
-            Id = Guid.NewGuid(),
-            SecId = secId,
-            BoardId = boardId,
-            CurrencyId = "RUB",
-            TradeDate = noHistoryTradeDate,
-            Side = TradeSide.Buy,
-            Quantity = 1,
-            Price = 1000,
-            FaceValue = 1000,
-            AccruedInterest = 0,
-            Commission = 0
-        });
+        await InsertLegacyTradeAsync(db, secId, boardId, noHistoryTradeDate, 1, 1000);
         await db.SaveChangesAsync();
 
         await migrator.MigrateAsync();
@@ -87,4 +67,18 @@ public sealed class PortfolioTradeFaceValueMigrationTests
             Assert.That(savedTrades[^1].FaceValue, Is.EqualTo(1000));
         });
     }
+
+    private static Task<int> InsertLegacyTradeAsync(
+        PopoDbContext db,
+        string secId,
+        string boardId,
+        DateOnly tradeDate,
+        double quantity,
+        double price) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "PortfolioTrades"
+                ("Id", "SecId", "BoardId", "CurrencyId", "TradeDate", "Side", "Quantity", "Price", "FaceValue", "AccruedInterest", "Commission")
+            VALUES
+                ({Guid.NewGuid()}, {secId}, {boardId}, {"RUB"}, {tradeDate}, {(int)TradeSide.Buy}, {quantity}, {price}, {1000d}, {0d}, {0d})
+            """);
 }

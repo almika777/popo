@@ -35,9 +35,11 @@ public class PortfolioPositionsValidate
         foreach (var positionTrades in tradeList.GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId)))
         {
             var availableQuantity = 0d;
-            foreach (var trade in positionTrades
-                         .OrderBy(x => x.TradeDate)
-                         .ThenBy(x => x.Side == TradeSide.Buy ? 0 : 1))
+            foreach (var trade in OrderByExecution(
+                         positionTrades,
+                         x => x.TradeDate,
+                         x => x.Side,
+                         x => x.TradeTime))
             {
                 availableQuantity += trade.Side == TradeSide.Buy ? trade.Quantity : -trade.Quantity;
                 if (availableQuantity < 0)
@@ -45,6 +47,34 @@ public class PortfolioPositionsValidate
                     throw new InvalidOperationException("Количество продажи не может превышать доступный остаток на дату сделки.");
                 }
             }
+        }
+    }
+
+    public static IEnumerable<TTrade> OrderByExecution<TTrade>(
+        IEnumerable<TTrade> trades,
+        Func<TTrade, DateOnly> getDate,
+        Func<TTrade, TradeSide> getSide,
+        Func<TTrade, TimeOnly?> getTime)
+    {
+        ArgumentNullException.ThrowIfNull(trades);
+        ArgumentNullException.ThrowIfNull(getDate);
+        ArgumentNullException.ThrowIfNull(getSide);
+        ArgumentNullException.ThrowIfNull(getTime);
+
+        foreach (var day in trades.GroupBy(getDate).OrderBy(x => x.Key))
+        {
+            var dayTrades = day.ToArray();
+            var hasMixedSides = dayTrades.Any(x => getSide(x) == TradeSide.Buy)
+                                && dayTrades.Any(x => getSide(x) == TradeSide.Sell);
+            var hasCompleteTimes = dayTrades.All(x => getTime(x).HasValue);
+
+            var orderedDay = hasMixedSides && hasCompleteTimes
+                ? dayTrades.OrderBy(x => getTime(x)).ThenBy(x => getSide(x) == TradeSide.Buy ? 0 : 1)
+                : dayTrades.OrderBy(x => getSide(x) == TradeSide.Buy ? 0 : 1)
+                    .ThenBy(x => getTime(x));
+
+            foreach (var trade in orderedDay)
+                yield return trade;
         }
     }
 

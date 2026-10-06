@@ -461,7 +461,7 @@ export default function PortfolioPage() {
               </div>
               <div className="portfolio-metrics-section">
                 <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
-                  {!summary
+                  {!summary || summary.unrealizedPnlRub == null
                     ? "—"
                     : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
                         {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}

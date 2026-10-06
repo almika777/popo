@@ -6,6 +6,7 @@ public class MoexCouponsEntity
     public string Isin { get; set; } = null!;
     public DateOnly CouponDate { get; set; }
     public DateOnly StartDate { get; set; }
+    public DateOnly? RecordDate { get; set; }
     public double InitialFaceValue { get; set; }
     public double FaceValue { get; set; }
     public string FaceUnit { get; set; } = null!;

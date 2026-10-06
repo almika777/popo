@@ -24,6 +24,10 @@ public class MoexBondization
         [JsonPropertyName("startdate")]
         public DateOnly StartDate { get; set; }
 
+        /// <summary>Дата фиксации списка владельцев для выплаты</summary>
+        [JsonPropertyName("recorddate")]
+        public DateOnly? RecordDate { get; set; }
+
         /// <summary>Номинал на старте торгов</summary>
         [JsonPropertyName("initialfacevalue")]
         public double InitialFaceValue { get; set; }

@@ -134,16 +134,39 @@ namespace Popo.HttpClients
 
         public async Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct)
         {
-            var today = MoscowTime.Now.AddYears(-1);
-            var url =
-                $"statistics/engines/stock/markets/bonds/bondization/{secId}.json?limit=100&from={today:yyyy-MM-dd}";
+            const int pageSize = 100;
+            var start = 0;
+            var encodedSecId = Uri.EscapeDataString(secId);
+            var coupons = new List<MoexBondization.MoexBondCoupons>();
+            var amorts = new List<MoexBondization.MoexBondAmortizations>();
 
-            using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            while (true)
+            {
+                var url = $"statistics/engines/stock/markets/bonds/bondization/{encodedSecId}.json" +
+                          $"?iss.meta=off&iss.only=coupons,coupons.cursor,amortizations,amortizations.cursor" +
+                          $"&start={start}&limit={pageSize}";
 
-            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            var coupons = ParseMoexResult<MoexBondization.MoexBondCoupons>(json, "coupons");
-            var amorts = ParseMoexResult<MoexBondization.MoexBondAmortizations>(json, "amortizations");
+                using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var couponPage = ParseMoexResult<MoexBondization.MoexBondCoupons>(json, "coupons");
+                var amortizationPage = ParseMoexResult<MoexBondization.MoexBondAmortizations>(json, "amortizations");
+                coupons.AddRange(couponPage);
+                amorts.AddRange(amortizationPage);
+
+                var couponCursor = ParseMoexResult<MoexHistoryCursor>(json, "coupons.cursor").FirstOrDefault();
+                var amortizationCursor = ParseMoexResult<MoexHistoryCursor>(json, "amortizations.cursor")
+                    .FirstOrDefault();
+                var total = Math.Max(couponCursor?.Total ?? 0, amortizationCursor?.Total ?? 0);
+                if ((couponPage.Count == 0 && amortizationPage.Count == 0)
+                    || couponCursor is null && amortizationCursor is null
+                    || start + pageSize >= total)
+                    break;
+
+                start += pageSize;
+            }
+
             return new MoexBondization
             {
                 Amortizations = amorts,

@@ -17,7 +17,7 @@ namespace Popo.Storage.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -616,6 +616,9 @@ namespace Popo.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("RecordDate")
+                        .HasColumnType("date");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
@@ -976,6 +979,9 @@ namespace Popo.Storage.Migrations
 
                     b.Property<DateOnly>("TradeDate")
                         .HasColumnType("date");
+
+                    b.Property<TimeOnly?>("TradeTime")
+                        .HasColumnType("time without time zone");
 
                     b.HasKey("Id");
 

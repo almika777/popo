@@ -149,7 +149,7 @@ public class MoexBond
     /// Периодичность выплаты купона в год
     /// </summary>
     [JsonPropertyName("COUPONFREQUENCY")]
-    public int CouponFrequency { get; set; }
+    public int? CouponFrequency { get; set; }
 
     /// <summary>
     /// Дата выплаты купона

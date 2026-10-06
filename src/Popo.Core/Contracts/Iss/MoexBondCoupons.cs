@@ -17,6 +17,9 @@ public class MoexBondization
         /// <summary>Дата купонного периода, для этого купона</summary>
         public DateOnly StartDate { get; set; }
 
+        /// <summary>Дата фиксации списка владельцев для выплаты</summary>
+        public DateOnly? RecordDate { get; set; }
+
         /// <summary>Номинал на старте торгов</summary>
         public double InitialFaceValue { get; set; }
 

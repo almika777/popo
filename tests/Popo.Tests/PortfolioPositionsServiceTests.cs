@@ -345,7 +345,7 @@ public sealed class PortfolioPositionsServiceTests
 
     private sealed class FakeCouponProvider : IPortfolioCouponProvider
     {
-        public Task<IReadOnlyList<PublishedCouponValue>> GetLatestPublishedAsync(
+        public Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
             IReadOnlyCollection<PortfolioBondKey> bonds,
             DateOnly asOf,
             CancellationToken cancellationToken) =>

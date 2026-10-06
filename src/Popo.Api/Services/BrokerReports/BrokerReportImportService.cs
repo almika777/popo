@@ -117,7 +117,8 @@ public sealed class BrokerReportImportService(
                     bond is null
                         ? "Не найден справочник MOEX: проверьте режим торгов, валюту и вручную укажите номинал."
                         : null,
-                    GetAmbiguousTradeWarning(tradeDuplicateAnalysis, tradeIndex))));
+                    GetAmbiguousTradeWarning(tradeDuplicateAnalysis, tradeIndex)),
+                trade.TradeTime));
         }
 
         var cashFlowOccurrences = new Dictionary<CashFlowDuplicateKey, int>();
@@ -501,7 +502,7 @@ public sealed class BrokerReportImportService(
                 var grossAmount = quantity * (unitPrice + accruedInterest);
                 var commissionPercent = grossAmount == 0 ? 0 : commission / grossAmount * 100;
                 var trade = new PortfolioTrade(secId, boardId, currencyId, operation.Date, side,
-                    quantity, unitPrice, faceValue, accruedInterest, commissionPercent);
+                    quantity, unitPrice, faceValue, accruedInterest, commissionPercent, operation.TradeTime);
                 return new BrokerReportImportData(trade, null, null, operation);
             }
             case BrokerReportOperationKind.FundOperation:

@@ -46,7 +46,7 @@ export default function PositionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const resultType = totals == null ? undefined : totals.unrealizedPnlRub >= 0 ? "success" : "danger";
+  const resultType = totals?.unrealizedPnlRub == null ? undefined : totals.unrealizedPnlRub >= 0 ? "success" : "danger";
   const formatResult = (value: number) => `${value >= 0 ? "+" : ""}${number.format(value)}`;
 
   const columns: ColumnsType<PortfolioPosition> = [
@@ -87,13 +87,18 @@ export default function PositionsPage() {
     } },
     { title: "Средняя цена покупки", key: "averageBuyPrice", render: (_, row) => {
       const averagePrice = getPositionAverageBuyPrice(row);
-      if (averagePrice.value == null) return "Нет данных";
+      if (averagePrice.value == null) return row.hasAmbiguousTradeOrder
+        ? <Tooltip title="В журнале есть сделки в один день без точного времени исполнения. Себестоимость FIFO не определяется.">Нет данных</Tooltip>
+        : "Нет данных";
 
+      const adjustedPrice = row.averageBuyPriceAtCurrentFaceValue;
       const tooltip = averagePrice.basis === "indexed-nominal"
-        ? "Фактическая средневзвешенная цена покупки. Индексация номинала увеличивает стоимость и финансовый результат позиции, но не меняет вложенную сумму. Без НКД и комиссии."
+        ? "Фактическая средневзвешенная чистая цена покупок. Рост индексируемого номинала учитывается в ценовом результате позиции. Без НКД и комиссии."
         : averagePrice.basis === "current-nominal"
-          ? "Средневзвешенная чистая цена оставшихся покупок, пересчитанная к текущему номиналу после амортизации. Без НКД и комиссии."
-          : "Фактическая средневзвешенная чистая цена оставшихся покупок; пересчёт к текущему номиналу недоступен. Без НКД и комиссии.";
+          ? "Оценка средней цены, пересчитанная к текущему номиналу; фактическая средняя цена сделки недоступна."
+          : adjustedPrice != null && Math.abs(adjustedPrice - averagePrice.value) > 0.005
+            ? `Фактическая средневзвешенная чистая цена покупок. Для расчёта результата используется себестоимость, пересчитанная к текущему номиналу: ${number.format(adjustedPrice)} ${row.currencyId}.`
+            : "Фактическая средневзвешенная чистая цена покупок. Без НКД и комиссии.";
 
       return <Tooltip title={tooltip}>{number.format(averagePrice.value)}</Tooltip>;
     } },
@@ -119,7 +124,7 @@ export default function PositionsPage() {
 
       const tooltip = row.approximateCouponIncome == null
         ? "Приблизительный купонный доход: нет данных"
-        : `Приблизительный купонный доход за срок владения: ${number.format(row.approximateCouponIncome)} ${row.currencyId}. Учтена фактически уплаченная комиссия покупки; НКД сделок не учитывается.`;
+        : `Чистый приблизительный купонный результат за срок владения: опубликованные выплаты с учётом даты фиксации владельцев + текущий НКД − уплаченный НКД при покупке: ${number.format(row.approximateCouponIncome)} ${row.currencyId}. Общий результат также вычитает комиссию покупки. Налоги и будущая комиссия продажи не учтены.`;
 
       return <Tooltip title={tooltip}>
         <Typography.Text type={value >= 0 ? "success" : "danger"} style={{ textAlign: "center" }}>
@@ -131,7 +136,7 @@ export default function PositionsPage() {
     { title: "Годовых, оценка", dataIndex: "approximateAnnualizedTotalPnlPercent", align: "center", width: 140, render: (value: number | null) => {
       if (value == null) return "Нет данных";
 
-      return <Tooltip title="Линейная экстраполяция результата каждой оставшейся покупки на 365 дней с весом по её себестоимости. Для покупки сегодня принимается 1 день владения. Это не прогноз и не YTM; купонный результат приблизительный, фактические амортизации, НКД сделок и будущая комиссия продажи не учтены.">
+      return <Tooltip title="Линейная экстраполяция результата каждой оставшейся покупки на 365 дней с весом по её себестоимости. Для покупки сегодня принимается 1 день владения. Это не прогноз и не YTM; купонный результат приблизительный. Налоги, фактические амортизации и будущая комиссия продажи не учтены.">
         <Typography.Text type={value >= 0 ? "success" : "danger"}>
           {formatResult(value)}%
         </Typography.Text>
@@ -141,14 +146,14 @@ export default function PositionsPage() {
 
   return <main className="app-content">
     <Typography.Title level={1}>Текущие позиции</Typography.Title>
-    <Typography.Paragraph type="secondary">Цена покупки и результат по позиции пересчитаны к текущему номиналу облигации. Купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
+    <Typography.Paragraph type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
     {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
     <Card>
       <Flex gap="large" justify="space-between" align="center" wrap>
         <Typography.Text strong>Итого</Typography.Text>
         <Space size={8}><Typography.Text type="secondary">Рыночная стоимость</Typography.Text><Typography.Text strong>{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text></Space>
-        <Space size={8}><Typography.Text type="secondary">Текущая себестоимость</Typography.Text><Typography.Text strong>{totals == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text></Space>
-        <Space size={8}><Typography.Text type="secondary">Результат</Typography.Text><Typography.Text strong type={resultType}>{totals == null ? "Нет данных" : `${formatResult(totals.unrealizedPnlRub)} ₽ (${formatResult(totals.unrealizedPnlPercent)}%)`}</Typography.Text></Space>
+        <Space size={8}><Typography.Text type="secondary">Текущая себестоимость</Typography.Text><Typography.Text strong>{totals?.investedAmountRub == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text></Space>
+        <Space size={8}><Typography.Text type="secondary">Результат</Typography.Text><Typography.Text strong type={resultType}>{totals?.unrealizedPnlRub == null || totals.unrealizedPnlPercent == null ? "Нет данных" : `${formatResult(totals.unrealizedPnlRub)} ₽ (${formatResult(totals.unrealizedPnlPercent)}%)`}</Typography.Text></Space>
       </Flex>
       <Divider style={{ marginBlock: 12 }} />
       <Table rowKey={(row) => `${row.secId}-${row.boardId}-${row.currencyId}`} loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 20 }} />

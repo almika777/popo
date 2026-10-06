@@ -9,6 +9,7 @@ public sealed class PortfolioTradeEntity
     public string BoardId { get; set; } = string.Empty;
     public string CurrencyId { get; set; } = string.Empty;
     public DateOnly TradeDate { get; set; }
+    public TimeOnly? TradeTime { get; set; }
     public TradeSide Side { get; set; }
     public double Quantity { get; set; }
     public double Price { get; set; }

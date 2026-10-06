@@ -12,7 +12,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var entities = await dbContext.PortfolioTrades.AsNoTracking()
-            .OrderByDescending(x => x.TradeDate).ThenByDescending(x => x.Id)
+            .OrderByDescending(x => x.TradeDate).ThenByDescending(x => x.TradeTime).ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
         return entities.Select(ToRecord).ToArray();
     }
@@ -55,6 +55,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
         entity.BoardId = trade.BoardId;
         entity.CurrencyId = trade.CurrencyId;
         entity.TradeDate = trade.TradeDate;
+        entity.TradeTime = trade.TradeTime;
         entity.Side = trade.Side;
         entity.Quantity = trade.Quantity;
         entity.Price = trade.Price;
@@ -91,7 +92,8 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     {
         Id = Guid.NewGuid(), SecId = trade.SecId, BoardId = trade.BoardId, CurrencyId = trade.CurrencyId,
         TradeDate = trade.TradeDate, Side = trade.Side, Quantity = trade.Quantity, Price = trade.Price,
-        FaceValue = trade.FaceValue, AccruedInterest = trade.AccruedInterest, Commission = trade.CommissionAmount
+        TradeTime = trade.TradeTime, FaceValue = trade.FaceValue, AccruedInterest = trade.AccruedInterest,
+        Commission = trade.CommissionAmount
     };
 
     private static PortfolioTradeRecord ToRecord(PortfolioTradeEntity entity) =>
@@ -100,7 +102,8 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
             GetCommissionPercent(entity),
             entity.Side == TradeSide.Buy
                 ? GetGrossAmount(entity) + entity.Commission
-                : GetGrossAmount(entity) - entity.Commission);
+                : GetGrossAmount(entity) - entity.Commission,
+            TradeTime: entity.TradeTime);
     
     private static double GetGrossAmount(PortfolioTradeEntity entity) =>
         entity.Quantity * (entity.Price + entity.AccruedInterest);
@@ -147,7 +150,9 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
                 x.Quantity,
                 x.Price,
                 x.FaceValue,
-                x.AccruedInterest))
+                x.AccruedInterest,
+                0,
+                x.TradeTime))
             .ToListAsync(cancellationToken);
         return existingTrades;
     }

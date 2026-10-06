@@ -12,7 +12,8 @@ public sealed record UpsertPortfolioTradeRequest(
     double Price,
     double FaceValue,
     double AccruedInterestTotal,
-    double CommissionPercent);
+    double CommissionPercent,
+    TimeOnly? TradeTime = null);
 
 public sealed record UpsertCashSnapshotRequest(
     string CurrencyId,
@@ -40,9 +41,9 @@ public sealed record PositionsPageResponse(
 
 public sealed record PositionTotalsResponse(
     double MarketValueRub,
-    double InvestedAmountRub,
-    double UnrealizedPnlRub,
-    double UnrealizedPnlPercent);
+    double? InvestedAmountRub,
+    double? UnrealizedPnlRub,
+    double? UnrealizedPnlPercent);
 
 public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId, string Name);
 

@@ -7,12 +7,15 @@ public sealed record PublishedCouponValue(
     string Isin,
     string BoardId,
     DateOnly Date,
-    double Value,
-    string FaceUnit);
+    DateOnly PeriodStartDate,
+    double? Value,
+    string FaceUnit,
+    DateOnly? RecordDate = null,
+    double? ValueInRub = null);
 
 public interface IPortfolioCouponProvider
 {
-    Task<IReadOnlyList<PublishedCouponValue>> GetLatestPublishedAsync(
+    Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
         IReadOnlyCollection<PortfolioBondKey> bonds,
         DateOnly asOf,
         CancellationToken cancellationToken);

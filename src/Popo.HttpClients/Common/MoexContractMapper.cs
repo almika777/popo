@@ -245,6 +245,7 @@ internal static class MoexContractMapper
         SecId = source.SecId,
         CouponDate = source.CouponDate,
         StartDate = source.StartDate,
+        RecordDate = source.RecordDate,
         InitialFaceValue = source.InitialFaceValue,
         FaceValue = source.FaceValue,
         FaceUnit = source.FaceUnit,

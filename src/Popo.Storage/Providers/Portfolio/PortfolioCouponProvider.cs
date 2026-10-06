@@ -6,7 +6,7 @@ namespace Popo.Storage.Providers.Portfolio;
 public sealed class PortfolioCouponProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IPortfolioCouponProvider
 {
-    public async Task<IReadOnlyList<PublishedCouponValue>> GetLatestPublishedAsync(
+    public async Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
         IReadOnlyCollection<PortfolioBondKey> bonds,
         DateOnly asOf,
         CancellationToken cancellationToken)
@@ -22,20 +22,23 @@ public sealed class PortfolioCouponProvider(IDbContextFactory<PopoDbContext> dbC
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var coupons = await dbContext.MoexCouponsEntities
             .AsNoTracking()
-            .Where(x => securityIds.Contains(x.SecId) && x.CouponDate <= asOf && x.Value.HasValue)
+            .Where(x => securityIds.Contains(x.SecId) && x.CouponDate <= asOf)
             .Select(x => new PublishedCouponValue(
                 x.SecId,
                 x.Isin,
                 x.BoardId,
                 x.CouponDate,
-                x.Value!.Value,
-                x.FaceUnit))
+                x.StartDate,
+                x.Value,
+                x.FaceUnit,
+                x.RecordDate,
+                x.ValueInRub))
             .ToListAsync(cancellationToken);
 
         return coupons
             .Where(coupon => bonds.Any(bond => Matches(bond, coupon)))
-            .GroupBy(x => $"{x.SecId}\u001f{x.Isin}\u001f{x.BoardId}", StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.OrderByDescending(coupon => coupon.Date).First())
+            .OrderBy(x => x.SecId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Date)
             .ToArray();
     }
 

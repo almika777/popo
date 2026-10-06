@@ -30,6 +30,8 @@ public sealed class PortfolioPositionsService(
     IPortfolioCouponProvider couponProvider,
     IPositionRecommendationStore recommendationStore) : IPortfolioPositionsService
 {
+    private static readonly PositionCalculatorFactory PositionCalculatorFactory = new();
+
     public async Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken)
     {
         var recommendationTask = recommendationStore.GetAsync(cancellationToken);
@@ -40,14 +42,20 @@ public sealed class PortfolioPositionsService(
         var positions = valuedPositions.Select(x => x.Position).ToArray();
         var marketValueRub = valuedPositions.Sum(x =>
             x.Position.MarketValue.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
-        var unrealizedPnlRub = valuedPositions.Sum(x =>
-            x.Position.UnrealizedPnl.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
-        var investedAmountRub = marketValueRub - unrealizedPnlRub;
+        var unrealizedPnlRub = valuedPositions.All(x => x.Position.UnrealizedPnl.HasValue)
+            ? valuedPositions.Sum(x => x.Position.UnrealizedPnl!.Value
+                                       * x.TradingCurrencyRateToRub.GetValueOrDefault())
+            : (double?)null;
+        var investedAmountRub = unrealizedPnlRub.HasValue
+            ? marketValueRub - unrealizedPnlRub.Value
+            : (double?)null;
         var totals = new PositionTotalsResponse(
             marketValueRub,
             investedAmountRub,
             unrealizedPnlRub,
-            investedAmountRub == 0 ? 0 : unrealizedPnlRub / investedAmountRub * 100);
+            !investedAmountRub.HasValue || investedAmountRub.Value == 0
+                ? null
+                : unrealizedPnlRub!.Value / investedAmountRub.Value * 100);
 
         return new PositionsPageResponse(
             positions,
@@ -78,8 +86,10 @@ public sealed class PortfolioPositionsService(
             balance.Amount * (GetCurrencyRate(cashRates, balance.CurrencyId, asOf) ?? 0));
         var positionsValueRub = valuedPositions.Sum(x =>
             x.Position.MarketValue.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
-        var unrealizedPnlRub = valuedPositions.Sum(x =>
-            x.Position.UnrealizedPnl.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
+        var unrealizedPnlRub = valuedPositions.All(x => x.Position.UnrealizedPnl.HasValue)
+            ? valuedPositions.Sum(x => x.Position.UnrealizedPnl!.Value
+                                       * x.TradingCurrencyRateToRub.GetValueOrDefault())
+            : (double?)null;
         var funds = await GetMoneyMarketFundsAsync(cancellationToken);
         var fundsValueRub = funds.Sum(x => x.CurrentValue.GetValueOrDefault());
 
@@ -206,10 +216,11 @@ public sealed class PortfolioPositionsService(
             .Distinct()
             .ToArray();
         var couponHistory = await couponProvider
-            .GetLatestPublishedAsync(bondKeys, asOf, cancellationToken);
+            .GetPublishedHistoryAsync(bondKeys, asOf, cancellationToken);
         var rateCurrencies = selections
             .Where(x => x.Security is not null)
             .SelectMany(x => new[] { x.Security!.FaceUnit, x.Position.CurrencyId })
+            .Concat(couponHistory.Select(x => x.FaceUnit))
             .Where(x => !IsRubleCurrency(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -228,22 +239,52 @@ public sealed class PortfolioPositionsService(
     {
         var marketPricing = CalculateMarketPrice(data, referenceData.CurrencyRates, asOf);
         var couponValue = GetPositionCouponValue(data, referenceData, marketPricing.QuoteDate);
+        var calculator = PositionCalculatorFactory.Create(data.Security?.FaceUnit, data.Position.CurrencyId);
         var tradePricing = CalculatePositionTradePricing(
             data,
             sourceData.Trades,
             referenceData.CurrencyRates,
-            marketPricing);
+            marketPricing,
+            calculator is not ZoPositionCalculator);
         var isNominalIndexed = data.IsNominalIndexed
                                || data.Security is { InitialFaceValue: <= 0, FaceValue: > 0 } security
                                && HasOpenLotNominalGrowth(tradePricing, data.Position.Quantity, security.FaceValue);
-        var income = CalculatePositionIncome(data, tradePricing, marketPricing, couponValue, isNominalIndexed, asOf);
-        double? averageBuyPriceAtCurrentFaceValue = income is { RemainingQuantity: > 0 }
-            ? income.RemainingCleanCost / income.RemainingQuantity
-            : null;
-        var valuation = PortfolioPositionCalculator.Calculate(
-            data.Position,
-            marketPricing.MarketPrice,
-            averageBuyPriceAtCurrentFaceValue);
+        var canNormalizeOpenCost = tradePricing
+            .Where(x => x.Trade.Side == TradeSide.Buy)
+            .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
+        var positionCalculation = calculator is DefaultPositionCalculator
+                                 && (!marketPricing.MarketPrice.HasValue
+                                     || data.Marketdata?.CurrentPrice is null
+                                     || data.Security is null
+                                     || !canNormalizeOpenCost)
+            ? new PositionCalculationResult(
+                null,
+                PortfolioPositionCalculator.Calculate(data.Position, marketPricing.MarketPrice),
+                null)
+            : calculator.Calculate(new PositionCalculationInput(
+                data.Position,
+                tradePricing.Select(x => new PositionIncomeTrade(
+                    x.Trade.TradeDate,
+                    x.Trade.Side,
+                    x.Trade.Quantity,
+                    x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
+                    x.Trade.Commission,
+                    x.PurchasePricePercent,
+                    x.Trade.Price,
+                    x.Trade.AccruedInterest,
+                    x.Trade.TradeTime)).ToArray(),
+                asOf,
+                marketPricing.MarketPrice,
+                couponValue.GetValueOrDefault(),
+                data.Security?.CouponPeriod ?? 0,
+                isNominalIndexed,
+                data.Security?.Accruedint ?? 0,
+                GetZoCouponPayments(data, referenceData, marketPricing.QuoteDate),
+                data.Security?.CouponFrequency,
+                data.Security?.NextCouponDate));
+        var income = positionCalculation.Income;
+        var averageBuyPriceAtCurrentFaceValue = positionCalculation.AverageBuyPriceAtCurrentFaceValue;
+        var valuation = positionCalculation.Valuation;
 
         return CreateValuedPosition(
             data,
@@ -252,7 +293,9 @@ public sealed class PortfolioPositionsService(
             income,
             averageBuyPriceAtCurrentFaceValue,
             valuation,
-            isNominalIndexed);
+            isNominalIndexed,
+            positionCalculation.AverageBuyPrice,
+            positionCalculation.IsTradeOrderAmbiguous);
     }
 
     private static bool HasOpenLotNominalGrowth(
@@ -317,14 +360,17 @@ public sealed class PortfolioPositionsService(
         if (data.Security is null)
             return null;
 
-        var latestCoupon = referenceData.CouponHistory.FirstOrDefault(x =>
+        var latestCoupon = referenceData.CouponHistory
+            .Where(x => x.Date <= quoteDate && x.Value.HasValue)
+            .OrderByDescending(x => x.Date)
+            .FirstOrDefault(x =>
             string.Equals(x.SecId, data.Security.SecId, StringComparison.OrdinalIgnoreCase)
             && string.Equals(x.Isin, data.Security.Isin, StringComparison.OrdinalIgnoreCase)
             && string.Equals(x.BoardId, data.Security.BoardId, StringComparison.OrdinalIgnoreCase));
 
         return latestCoupon is not null
             ? ConvertCurrencyAmount(
-                latestCoupon.Value,
+                latestCoupon.Value!.Value,
                 latestCoupon.FaceUnit,
                 data.Position.CurrencyId,
                 referenceData.CurrencyRates,
@@ -337,11 +383,36 @@ public sealed class PortfolioPositionsService(
                 quoteDate);
     }
 
+    private static IReadOnlyCollection<ZoCouponPayment> GetZoCouponPayments(
+        PositionData data,
+        PositionAdditionalData referenceData,
+        DateOnly quoteDate)
+    {
+        if (data.Security is null)
+            return [];
+
+        return referenceData.CouponHistory
+            .Where(x => x.Date <= quoteDate
+                        && string.Equals(x.SecId, data.Security.SecId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(x.Isin, data.Security.Isin, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(x.BoardId, data.Security.BoardId, StringComparison.OrdinalIgnoreCase))
+            .Select(x => new ZoCouponPayment(
+                x.Date,
+                x.PeriodStartDate,
+                x.Value,
+                x.FaceUnit,
+                GetCurrencyRate(referenceData.CurrencyRates, x.FaceUnit, x.Date),
+                x.RecordDate,
+                x.ValueInRub))
+            .ToArray();
+    }
+
     private PositionTradePricing[] CalculatePositionTradePricing(
         PositionData data,
         IReadOnlyCollection<PortfolioTradeRecord> trades,
         IReadOnlyCollection<CurrencyRateSnapshot> rates,
-        PositionMarketPriceData marketPriceData)
+        PositionMarketPriceData marketPriceData,
+        bool normalizeCleanPrices)
     {
         if (data.Security is null)
             return [];
@@ -364,7 +435,7 @@ public sealed class PortfolioPositionsService(
                     trade.CurrencyId,
                     GetCurrencyRate(rates, data.Security.FaceUnit, trade.TradeDate),
                     GetCurrencyRate(rates, trade.CurrencyId, trade.TradeDate));
-                var purchasePriceAtCurrentFaceValue = purchasePricePercent.HasValue
+                var purchasePriceAtCurrentFaceValue = normalizeCleanPrices && purchasePricePercent.HasValue
                     ? PortfolioMarketPriceCalculator.Calculate(
                         data.Security.FaceValue,
                         data.Security.FaceUnit,
@@ -379,45 +450,6 @@ public sealed class PortfolioPositionsService(
             .ToArray();
     }
 
-    private static PortfolioPositionIncome? CalculatePositionIncome(
-        PositionData data,
-        IReadOnlyCollection<PositionTradePricing> tradePricing,
-        PositionMarketPriceData marketPriceData,
-        double? couponValue,
-        bool isNominalIndexed,
-        DateOnly asOf)
-    {
-        var canNormalizeOpenCost = tradePricing
-            .Where(x => x.Trade.Side == TradeSide.Buy)
-            .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
-        if (!marketPriceData.MarketPrice.HasValue
-            || data.Marketdata?.CurrentPrice is null
-            || data.Security is null
-            || !canNormalizeOpenCost)
-        {
-            return null;
-        }
-
-        var incomeTrades = tradePricing
-            .Select(x => new PositionIncomeTrade(
-                x.Trade.TradeDate,
-                x.Trade.Side,
-                x.Trade.Quantity,
-                x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
-                x.Trade.Commission,
-                x.PurchasePricePercent,
-                x.Trade.Price))
-            .ToArray();
-
-        return PortfolioPositionCalculator.Calculate(
-            incomeTrades,
-            asOf,
-            marketPriceData.MarketPrice.Value,
-            couponValue.GetValueOrDefault(),
-            data.Security.CouponPeriod,
-            isNominalIndexed);
-    }
-
     private static ValuedPosition CreateValuedPosition(
         PositionData data,
         PositionMarketPriceData marketPriceData,
@@ -425,31 +457,46 @@ public sealed class PortfolioPositionsService(
         PortfolioPositionIncome? income,
         double? averageBuyPriceAtCurrentFaceValue,
         PortfolioPositionValuation valuation,
-        bool isNominalIndexed)
+        bool isNominalIndexed,
+        double? averageBuyPrice,
+        bool hasAmbiguousTradeOrder)
     {
         var position = data.Position with
         {
-            AverageBuyPrice = income is
+            AverageBuyPrice = hasAmbiguousTradeOrder
+                ? null
+                : averageBuyPrice ?? (income is
                 { RemainingQuantity: > 0, ActualRemainingCleanCost: { } actualRemainingCleanCost }
                 ? actualRemainingCleanCost / income.RemainingQuantity
-                : data.Position.AverageBuyPrice,
+                : data.Position.AverageBuyPrice),
             MarketPrice = valuation.MarketPrice,
             MarketValue = valuation.MarketValue,
-            UnrealizedPnl = income?.UnrealizedPnl ?? valuation.UnrealizedPnl,
-            UnrealizedPnlPercent = income?.UnrealizedPnlPercent ?? valuation.UnrealizedPnlPercent,
+            UnrealizedPnl = hasAmbiguousTradeOrder ? null : income?.UnrealizedPnl ?? valuation.UnrealizedPnl,
+            UnrealizedPnlPercent = hasAmbiguousTradeOrder
+                ? null
+                : income?.UnrealizedPnlPercent ?? valuation.UnrealizedPnlPercent,
             ShortName = data.Security?.ShortName ?? data.Position.SecId,
             AverageDailyVolume = data.VolumeStatistics?.Average,
             MedianDailyVolume = data.VolumeStatistics?.Median,
-            ApproximateCouponIncome = couponValue.HasValue ? income?.CouponIncome : null,
-            ApproximateTotalPnl = couponValue.HasValue ? income?.TotalPnl : null,
-            ApproximateTotalPnlPercent = couponValue.HasValue ? income?.TotalPnlPercent : null,
-            ApproximateAnnualizedTotalPnlPercent = couponValue.HasValue ? income?.AnnualizedTotalPnlPercent : null,
+            ApproximateCouponIncome = couponValue.HasValue && income is { IsCouponIncomeComplete: true }
+                ? income.CouponIncome
+                : null,
+            ApproximateTotalPnl = couponValue.HasValue && income is { IsCouponIncomeComplete: true }
+                ? income.TotalPnl
+                : null,
+            ApproximateTotalPnlPercent = couponValue.HasValue && income is { IsCouponIncomeComplete: true }
+                ? income.TotalPnlPercent
+                : null,
+            ApproximateAnnualizedTotalPnlPercent = couponValue.HasValue && income is { IsCouponIncomeComplete: true }
+                ? income.AnnualizedTotalPnlPercent
+                : null,
             AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
             AverageBuyPricePercent = income?.AverageBuyPricePercent,
             CurrentFaceValue = data.Security?.FaceValue,
             FaceUnit = data.Security?.FaceUnit,
             MarketPricePercent = data.Marketdata?.CurrentPrice,
-            IsNominalIndexed = isNominalIndexed
+            IsNominalIndexed = isNominalIndexed,
+            HasAmbiguousTradeOrder = hasAmbiguousTradeOrder
         };
 
         return new ValuedPosition(position, marketPriceData.TradingCurrencyRateToRub);
