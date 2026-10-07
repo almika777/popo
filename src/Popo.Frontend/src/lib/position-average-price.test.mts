@@ -46,14 +46,13 @@ test("marks the actual average price when nominal normalization is unavailable",
   });
 });
 
-test("hides average cost when FIFO order is unknown", () => {
+test("displays the available weighted average purchase price", () => {
   assert.deepEqual(getPositionAverageBuyPrice({
     averageBuyPrice: 1500,
     averageBuyPriceAtCurrentFaceValue: 1500,
-    isNominalIndexed: false,
-    hasAmbiguousTradeOrder: true
+    isNominalIndexed: false
   }), {
-    value: null,
+    value: 1500,
     basis: "actual"
   });
 });

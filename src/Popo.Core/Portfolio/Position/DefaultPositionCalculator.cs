@@ -6,11 +6,24 @@ public sealed class DefaultPositionCalculator : IPositionCalculator
     {
         ArgumentNullException.ThrowIfNull(input);
 
+        var openLots = new PositionOpenLotCalculator().Calculate(input.Trades, input.AsOf);
+        if (openLots.RemainingQuantity <= 0)
+        {
+            return new(null, new PortfolioPositionValuation(null, null, null, null), null);
+        }
+
+        var averageBuyPriceAtCurrentFaceValue = openLots.RemainingCleanCost / openLots.RemainingQuantity;
+        var averageBuyPrice = openLots.ActualRemainingCleanCost / openLots.RemainingQuantity;
+
         if (!input.CurrentCleanPrice.HasValue
             || !double.IsFinite(input.CurrentCleanPrice.Value)
             || input.CurrentCleanPrice.Value <= 0)
         {
-            return new(null, new PortfolioPositionValuation(null, null, null, null), null);
+            return new(
+                null,
+                new PortfolioPositionValuation(null, null, null, null),
+                averageBuyPriceAtCurrentFaceValue,
+                averageBuyPrice);
         }
 
         var income = PortfolioPositionCalculator.Calculate(
@@ -20,14 +33,11 @@ public sealed class DefaultPositionCalculator : IPositionCalculator
             input.CouponValue,
             input.CouponPeriodDays,
             input.IncludeIndexedNominalIncreaseInPnl);
-        double? averageBuyPriceAtCurrentFaceValue = income.RemainingQuantity <= 0
-            ? null
-            : income.RemainingCleanCost / income.RemainingQuantity;
         var valuation = PortfolioPositionCalculator.Calculate(
             input.Position,
             input.CurrentCleanPrice,
             averageBuyPriceAtCurrentFaceValue);
 
-        return new(income, valuation, averageBuyPriceAtCurrentFaceValue);
+        return new(income, valuation, averageBuyPriceAtCurrentFaceValue, averageBuyPrice);
     }
 }

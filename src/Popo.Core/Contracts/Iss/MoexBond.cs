@@ -235,7 +235,7 @@ public class MoexBond
     /// <summary>
     /// НКД (накопленный купонный доход)
     /// </summary>
-    public double Accruedint { get; set; }
+    public double? Accruedint { get; set; }
 
     /// <summary>
     /// Дата следующего купона

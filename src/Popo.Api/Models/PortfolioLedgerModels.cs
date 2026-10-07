@@ -12,8 +12,7 @@ public sealed record UpsertPortfolioTradeRequest(
     double Price,
     double FaceValue,
     double AccruedInterestTotal,
-    double CommissionPercent,
-    TimeOnly? TradeTime = null);
+    double CommissionPercent);
 
 public sealed record UpsertCashSnapshotRequest(
     string CurrencyId,

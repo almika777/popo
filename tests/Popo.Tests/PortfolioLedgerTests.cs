@@ -307,7 +307,7 @@ public sealed class PortfolioLedgerTests
     }
 
       [Test]
-      public void ApproximateIncome_AppliesSalesToOldestLotsFirst()
+      public void ApproximateIncome_AppliesSalesProportionallyToOpenLots()
       {
           var result = PortfolioPositionCalculator.Calculate(
           [
@@ -320,10 +320,10 @@ public sealed class PortfolioLedgerTests
           30,
           30);
 
-          Assert.That(result.RemainingCleanCost, Is.EqualTo(900).Within(0.001));
-          Assert.That(result.PaidBuyCommission, Is.EqualTo(1).Within(0.001));
-          Assert.That(result.CouponIncome, Is.EqualTo(18).Within(0.001));
-          Assert.That(result.TotalPnl, Is.EqualTo(7).Within(0.001));
+          Assert.That(result.RemainingCleanCost, Is.EqualTo(950).Within(0.001));
+          Assert.That(result.PaidBuyCommission, Is.EqualTo(1.5).Within(0.001));
+          Assert.That(result.CouponIncome, Is.EqualTo(22.5).Within(0.001));
+          Assert.That(result.TotalPnl, Is.EqualTo(-39).Within(0.001));
       }
 
     [Test]

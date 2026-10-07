@@ -980,9 +980,6 @@ namespace Popo.Storage.Migrations
                     b.Property<DateOnly>("TradeDate")
                         .HasColumnType("date");
 
-                    b.Property<TimeOnly?>("TradeTime")
-                        .HasColumnType("time without time zone");
-
                     b.HasKey("Id");
 
                     b.HasIndex("TradeDate", "SecId", "BoardId");

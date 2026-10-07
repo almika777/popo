@@ -15,7 +15,7 @@ public sealed class BrokerReportFaceValueResolverTests
         var trades = new[]
         {
             new ParsedBrokerTrade(
-                new DateOnly(2024, 6, 20), new TimeOnly(10, 30), "123456", "RU000A",
+                new DateOnly(2024, 6, 20), "123456", "RU000A",
                 TradeSide.Buy, 50, "%", 1, 500, 0, 500, "RUB", 0, 0, 0, "TQCB")
         };
         var bonds = new Dictionary<string, BondSearchResult>(StringComparer.OrdinalIgnoreCase)

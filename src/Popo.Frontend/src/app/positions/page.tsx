@@ -87,9 +87,7 @@ export default function PositionsPage() {
     } },
     { title: "Средняя цена покупки", key: "averageBuyPrice", render: (_, row) => {
       const averagePrice = getPositionAverageBuyPrice(row);
-      if (averagePrice.value == null) return row.hasAmbiguousTradeOrder
-        ? <Tooltip title="В журнале есть сделки в один день без точного времени исполнения. Себестоимость FIFO не определяется.">Нет данных</Tooltip>
-        : "Нет данных";
+      if (averagePrice.value == null) return "Нет данных";
 
       const adjustedPrice = row.averageBuyPriceAtCurrentFaceValue;
       const tooltip = averagePrice.basis === "indexed-nominal"

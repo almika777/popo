@@ -15,6 +15,10 @@ public sealed record PublishedCouponValue(
 
 public interface IPortfolioCouponProvider
 {
+    Task<IReadOnlyList<PublishedCouponValue>> GetCouponScheduleAsync(
+        IReadOnlyCollection<PortfolioBondKey> bonds,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
         IReadOnlyCollection<PortfolioBondKey> bonds,
         DateOnly asOf,

@@ -9,7 +9,10 @@ public sealed record PortfolioPosition(
     double SellQuantity,
     double BuyCleanAmount,
     double BuyAmount,
-    double SellAmount);
+    double SellAmount)
+{
+    public double? AverageBuyPrice { get; init; }
+}
 
 public sealed record PositionIncomeTrade(
     DateOnly TradeDate,
@@ -19,8 +22,7 @@ public sealed record PositionIncomeTrade(
     double Commission,
     double? CleanPricePercent = null,
     double? ActualCleanPrice = null,
-    double AccruedInterest = 0,
-    TimeOnly? TradeTime = null);
+    double AccruedInterest = 0);
 
 public sealed record PortfolioPositionIncome(
     double RemainingCleanCost,

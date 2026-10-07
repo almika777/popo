@@ -15,7 +15,7 @@ public static class PortfolioPositionCalculator
                 var buys = group.Where(x => x.Side == TradeSide.Buy).ToArray();
                 var sells = group.Where(x => x.Side == TradeSide.Sell).ToArray();
 
-                return new PortfolioPosition(
+                var position = new PortfolioPosition(
                     group.Key.SecId,
                     group.Key.BoardId,
                     group.Key.CurrencyId,
@@ -25,6 +25,23 @@ public static class PortfolioPositionCalculator
                     buys.Sum(x => x.CleanAmount),
                     buys.Sum(x => x.Amount),
                     sells.Sum(x => x.Amount));
+                var openLots = new PositionOpenLotCalculator().Calculate(
+                    group.Select(x => new PositionIncomeTrade(
+                        x.TradeDate,
+                        x.Side,
+                        x.Quantity,
+                        x.Price,
+                        x.CommissionAmount,
+                        ActualCleanPrice: x.Price,
+                        AccruedInterest: x.AccruedInterest)).ToArray(),
+                    DateOnly.MaxValue);
+
+                return position with
+                {
+                    AverageBuyPrice = openLots.RemainingQuantity > 0
+                        ? openLots.RemainingCleanCost / openLots.RemainingQuantity
+                        : null
+                };
             })
             .OrderBy(x => x.SecId)
             .ThenBy(x => x.BoardId)
@@ -45,7 +62,7 @@ public static class PortfolioPositionCalculator
             position.BuyCleanAmount,
             position.BuyAmount,
             position.SellAmount,
-            position.BuyQuantity == 0 ? 0 : position.BuyCleanAmount / position.BuyQuantity);
+            position.AverageBuyPrice);
 
     public static PortfolioPositionIncome Calculate(
         IReadOnlyCollection<PositionIncomeTrade> trades,
@@ -64,50 +81,13 @@ public static class PortfolioPositionCalculator
             throw new ArgumentException("Текущая цена и данные по купону должны быть неотрицательными.");
         }
 
-        var lots = new Queue<OpenLot>();
-        foreach (var trade in PortfolioPositionsValidate.OrderByExecution(
-                     trades,
-                     x => x.TradeDate,
-                     x => x.Side,
-                     x => x.TradeTime))
-        {
-            PortfolioPositionsValidate.ValidateTrade(trade, asOf);
-            if (trade.Side == TradeSide.Buy)
-            {
-                lots.Enqueue(new OpenLot(
-                    trade.TradeDate,
-                    trade.Quantity,
-                    trade.CleanPrice,
-                    trade.ActualCleanPrice ?? trade.CleanPrice,
-                    trade.CleanPricePercent,
-                    trade.Commission / trade.Quantity));
-                continue;
-            }
-
-            var quantityToSell = trade.Quantity;
-            while (quantityToSell > 0 && lots.TryPeek(out var lot))
-            {
-                var consumedQuantity = Math.Min(quantityToSell, lot.Quantity);
-                lot.Quantity -= consumedQuantity;
-                quantityToSell -= consumedQuantity;
-                if (lot.Quantity == 0)
-                {
-                    lots.Dequeue();
-                }
-            }
-
-            if (quantityToSell > 0)
-                throw new InvalidOperationException("Количество продажи не может превышать доступный остаток.");
-        }
-
-        var remainingLots = lots.ToArray();
-        var remainingQuantity = remainingLots.Sum(x => x.Quantity);
-        var remainingCleanCost = remainingLots.Sum(x => x.Quantity * x.CleanPrice);
-        var actualRemainingCleanCost = remainingLots.Sum(x => x.Quantity * x.ActualCleanPrice);
-        var paidBuyCommission = remainingLots.Sum(x => x.Quantity * x.CommissionPerUnit);
-        double? averageBuyPricePercent = remainingQuantity == 0 || remainingLots.Any(x => !x.CleanPricePercent.HasValue)
-            ? null
-            : remainingLots.Sum(x => x.Quantity * x.CleanPricePercent!.Value) / remainingQuantity;
+        var openLots = new PositionOpenLotCalculator().Calculate(trades, asOf);
+        var remainingLots = openLots.Lots;
+        var remainingQuantity = openLots.RemainingQuantity;
+        var remainingCleanCost = openLots.RemainingCleanCost;
+        var actualRemainingCleanCost = openLots.ActualRemainingCleanCost;
+        var paidBuyCommission = openLots.PaidBuyCommission;
+        var averageBuyPricePercent = openLots.AverageBuyPricePercent;
         var dailyCoupon = couponPeriodDays == 0 ? 0 : couponValue / couponPeriodDays;
         var couponIncome = remainingLots.Sum(x =>
             x.Quantity * dailyCoupon * Math.Max(0, asOf.DayNumber - x.TradeDate.DayNumber));
@@ -177,20 +157,4 @@ public static class PortfolioPositionCalculator
             unrealizedPnl,
             unrealizedPnlPercent);
     }
-}
-
-sealed class OpenLot(
-    DateOnly tradeDate,
-    double quantity,
-    double cleanPrice,
-    double actualCleanPrice,
-    double? cleanPricePercent,
-    double commissionPerUnit)
-{
-    public DateOnly TradeDate { get; } = tradeDate;
-    public double Quantity { get; set; } = quantity;
-    public double CleanPrice { get; } = cleanPrice;
-    public double ActualCleanPrice { get; } = actualCleanPrice;
-    public double? CleanPricePercent { get; } = cleanPricePercent;
-    public double CommissionPerUnit { get; } = commissionPerUnit;
 }

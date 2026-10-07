@@ -33,8 +33,7 @@ public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbConte
                 x.Price, 
                 x.FaceValue, 
                 x.AccruedInterest,
-                x.Commission / (x.Quantity * x.Price + x.Quantity * x.AccruedInterest) * 100,
-                x.TradeTime)
+                x.Commission / (x.Quantity * x.Price + x.Quantity * x.AccruedInterest) * 100)
             )
             .ToListAsync(cancellationToken);
     }

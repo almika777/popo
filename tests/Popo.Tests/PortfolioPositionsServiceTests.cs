@@ -58,6 +58,77 @@ public sealed class PortfolioPositionsServiceTests
         Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.Null);
     }
 
+    [Test]
+    public async Task Floater_UsesPublishedCouponScheduleAndCurrentAccruedInterestWithoutMoexCouponValue()
+    {
+        const string secId = "FLOAT-SERVICE";
+        const string boardId = "TQCB";
+        const string isin = "RU000A10FLOT";
+        const string couponBoardId = "TQBR";
+        var trades = new[]
+        {
+            new PortfolioTradeRecord(
+                Guid.NewGuid(), secId, boardId, "RUB", new DateOnly(2026, 1, 1), TradeSide.Buy,
+                2, 1_000, 1_000, 5, 0, 0, 2_010)
+        };
+        var position = new PortfolioPositionRecord(
+            secId, boardId, "RUB", 2, 2, 0, 2_000, 2_010, 0, 1_000);
+        var security = new MoexBond
+        {
+            SecId = secId,
+            BoardId = boardId,
+            Isin = isin,
+            InitialFaceValue = 1_000,
+            FaceValue = 1_000,
+            FaceUnit = "RUB",
+            BondType = "Флоатер",
+            CouponFrequency = 4,
+            CouponValue = 0,
+            Accruedint = 7,
+            NextCouponDate = new DateOnly(2026, 9, 30)
+        };
+        var quote = new MoexMarketdata
+        {
+            SecId = secId,
+            BoardId = boardId,
+            LCurrentPrice = 97,
+            SysTime = new DateTime(2026, 8, 1)
+        };
+        var couponSchedule = new[]
+        {
+            new PublishedCouponValue(secId, isin, couponBoardId,
+                new DateOnly(2026, 3, 31), new DateOnly(2026, 1, 1), 50, "RUB",
+                new DateOnly(2026, 3, 15)),
+            new PublishedCouponValue(secId, isin, couponBoardId,
+                new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), 100, "RUB",
+                new DateOnly(2026, 6, 15)),
+            new PublishedCouponValue(secId, isin, couponBoardId,
+                new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), null, "RUB",
+                new DateOnly(2026, 9, 15))
+        };
+        var service = new PortfolioPositionsService(
+            new FakePortfolioService(),
+            new FakeMoneyMarketFundsProvider(),
+            new FakeTradesProvider(trades),
+            new FakePositionsProvider(position),
+            new FakeMoexHttpClient(security, quote),
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider(couponSchedule),
+            null!);
+
+        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.MarketValue, Is.EqualTo(1_940));
+            Assert.That(result.UnrealizedPnl, Is.EqualTo(-60));
+            Assert.That(result.ApproximateCouponIncome, Is.EqualTo(304));
+            Assert.That(result.ApproximateTotalPnl, Is.EqualTo(244));
+            Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.Not.Null);
+        });
+    }
+
     [TestCase(1_000d)]
     [TestCase(0d)]
     public async Task IndexedNominalPosition_IncludesNominalGrowthInCleanPriceResult(double initialFaceValue)
@@ -137,12 +208,13 @@ public sealed class PortfolioPositionsServiceTests
         });
     }
 
-    [TestCase(600d, true, 100d)]
-    [TestCase(800d, false, 0d)]
-    public async Task MissingInitialNominal_UsesOnlyOpenFifoLotsToDetectGrowth(
+    [TestCase(600d, true, 150d, 550d)]
+    [TestCase(800d, true, 50d, 650d)]
+    public async Task MissingInitialNominal_UsesRemainingWeightedPurchaseCohortsToDetectGrowth(
         double openLotFaceValue,
         bool isNominalIndexed,
-        double expectedCleanPriceResult)
+        double expectedCleanPriceResult,
+        double expectedAverageBuyPrice)
     {
         const string secId = "RU000A10F504";
         const string boardId = "TQCB";
@@ -192,7 +264,7 @@ public sealed class PortfolioPositionsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.AverageBuyPrice, Is.EqualTo(openLotFaceValue));
+            Assert.That(result.AverageBuyPrice, Is.EqualTo(expectedAverageBuyPrice));
             Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(700));
             Assert.That(result.IsNominalIndexed, Is.EqualTo(isNominalIndexed));
             Assert.That(result.UnrealizedPnl, Is.EqualTo(expectedCleanPriceResult));
@@ -343,12 +415,19 @@ public sealed class PortfolioPositionsServiceTests
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) => Task.FromResult(new Dictionary<string, DailyVolumeStatistics>());
     }
 
-    private sealed class FakeCouponProvider : IPortfolioCouponProvider
+    private sealed class FakeCouponProvider(IReadOnlyList<PublishedCouponValue>? schedule = null)
+        : IPortfolioCouponProvider
     {
+        public Task<IReadOnlyList<PublishedCouponValue>> GetCouponScheduleAsync(
+            IReadOnlyCollection<PortfolioBondKey> bonds,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(schedule ?? Array.Empty<PublishedCouponValue>());
+
         public Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
             IReadOnlyCollection<PortfolioBondKey> bonds,
             DateOnly asOf,
             CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<PublishedCouponValue>>([]);
+            Task.FromResult<IReadOnlyList<PublishedCouponValue>>(
+                schedule?.Where(x => x.Date <= asOf).ToArray() ?? []);
     }
 }

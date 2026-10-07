@@ -1,6 +1,6 @@
 namespace Popo.Core.Portfolio.Position;
 
-public sealed record ZoCouponPayment(
+public sealed record PositionCouponPayment(
     DateOnly Date,
     DateOnly PeriodStartDate,
     double? Value,
@@ -17,17 +17,17 @@ public sealed record PositionCalculationInput(
     double CouponValue,
     int CouponPeriodDays,
     bool IncludeIndexedNominalIncreaseInPnl,
-    double CurrentAccruedInterest,
-    IReadOnlyCollection<ZoCouponPayment> CouponPayments,
+    double? CurrentAccruedInterest,
+    IReadOnlyCollection<PositionCouponPayment> CouponPayments,
     int? CouponFrequency = null,
-    DateOnly? NextCouponDate = null);
+    DateOnly? NextCouponDate = null,
+    DateOnly? CouponValuationDate = null);
 
 public sealed record PositionCalculationResult(
     PortfolioPositionIncome? Income,
     PortfolioPositionValuation Valuation,
     double? AverageBuyPriceAtCurrentFaceValue,
-    double? AverageBuyPrice = null,
-    bool IsTradeOrderAmbiguous = false);
+    double? AverageBuyPrice = null);
 
 public interface IPositionCalculator
 {

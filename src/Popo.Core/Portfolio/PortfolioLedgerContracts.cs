@@ -16,8 +16,7 @@ public sealed record PortfolioTrade(
     double Price,
     double FaceValue = 1_000,
     double AccruedInterest = 0,
-    double CommissionPercent = 0,
-    TimeOnly? TradeTime = null)
+    double CommissionPercent = 0)
 {
     public double CleanAmount => Quantity * Price;
     public double AccruedInterestAmount => Quantity * AccruedInterest;
@@ -41,8 +40,7 @@ public sealed record PortfolioTradeRecord(
     double Commission,
     double CommissionPercent,
     double Amount,
-    string ShortName = "",
-    TimeOnly? TradeTime = null);
+    string ShortName = "");
 
 public sealed record PortfolioPositionRecord(
     string SecId,
@@ -71,8 +69,7 @@ public sealed record PortfolioPositionRecord(
     string? FaceUnit = null,
     double? MarketPricePercent = null,
     bool IsNominalIndexed = false,
-    double? ApproximateAnnualizedTotalPnlPercent = null,
-    bool HasAmbiguousTradeOrder = false);
+    double? ApproximateAnnualizedTotalPnlPercent = null);
 
 public sealed record PortfolioPositionValuation(
     double? MarketPrice,

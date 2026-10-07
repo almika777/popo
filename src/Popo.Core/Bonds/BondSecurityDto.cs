@@ -22,13 +22,7 @@ public readonly record struct BondSecurityDto(
     string? BondSubType = null,
     string? ShortName = null)
 {
-    public bool IsFloater =>
-        IsFloaterType(BondType) || IsFloaterType(BondSubType);
-
-    private static bool IsFloaterType(string? value) =>
-        value?.Contains("флоатер", StringComparison.OrdinalIgnoreCase) == true
-        || value?.Contains("плавающ", StringComparison.OrdinalIgnoreCase) == true
-            && value.Contains("купон", StringComparison.OrdinalIgnoreCase);
+    public bool IsFloater => BondCouponClassifier.IsFloater(BondType, BondSubType);
 
     public bool RequiresCouponSchedule =>
         !(BondType?.Contains("дисконт", StringComparison.OrdinalIgnoreCase) == true

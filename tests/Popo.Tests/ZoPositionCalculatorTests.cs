@@ -58,7 +58,7 @@ public sealed class ZoPositionCalculatorTests
     }
 
     [Test]
-    public void Calculator_UsesOnlyRemainingFifoLotsAfterSale()
+    public void Calculator_UsesWeightedAverageAndSaleDoesNotChangeIt()
     {
         var input = Input(
         [
@@ -72,34 +72,33 @@ public sealed class ZoPositionCalculatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Income!.RemainingQuantity, Is.EqualTo(1));
-            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(2_000));
-            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(-1_000));
+            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(1_500));
+            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(-500));
         });
     }
 
     [Test]
-    public void Calculator_UsesTradeTimeForFifoWhenTradesShareADate()
+    public void Calculator_UsesWeightedAverageForSameDayTradesRegardlessOfInputOrder()
     {
         var date = new DateOnly(2026, 9, 1);
         var input = Input(
         [
-            Trade(date, TradeSide.Buy, 1, 1_000, tradeTime: new TimeOnly(10, 0)),
-            Trade(date, TradeSide.Sell, 1, 1_500, tradeTime: new TimeOnly(11, 0)),
-            Trade(date, TradeSide.Buy, 1, 2_000, tradeTime: new TimeOnly(12, 0))
+            Trade(date, TradeSide.Sell, 1, 1_500),
+            Trade(date, TradeSide.Buy, 1, 2_000),
+            Trade(date, TradeSide.Buy, 1, 1_000)
         ], currentFaceValue: 1_000, marketPricePercent: 150, faceCurrencyRateToRub: 1);
 
         var result = new ZoPositionCalculator().Calculate(input);
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.IsTradeOrderAmbiguous, Is.False);
-            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(2_000));
-            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(-500));
+            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(1_500));
+            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(0));
         });
     }
 
     [Test]
-    public void Calculator_HidesCostBasedMetricsWhenSameDayBuyAndSellHaveNoExecutionTimes()
+    public void Calculator_CalculatesAverageWhenSameDayContainsBuysAndSales()
     {
         var date = new DateOnly(2026, 9, 1);
         var input = Input(
@@ -112,15 +111,14 @@ public sealed class ZoPositionCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.IsTradeOrderAmbiguous, Is.True);
-            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.Null);
+            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(1_000));
             Assert.That(result.Valuation.MarketValue, Is.EqualTo(1_050));
-            Assert.That(result.Valuation.UnrealizedPnl, Is.Null);
+            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(50));
         });
     }
 
     [Test]
-    public void Calculator_HidesFifoMetricsWhenDifferentSameDayBuysHaveNoExecutionTimes()
+    public void Calculator_UsesWeightedAverageAcrossSameDayBuysAfterSale()
     {
         var buyDate = new DateOnly(2026, 9, 1);
         var input = Input(
@@ -134,9 +132,8 @@ public sealed class ZoPositionCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.IsTradeOrderAmbiguous, Is.True);
-            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.Null);
-            Assert.That(result.Valuation.UnrealizedPnl, Is.Null);
+            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(900));
+            Assert.That(result.Valuation.UnrealizedPnl, Is.EqualTo(0));
         });
     }
 
@@ -152,7 +149,7 @@ public sealed class ZoPositionCalculatorTests
 
         var result = new ZoPositionCalculator().Calculate(input);
 
-        Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(2_000));
+        Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.EqualTo(1_500));
     }
 
     [Test]
@@ -165,9 +162,9 @@ public sealed class ZoPositionCalculatorTests
             faceCurrencyRateToRub: 1,
             couponPayments:
             [
-                new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+                new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                     100, "USD", 90),
-                new ZoCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 2),
+                new PositionCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 2),
                     200, "USD", 95)
             ],
             couponValue: 200,
@@ -192,7 +189,7 @@ public sealed class ZoPositionCalculatorTests
             faceCurrencyRateToRub: 1,
             couponPayments:
             [
-                new ZoCouponPayment(
+                new PositionCouponPayment(
                     new DateOnly(2026, 6, 30),
                     new DateOnly(2026, 1, 2),
                     100,
@@ -226,9 +223,9 @@ public sealed class ZoPositionCalculatorTests
             faceCurrencyRateToRub: 1,
             couponPayments:
             [
-                new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+                new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                     100, "USD", 1),
-                new ZoCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 2),
+                new PositionCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 2),
                     200, "USD", 1)
             ],
             couponValue: 200,
@@ -252,7 +249,7 @@ public sealed class ZoPositionCalculatorTests
             marketPricePercent: 100,
             faceCurrencyRateToRub: 1,
             currentAccruedInterest: 40,
-            couponPayments: [new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+            couponPayments: [new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                 100, "USD", 1)],
             couponValue: 100,
             couponPeriodDays: 182);
@@ -276,11 +273,11 @@ public sealed class ZoPositionCalculatorTests
             faceCurrencyRateToRub: 1,
             couponPayments:
             [
-                new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+                new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                     100, "USD", 1),
-                new ZoCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1),
+                new PositionCouponPayment(new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1),
                     200, "USD", 1),
-                new ZoCouponPayment(new DateOnly(2026, 12, 31), new DateOnly(2026, 10, 1),
+                new PositionCouponPayment(new DateOnly(2026, 12, 31), new DateOnly(2026, 10, 1),
                     300, "USD", 1)
             ],
             couponValue: 200,
@@ -302,7 +299,7 @@ public sealed class ZoPositionCalculatorTests
             currentFaceValue: 1_000,
             marketPricePercent: 100,
             faceCurrencyRateToRub: 1,
-            couponPayments: [new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 2, 1),
+            couponPayments: [new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 2, 1),
                 100, "USD", 1)],
             couponValue: 100,
             couponPeriodDays: 182);
@@ -325,7 +322,7 @@ public sealed class ZoPositionCalculatorTests
             currentFaceValue: 1_000,
             marketPricePercent: 100,
             faceCurrencyRateToRub: 1,
-            couponPayments: [new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+            couponPayments: [new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                 100, "USD", null)],
             couponValue: 100,
             couponPeriodDays: 182);
@@ -369,7 +366,7 @@ public sealed class ZoPositionCalculatorTests
             asOf: new DateOnly(2026, 7, 1),
             couponPayments:
             [
-                new ZoCouponPayment(new DateOnly(2025, 12, 31), new DateOnly(2025, 7, 2),
+                new PositionCouponPayment(new DateOnly(2025, 12, 31), new DateOnly(2025, 7, 2),
                     100, "USD", 1)
             ]);
 
@@ -413,9 +410,9 @@ public sealed class ZoPositionCalculatorTests
             asOf: new DateOnly(2027, 10, 5),
             couponPayments:
             [
-                new ZoCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
+                new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 2),
                     100, "USD", 1),
-                new ZoCouponPayment(new DateOnly(2027, 6, 30), new DateOnly(2027, 1, 1),
+                new PositionCouponPayment(new DateOnly(2027, 6, 30), new DateOnly(2027, 1, 1),
                     100, "USD", 1)
             ]);
 
@@ -499,7 +496,7 @@ public sealed class ZoPositionCalculatorTests
         double? marketPricePercent,
         double? faceCurrencyRateToRub,
         double currentAccruedInterest = 0,
-        IReadOnlyCollection<ZoCouponPayment>? couponPayments = null,
+        IReadOnlyCollection<PositionCouponPayment>? couponPayments = null,
         int couponPeriodDays = 0,
         double couponValue = 0,
         DateOnly? asOf = null,
@@ -514,8 +511,7 @@ public sealed class ZoPositionCalculatorTests
             x.Commission,
             null,
             x.Price,
-            x.AccruedInterest,
-            x.TradeTime)).ToArray();
+            x.AccruedInterest)).ToArray();
         var boughtQuantity = trades.Where(x => x.Side == TradeSide.Buy).Sum(x => x.Quantity);
         var soldQuantity = trades.Where(x => x.Side == TradeSide.Sell).Sum(x => x.Quantity);
         var boughtCleanAmount = trades.Where(x => x.Side == TradeSide.Buy).Sum(x => x.Quantity * x.Price);
@@ -557,9 +553,7 @@ public sealed class ZoPositionCalculatorTests
         double price,
         double tradeFaceValue = 1_000,
         double accruedInterest = 0,
-        double commission = 0,
-        TimeOnly? tradeTime = null) =>
+        double commission = 0) =>
         new(Guid.NewGuid(), "RU000A107738", "TQCB", "RUB", date, side, quantity, price,
-            tradeFaceValue, accruedInterest, commission, 0, quantity * price + commission,
-            TradeTime: tradeTime);
+            tradeFaceValue, accruedInterest, commission, 0, quantity * price + commission);
 }

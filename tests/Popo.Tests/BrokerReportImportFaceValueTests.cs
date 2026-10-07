@@ -15,7 +15,7 @@ public sealed class BrokerReportImportFaceValueTests
     {
         var tradeDate = new DateOnly(2024, 6, 20);
         var parsedTrade = new ParsedBrokerTrade(
-            tradeDate, new TimeOnly(10, 30), "123456", "RU000A",
+            tradeDate, "123456", "RU000A",
             TradeSide.Buy, 50, "%", 1, 500, 0, 500, "RUB", 0, 0, 0, "TQCB");
         var bondsService = new HistoricalBondsService(500);
         var importProvider = new CapturingBrokerReportImportProvider();

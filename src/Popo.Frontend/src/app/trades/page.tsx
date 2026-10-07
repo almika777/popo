@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { DeleteOutlined, EditOutlined, UploadOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Table, TimePicker, Tooltip, Typography } from "antd";
+import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import BrokerReportImportDialog from "../../components/BrokerReportImportDialog";
 import { portfolioLedgerApi, type BondSearchResult, type PortfolioTrade, type TradeSide } from "../../lib/portfolio-ledger-api";
 
-type TradeForm = { secId: string; tradeDate: Dayjs; tradeTime: Dayjs | null; side: TradeSide; quantity: number; price: number; accruedInterestTotal: number; commission: number };
+type TradeForm = { secId: string; tradeDate: Dayjs; side: TradeSide; quantity: number; price: number; accruedInterestTotal: number; commission: number };
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const integer = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 const bondKey = (bond: BondSearchResult) => `${bond.secId}|${bond.boardId}|${bond.currency}`;
@@ -35,18 +35,17 @@ export default function TradesPage() {
   const save = async (values: TradeForm) => {
     if (!selectedBond) { message.error("Выберите облигацию из поиска"); return; }
     try {
-      await portfolioLedgerApi.saveTrade({ secId: selectedBond.secId, boardId: selectedBond.boardId, currencyId: selectedBond.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), tradeTime: values.tradeTime?.format("HH:mm:ss") ?? null, side: values.side, quantity: values.quantity, price: values.price, faceValue: selectedBond.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
+      await portfolioLedgerApi.saveTrade({ secId: selectedBond.secId, boardId: selectedBond.boardId, currencyId: selectedBond.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side: values.side, quantity: values.quantity, price: values.price, faceValue: selectedBond.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
       message.success(editingId ? "Сделка обновлена" : "Сделка сохранена"); form.resetFields(); setSelectedBond(undefined); setEditingId(undefined); await load();
     } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось сохранить сделку"); }
   };
 
   const columns: ColumnsType<PortfolioTrade> = [
     { title: "Дата", dataIndex: "tradeDate", width: 120, render: (value: string) => <span style={{ whiteSpace: "nowrap" }}>{value}</span> },
-    { title: "Время", dataIndex: "tradeTime", width: 90, render: (value: string | null) => value?.slice(0, 5) ?? "—" },
     { title: "Облигация", key: "bond", width: 190, render: (_, row) => <div><div>{row.shortName || row.secId}</div><Typography.Text type="secondary" style={{ whiteSpace: "nowrap" }}>{row.secId} · {row.currencyId}</Typography.Text></div> },
     { title: "Тип", dataIndex: "side", render: (value: TradeSide) => <Typography.Text type={value === "Buy" ? "success" : "danger"}>{value === "Buy" ? "Покупка" : "Продажа"}</Typography.Text> }, { title: "Количество", dataIndex: "quantity", render: (value: number) => integer.format(value) },
     { title: "Цена", dataIndex: "price", render: (value: number) => number.format(value) }, { title: "НКД за 1 шт.", dataIndex: "accruedInterest", render: (value: number) => number.format(value) }, { title: "Комиссия", dataIndex: "commission", render: (value: number) => number.format(value) }, { title: "Сумма", dataIndex: "amount", render: (value: number) => number.format(value) },
-    { title: "Действия", width: 100, align: "center", render: (_, row) => <Space size={4}><Tooltip title="Изменить"><Button type="text" size="small" icon={<EditOutlined />} aria-label="Изменить" onClick={() => { const bond = { secId: row.secId, boardId: row.boardId, currency: row.currencyId, shortName: row.shortName, accruedInterest: row.accruedInterest, faceValue: row.faceValue }; setEditingId(row.id); setSelectedBond(bond); setBonds((current) => current.some((item) => bondKey(item) === bondKey(bond)) ? current : [...current, bond]); form.setFieldsValue({ secId: bondKey(bond), tradeDate: dayjs(row.tradeDate), tradeTime: row.tradeTime ? dayjs(`1970-01-01T${row.tradeTime}`) : null, side: row.side, quantity: row.quantity, price: row.price, accruedInterestTotal: row.accruedInterest * row.quantity, commission: row.commissionPercent }); }} /></Tooltip><Tooltip title="Удалить"><Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" onClick={() => void portfolioLedgerApi.deleteTrade(row.id).then(load)} /></Tooltip></Space> }
+    { title: "Действия", width: 100, align: "center", render: (_, row) => <Space size={4}><Tooltip title="Изменить"><Button type="text" size="small" icon={<EditOutlined />} aria-label="Изменить" onClick={() => { const bond = { secId: row.secId, boardId: row.boardId, currency: row.currencyId, shortName: row.shortName, accruedInterest: row.accruedInterest, faceValue: row.faceValue }; setEditingId(row.id); setSelectedBond(bond); setBonds((current) => current.some((item) => bondKey(item) === bondKey(bond)) ? current : [...current, bond]); form.setFieldsValue({ secId: bondKey(bond), tradeDate: dayjs(row.tradeDate), side: row.side, quantity: row.quantity, price: row.price, accruedInterestTotal: row.accruedInterest * row.quantity, commission: row.commissionPercent }); }} /></Tooltip><Tooltip title="Удалить"><Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label="Удалить" onClick={() => void portfolioLedgerApi.deleteTrade(row.id).then(load)} /></Tooltip></Space> }
   ];
 
   return <main className="app-content">
@@ -57,13 +56,12 @@ export default function TradesPage() {
     <Typography.Paragraph type="secondary">Сделка хранится в валюте торгов, выбранной из карточки облигации. Позиции пересчитываются автоматически.</Typography.Paragraph>
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       <Card title={editingId ? "Изменить сделку" : "Добавить сделку"} className="trade-editor-card">
-        <Form form={form} layout="vertical" onFinish={save} initialValues={{ side: "Buy", tradeTime: null, accruedInterestTotal: 0, commission: 0.04 }}>
+        <Form form={form} layout="vertical" onFinish={save} initialValues={{ side: "Buy", accruedInterestTotal: 0, commission: 0.04 }}>
           <Form.Item label="Облигация" name="secId" rules={[{ required: true, message: "Выберите облигацию" }]}>
             <Select showSearch filterOption={false} onSearch={(value) => void searchBonds(value)} onChange={(value) => { const bond = bonds.find((item) => bondKey(item) === value); setSelectedBond(bond); const quantity = form.getFieldValue("quantity"); if (bond && quantity > 0) form.setFieldValue("accruedInterestTotal", bond.accruedInterest * quantity); }} options={bonds.map((bond) => ({ value: bondKey(bond), label: `${bond.shortName || bond.secId} · ${bond.secId} · ${bond.currency} · номинал ${number.format(bond.faceValue)}` }))} placeholder="Поиск облигации" style={{ width: "100%" }} />
           </Form.Item>
           <Row gutter={[16, 0]}>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Дата" name="tradeDate" rules={[{ required: true, message: "Укажите дату" }]}><DatePicker style={{ width: "100%" }} /></Form.Item></Col>
-            <Col xs={24} sm={12} lg={4}><Form.Item label="Время исполнения" name="tradeTime" tooltip="Для точного FIFO, если в один день были сделки с разными ценами"><TimePicker format="HH:mm:ss" style={{ width: "100%" }} /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Тип" name="side" rules={[{ required: true, message: "Выберите тип" }]}><Select options={[{ value: "Buy", label: "Покупка" }, { value: "Sell", label: "Продажа" }]} /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Количество" name="quantity" rules={[{ required: true, message: "Укажите целое количество" }]}><InputNumber min={1} precision={0} style={{ width: "100%" }} placeholder="Шт." /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Цена" name="price" rules={[{ required: true, message: "Укажите цену" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} placeholder="За 1 шт." /></Form.Item></Col>

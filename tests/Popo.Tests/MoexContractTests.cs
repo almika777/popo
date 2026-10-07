@@ -50,6 +50,16 @@ public sealed class MoexContractTests
         Assert.That(payload.TradeDate, Is.EqualTo(new DateOnly(2026, 5, 16)));
     }
 
+    [Test]
+    public void BondContract_PreservesMissingAccruedInterestAsUnknown()
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var bond = JsonSerializer.Deserialize<Popo.HttpClients.Contracts.Iss.MoexBond>(
+            "{\"SECID\":\"FLOAT\"}", options);
+
+        Assert.That(bond!.Accruedint, Is.Null);
+    }
+
     private sealed class ContractPayload
     {
         [System.Text.Json.Serialization.JsonConverter(typeof(MoexDateTimeJsonConverter))]

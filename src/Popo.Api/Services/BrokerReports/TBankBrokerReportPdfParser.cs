@@ -12,7 +12,6 @@ internal sealed record BrokerReportPdfLetter(string Text, double X, double Y);
 
 public sealed record ParsedBrokerTrade(
     DateOnly TradeDate,
-    TimeOnly TradeTime,
     string BrokerTradeId,
     string InstrumentCode,
     TradeSide Side,
@@ -311,7 +310,6 @@ public sealed class TBankBrokerReportPdfParser : IBrokerReportPdfParser
             .Select(letter => letter.Text));
 
         var brokerTradeId = Normalize(LetterCell(TradeIdColumnStart, TradeIdColumnEnd));
-        var timeText = Cell(115, 147);
         var sideText = Normalize(Cell(163, 193));
         if (sideText.StartsWith("РЕПО", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -330,11 +328,9 @@ public sealed class TBankBrokerReportPdfParser : IBrokerReportPdfParser
             : priceUnitCell.ToUpperInvariant();
 
         if (!DateOnly.TryParseExact(dateAnchor.Text, "dd.MM.yyyy", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var tradeDate)
-            || !TimeOnly.TryParseExact(timeText, "HH:mm:ss", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var tradeTime))
+                DateTimeStyles.None, out var tradeDate))
         {
-            throw new InvalidDataException("В строке сделки не удалось распознать дату или время.");
+            throw new InvalidDataException("В строке сделки не удалось распознать дату.");
         }
 
         var side = sideText switch
@@ -368,7 +364,6 @@ public sealed class TBankBrokerReportPdfParser : IBrokerReportPdfParser
 
         return new ParsedBrokerTrade(
             tradeDate,
-            tradeTime,
             brokerTradeId,
             instrumentCode,
             side,

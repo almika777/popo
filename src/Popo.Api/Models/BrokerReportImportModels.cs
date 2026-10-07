@@ -27,8 +27,7 @@ public sealed record BrokerReportOperationResponse(
     double? Commission,
     double? Amount,
     bool CanImport,
-    string? Warning,
-    TimeOnly? TradeTime = null);
+    string? Warning);
 
 public sealed record BrokerReportPreviewResponse(
     IReadOnlyList<BrokerReportOperationResponse> Operations,
@@ -52,8 +51,7 @@ public sealed record BrokerReportOperationRequest(
     double? FaceValue,
     double? AccruedInterestTotal,
     double? Commission,
-    double? Amount,
-    TimeOnly? TradeTime = null);
+    double? Amount);
 
 public sealed record BrokerReportImportResponse(
     int TradesAdded,

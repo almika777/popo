@@ -283,7 +283,7 @@ public class MoexBond
     /// НКД (накопленный купонный доход)
     /// </summary>
     [JsonPropertyName("ACCRUEDINT")]
-    public double Accruedint { get; set; }
+    public double? Accruedint { get; set; }
 
     /// <summary>
     /// Дата следующего купона
