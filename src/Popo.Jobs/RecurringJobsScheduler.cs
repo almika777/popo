@@ -11,6 +11,7 @@ public static class RecurringJobsScheduler
         Schedule<IMoexBondUpdateJob>("long");
         Schedule<IMoexBondSecuritiesUpdateJob>("long");
         Schedule<IMoexHistoryPricesUpdateJob>("long");
+        Schedule<IMoexIndexHistoryUpdateJob>("long");
         Schedule<IMoexAmortsAndCouponsUpdateJob>("long");
         Schedule<ISecUpdateJob>("fast");
         Schedule<IMoexEmitentUpdateJob>("fast");
@@ -29,6 +30,7 @@ public static class RecurringJobsScheduler
         RecurringJob.RemoveIfExists(nameof(IMoexBondUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexBondSecuritiesUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexHistoryPricesUpdateJob));
+        RecurringJob.RemoveIfExists(nameof(IMoexIndexHistoryUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexAmortsAndCouponsUpdateJob));
         RecurringJob.RemoveIfExists(nameof(ISecUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexEmitentUpdateJob));

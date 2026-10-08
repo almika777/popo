@@ -13,6 +13,7 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
     public DbSet<MoexBondEntity> MoexBonds => Set<MoexBondEntity>();
     public DbSet<MoexBondSecurityEntity> MoexBondSecurities => Set<MoexBondSecurityEntity>();
     public DbSet<MoexHistoryYieldsEntity> MoexHistoryYieldsEntities => Set<MoexHistoryYieldsEntity>();
+    public DbSet<MoexIndexHistoryEntity> MoexIndexHistories => Set<MoexIndexHistoryEntity>();
     public DbSet<MoexCouponsEntity> MoexCouponsEntities => Set<MoexCouponsEntity>();
     public DbSet<MoexAmortsEntity> MoexAmortsEntities => Set<MoexAmortsEntity>();
     public DbSet<MoexEmitentEntity> MoexEmitents => Set<MoexEmitentEntity>();
@@ -43,6 +44,11 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
         {
             entity.HasKey(x => new { x.TradeDate, x.SecId, x.BoardId });
             entity.HasIndex(x => new { x.SecId, x.BoardId, x.TradeDate });
+        });
+        modelBuilder.Entity<MoexIndexHistoryEntity>(entity =>
+        {
+            entity.HasKey(x => new { x.SecId, x.TradeDate });
+            entity.Property(x => x.Close).HasPrecision(28, 12);
         });
         modelBuilder.Entity<MoexCouponsEntity>(entity =>
         {

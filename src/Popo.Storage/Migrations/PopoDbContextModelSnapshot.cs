@@ -809,6 +809,23 @@ namespace Popo.Storage.Migrations
                     b.ToTable("MoexHistoryYieldsEntities");
                 });
 
+            modelBuilder.Entity("Popo.Storage.Entities.Moex.MoexIndexHistoryEntity", b =>
+                {
+                    b.Property<string>("SecId")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("TradeDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Close")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("numeric(28,12)");
+
+                    b.HasKey("SecId", "TradeDate");
+
+                    b.ToTable("MoexIndexHistories");
+                });
+
             modelBuilder.Entity("Popo.Storage.Entities.Moex.SecInfoEntity", b =>
                 {
                     b.Property<string>("SecId")

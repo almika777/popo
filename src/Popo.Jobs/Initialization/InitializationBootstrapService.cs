@@ -85,6 +85,7 @@ public sealed class InitializationBootstrapService(
             "MoexBondUpdateJob" => services.GetRequiredService<IMoexBondUpdateJob>(),
             "MoexAmortsAndCouponsUpdateJob" => services.GetRequiredService<IMoexAmortsAndCouponsUpdateJob>(),
             "MoexHistoryPricesUpdateJob" => services.GetRequiredService<IMoexHistoryPricesUpdateJob>(),
+            "MoexIndexHistoryUpdateJob" => services.GetRequiredService<IMoexIndexHistoryUpdateJob>(),
             "MoexEmitentUpdateJob" => services.GetRequiredService<IMoexEmitentUpdateJob>(),
             "BondRatingUpdateJob" => services.GetRequiredService<IBondRatingUpdateJob>(),
             "CbrCurrencyRatesUpdateJob" => services.GetRequiredService<ICbrCurrencyRatesUpdateJob>(),

@@ -13,6 +13,7 @@ public static class InitializationBootstrap
         new("MoexBondUpdateJob", "Описания облигаций"),
         new("MoexAmortsAndCouponsUpdateJob", "Купоны и амортизации"),
         new("MoexHistoryPricesUpdateJob", "История цен и объёмы"),
+        new("MoexIndexHistoryUpdateJob", "История индекса LQDT"),
         new("MoexEmitentUpdateJob", "Эмитенты"),
         new("BondRatingUpdateJob", "Кредитные рейтинги"),
         new("CbrCurrencyRatesUpdateJob", "Курсы валют ЦБ")
