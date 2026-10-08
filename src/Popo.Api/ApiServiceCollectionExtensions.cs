@@ -46,6 +46,7 @@ public static class ApiServiceCollectionExtensions
             .AllowAnyHeader()
             .AllowAnyMethod()));
         services.AddPopoCore();
+        services.AddExceptionHandler<ApiExceptionHandler>();
         services.AddPopoHttpClients();
         services.AddPopoStorage(configuration.GetPopoConnectionString());
         services.AddScoped<IValidator<BondSearchRequest>, BondSearchRequestValidator>();
@@ -69,8 +70,13 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IBrokerReportPdfParser, TBankBrokerReportPdfParser>();
         services.AddScoped<BrokerReportImportService>();
         services.AddScoped<CashPageService>();
+        services.AddScoped<CashManagementService>();
         services.AddScoped<PortfolioPageService>();
+        services.AddScoped<PortfolioBenchmarkService>();
+        services.AddScoped<PortfolioDataService>();
         services.AddScoped<CashRecommendationsPageService>();
+        services.AddScoped<CashRecommendationSettingsService>();
+        services.AddScoped<InitializationService>();
 
         return services;
     }

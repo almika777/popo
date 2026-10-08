@@ -16,32 +16,12 @@ public sealed class BrokerReportsController(BrokerReportImportService importServ
         CancellationToken cancellationToken)
     {
         await using var stream = request.File!.OpenReadStream();
-        try
-        {
-            return Ok(await importService.PreviewAsync(stream, cancellationToken));
-        }
-        catch (InvalidDataException exception)
-        {
-            return BadRequest(exception.Message);
-        }
+        return Ok(await importService.PreviewAsync(stream, cancellationToken));
     }
 
     [HttpPost("import")]
     public async Task<ActionResult<BrokerReportImportResponse>> Import(
         [FromBody] BrokerReportImportRequest request,
         CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Ok(await importService.ImportAsync(request, cancellationToken));
-        }
-        catch (ArgumentException exception)
-        {
-            return BadRequest(exception.Message);
-        }
-        catch (InvalidOperationException exception)
-        {
-            return Conflict(exception.Message);
-        }
-    }
+        => Ok(await importService.ImportAsync(request, cancellationToken));
 }

@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBondAssessmentService, BondAssessmentService>();
         services.AddScoped<IPositionRecommendationService, PositionRecommendationService>();
         services.AddSingleton<PortfolioReturnCalculator>();
+        services.AddSingleton<PortfolioBenchmarkCalculator>();
         return services;
     }
 }

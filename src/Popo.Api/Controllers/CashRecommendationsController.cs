@@ -8,9 +8,9 @@ namespace Popo.Api.Controllers;
 [ApiController]
 [Route("api/recommendations")]
 public sealed class CashRecommendationsController(
-    ICashInvestmentRecommendationStore store,
     ICashRecommendationService cashRecommendationService,
-    CashRecommendationsPageService pageService) : ControllerBase
+    CashRecommendationsPageService pageService,
+    CashRecommendationSettingsService settingsService) : ControllerBase
 {
     [HttpGet("cash/page")]
     public async Task<ActionResult<CashRecommendationsPageResponse>> GetPage(
@@ -29,21 +29,23 @@ public sealed class CashRecommendationsController(
     public async Task<ActionResult<InvestmentStrategySettingsResponse>> GetSettings(
         CancellationToken cancellationToken)
     {
-        var settings = await store.GetSettingsAsync(cancellationToken);
+        var settings = await settingsService.GetSettingsAsync(cancellationToken);
         return Ok(CashInvestmentRecommendationApiMapper.ToResponse(settings));
     }
 
     [HttpGet("cash/presets")]
     public async Task<ActionResult<IReadOnlyList<InvestmentStrategyPresetResponse>>> GetPresets(
-        CancellationToken cancellationToken) =>
-        Ok((await store.GetPresetsAsync(cancellationToken)).Select(CashInvestmentRecommendationApiMapper.ToResponse));
+        CancellationToken cancellationToken)
+    {
+        var presets = await settingsService.GetPresetsAsync(cancellationToken);
+        return Ok(presets.Select(CashInvestmentRecommendationApiMapper.ToResponse));
+    }
 
     [HttpPost("cash/presets")]
     public async Task<ActionResult<InvestmentStrategyPresetResponse>> CreatePreset(
         [FromBody] InvestmentStrategyPresetRequest request, CancellationToken cancellationToken)
     {
-        var preset = await store.SavePresetAsync(
-            new InvestmentStrategyPreset(0, request.Name, request.Settings.ToDomain(), false), cancellationToken);
+        var preset = await settingsService.CreatePresetAsync(request, cancellationToken);
         return Ok(CashInvestmentRecommendationApiMapper.ToResponse(preset));
     }
 
@@ -51,31 +53,30 @@ public sealed class CashRecommendationsController(
     public async Task<ActionResult<InvestmentStrategyPresetResponse>> UpdatePreset(int id,
         [FromBody] InvestmentStrategyPresetRequest request, CancellationToken cancellationToken)
     {
-        var current = await store.GetPresetAsync(id, cancellationToken);
-        if (current is null) return NotFound("Пресет не найден.");
-        var preset =
-            await store.SavePresetAsync(current with { Name = request.Name, Settings = request.Settings.ToDomain() },
-                cancellationToken);
+        var preset = await settingsService.UpdatePresetAsync(id, request, cancellationToken);
         return Ok(CashInvestmentRecommendationApiMapper.ToResponse(preset));
     }
 
     [HttpDelete("cash/presets/{id:int}")]
-    public async Task<IActionResult> DeletePreset(int id, CancellationToken cancellationToken) =>
-        await store.DeletePresetAsync(id, cancellationToken) ? NoContent() : NotFound("Пресет не найден.");
+    public async Task<IActionResult> DeletePreset(int id, CancellationToken cancellationToken)
+    {
+        await settingsService.DeletePresetAsync(id, cancellationToken);
+        return NoContent();
+    }
 
     [HttpPost("cash/presets/{id:int}/activate")]
-    public async Task<IActionResult> ActivatePreset(int id, CancellationToken cancellationToken) =>
-        await store.ActivatePresetAsync(id, cancellationToken) ? NoContent() : NotFound("Пресет не найден.");
+    public async Task<IActionResult> ActivatePreset(int id, CancellationToken cancellationToken)
+    {
+        await settingsService.ActivatePresetAsync(id, cancellationToken);
+        return NoContent();
+    }
 
     [HttpPut("cash/settings")]
     public async Task<ActionResult<InvestmentStrategySettingsResponse>> UpdateSettings(
         [FromBody] InvestmentStrategySettingsRequest request,
         CancellationToken cancellationToken)
     {
-        var settings = request.ToDomain();
-        if (!await store.SaveSettingsAsync(settings, cancellationToken))
-            return Conflict("Не удалось сохранить настройки стратегии.");
-
+        var settings = await settingsService.UpdateSettingsAsync(request.ToDomain(), cancellationToken);
         return Ok(CashInvestmentRecommendationApiMapper.ToResponse(settings));
     }
 

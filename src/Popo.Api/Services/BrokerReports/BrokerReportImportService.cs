@@ -25,7 +25,15 @@ public sealed class BrokerReportImportService(
         Stream pdfStream,
         CancellationToken cancellationToken)
     {
-        var parsedReport = parser.Parse(pdfStream);
+        ParsedBrokerReport parsedReport;
+        try
+        {
+            parsedReport = parser.Parse(pdfStream);
+        }
+        catch (InvalidDataException exception)
+        {
+            throw new InvalidApplicationRequestException(exception.Message, exception);
+        }
         var state = await LoadLedgerStateAsync(cancellationToken);
         var cutoffDate = FindCutoffDate(state);
         var bondDetails = await ResolveBondDetailsAsync(parsedReport.Trades, cancellationToken);
@@ -171,12 +179,12 @@ public sealed class BrokerReportImportService(
         CancellationToken cancellationToken)
     {
         if (request.Operations is null || request.Operations.Count == 0)
-            throw new ArgumentException("Выберите хотя бы одну операцию для добавления.");
+            throw new InvalidApplicationRequestException("Выберите хотя бы одну операцию для добавления.");
 
         if (request.Operations.Any(x => x.Id == Guid.Empty)
             || request.Operations.Select(x => x.Id).Distinct().Count() != request.Operations.Count)
         {
-            throw new ArgumentException("В запросе обнаружены повторяющиеся или некорректные операции.");
+            throw new InvalidApplicationRequestException("В запросе обнаружены повторяющиеся или некорректные операции.");
         }
 
         var selected = request.Operations.Select(ToImportData).ToArray();
@@ -211,9 +219,21 @@ public sealed class BrokerReportImportService(
         if (trades.Count + fundOperations.Count + cashFlows.Count == 0)
             return new BrokerReportImportResponse(0, 0, 0);
 
-        var result = await importProvider.AddAsync(
-            new BrokerReportImportBatch(trades, fundOperations, cashFlows),
-            cancellationToken);
+        BrokerReportImportResult result;
+        try
+        {
+            result = await importProvider.AddAsync(
+                new BrokerReportImportBatch(trades, fundOperations, cashFlows),
+                cancellationToken);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new InvalidApplicationRequestException(exception.Message, exception);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new ApplicationConflictException(exception.Message);
+        }
 
         return new BrokerReportImportResponse(
             result.TradesAdded,
@@ -478,11 +498,11 @@ public sealed class BrokerReportImportService(
     private static BrokerReportImportData ToImportData(BrokerReportOperationRequest operation)
     {
         if (operation.Date == default)
-            throw new ArgumentException("Укажите дату каждой импортируемой операции.");
+            throw new InvalidApplicationRequestException("Укажите дату каждой импортируемой операции.");
 
         var commission = operation.Commission ?? 0;
         if (!double.IsFinite(commission) || commission < 0)
-            throw new ArgumentException("Комиссия должна быть неотрицательной.");
+            throw new InvalidApplicationRequestException("Комиссия должна быть неотрицательной.");
 
         switch (operation.Kind)
         {
@@ -508,11 +528,11 @@ public sealed class BrokerReportImportService(
             {
                 var secId = RequiredText(operation.SecId, "Укажите код фонда.");
                 if (!RelationHelper.MoneyMarketFunds.ContainsKey(secId))
-                    throw new ArgumentException("Поддерживаются только LQDT и TMON.");
+                    throw new InvalidApplicationRequestException("Поддерживаются только LQDT и TMON.");
                 var side = RequiredSide(operation.Side);
                 var quantity = RequiredPositive(operation.Quantity, "Количество паёв должно быть положительным.");
                 if (quantity != Math.Truncate(quantity))
-                    throw new ArgumentException("Количество паёв фонда должно быть целым числом.");
+                    throw new InvalidApplicationRequestException("Количество паёв фонда должно быть целым числом.");
                 var unitPrice = RequiredPositive(operation.UnitPrice, "Цена пая должна быть положительной.");
                 var fundOperation = new MoneyMarketFundOperation(
                     secId, operation.Date, side, quantity, unitPrice, commission);
@@ -529,27 +549,27 @@ public sealed class BrokerReportImportService(
                 return new BrokerReportImportData(null, null, cashFlow, operation);
             }
             default:
-                throw new ArgumentException("Неизвестный тип операции в запросе импорта.");
+                throw new InvalidApplicationRequestException("Неизвестный тип операции в запросе импорта.");
         }
     }
 
     private static string RequiredText(string? value, string error) =>
-        string.IsNullOrWhiteSpace(value) ? throw new ArgumentException(error) : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? throw new InvalidApplicationRequestException(error) : value.Trim();
 
     private static TradeSide RequiredSide(TradeSide? value) =>
         value.HasValue && Enum.IsDefined(value.Value)
             ? value.Value
-            : throw new ArgumentException("Выберите покупку или продажу.");
+            : throw new InvalidApplicationRequestException("Выберите покупку или продажу.");
 
     private static double RequiredPositive(double? value, string error) =>
         value.HasValue && double.IsFinite(value.Value) && value.Value > 0
             ? value.Value
-            : throw new ArgumentException(error);
+            : throw new InvalidApplicationRequestException(error);
 
     private static double RequiredNonNegative(double? value, string error) =>
         value.HasValue && double.IsFinite(value.Value) && value.Value >= 0
             ? value.Value
-            : throw new ArgumentException(error);
+            : throw new InvalidApplicationRequestException(error);
 
     private sealed record LedgerState(
         IReadOnlyList<PortfolioTradeRecord> Trades,

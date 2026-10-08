@@ -33,13 +33,16 @@ public sealed class TradesController(
         [FromBody] UpsertPortfolioTradeRequest request,
         CancellationToken cancellationToken)
     {
-        var updated = await tradesService.UpdateTradeAsync(id, ToTrade(request), cancellationToken);
-        return updated ? NoContent() : NotFound();
+        await tradesService.UpdateTradeAsync(id, ToTrade(request), cancellationToken);
+        return NoContent();
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult> DeleteTrade(Guid id, CancellationToken cancellationToken) =>
-        await tradesService.DeleteTradeAsync(id, cancellationToken) ? NoContent() : NotFound();
+    public async Task<ActionResult> DeleteTrade(Guid id, CancellationToken cancellationToken)
+    {
+        await tradesService.DeleteTradeAsync(id, cancellationToken);
+        return NoContent();
+    }
 
     private static PortfolioTrade ToTrade(UpsertPortfolioTradeRequest request) =>
         new(request.SecId.Trim(), request.BoardId.Trim(), request.CurrencyId.Trim(), request.TradeDate,

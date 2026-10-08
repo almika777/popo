@@ -8,6 +8,8 @@ using Popo.Api.Controllers;
 using Popo.Api.Models;
 using Popo.Api.Services;
 using Popo.Api.Services.Position;
+using Popo.Core.Contracts.Iss;
+using Popo.Core.Common;
 using Popo.Core.Portfolio;
 using Popo.Core.PortfolioReturns;
 
@@ -38,18 +40,18 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public async Task AddValuation_RejectsDuplicateDate()
+    public void AddValuation_RejectsDuplicateDate()
     {
         var provider = new FakeProvider();
         provider.Valuations.Add(new PortfolioValuationRecord(
             Guid.NewGuid(), new DateOnly(2026, 1, 1), 100_000, string.Empty));
-        var controller = CreateController(provider);
+        var service = CreateDataService(provider);
 
-        var result = await controller.AddValuation(
+        var exception = Assert.ThrowsAsync<ApplicationConflictException>(async () => await service.AddValuationAsync(
             new UpsertPortfolioValuationRequest(new DateOnly(2026, 1, 1), 120_000, null),
-            CancellationToken.None);
+            CancellationToken.None));
 
-        Assert.That(result.Result, Is.TypeOf<ConflictObjectResult>());
+        Assert.That(exception!.Message, Does.Contain("уже существует"));
     }
 
     [Test]
@@ -122,7 +124,7 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public async Task CalculateReturn_ReportsPreviousDayDatesMissingForCashFlows()
+    public void CalculateReturn_ReportsPreviousDayDatesMissingForCashFlows()
     {
         var provider = new FakeProvider();
         provider.Valuations.Add(new PortfolioValuationRecord(
@@ -131,27 +133,158 @@ public sealed class PortfolioReturnsApiContractTests
             Guid.NewGuid(), new DateOnly(2026, 2, 1), 110_000, string.Empty));
         provider.CashFlows.Add(new PortfolioCashFlowRecord(
             Guid.NewGuid(), new DateOnly(2026, 1, 5), PortfolioCashFlowType.Withdrawal, 10_000, string.Empty));
-        var controller = CreateController(provider);
+        var service = CreateDataService(provider);
 
-        var result = await controller.CalculateReturn(
+        var exception = Assert.ThrowsAsync<InvalidApplicationRequestException>(async () => await service.CalculateReturnAsync(
             new PortfolioReturnQuery { From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 1) },
-            CancellationToken.None);
+            CancellationToken.None));
 
-        var response = result.Result as BadRequestObjectResult;
+        Assert.That(exception!.Message, Does.Contain("2026-01-04"));
+    }
+
+    [Test]
+    public async Task CalculateBenchmark_ReturnsPortfolioAndLqdtmSeriesForSamePeriod()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(
+            Guid.NewGuid(), new DateOnly(2026, 1, 4), 110, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 140, string.Empty));
+        provider.CashFlows.Add(new PortfolioCashFlowRecord(
+            Guid.NewGuid(), new DateOnly(2026, 1, 5), PortfolioCashFlowType.Deposit, 20, string.Empty));
+        var history = new MoexIndexHistory[]
+        {
+            new() { SecId = "LQDTM", TradeDate = new DateOnly(2025, 12, 31), Close = 1m },
+            new() { SecId = "LQDTM", TradeDate = new DateOnly(2026, 1, 20), Close = 1.02m }
+        };
+        var controller = CreateController(provider, history);
+
+        var result = await controller.CalculateBenchmark(
+            new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None);
+
+        var response = result.Result as OkObjectResult;
         Assert.That(response, Is.Not.Null);
-        Assert.That(response!.Value, Does.Contain("2026-01-04"));
+        var benchmark = response!.Value as PortfolioBenchmarkResult;
+        Assert.That(benchmark, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(benchmark!.Portfolio.PeriodReturn, Is.EqualTo(0.1846153846153846).Within(0.000001));
+            Assert.That(benchmark.Indexes.Single().PeriodReturn, Is.EqualTo(0.02).Within(0.000001));
+            Assert.That(benchmark.Indexes.Single().Points[^1].IndexedValue, Is.EqualTo(102d));
+        });
+    }
+
+    [Test]
+    public void CalculateBenchmark_RejectsPeriodWithoutStartingLqdtmObservation()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 110, string.Empty));
+        var exception = Assert.ThrowsAsync<InvalidApplicationRequestException>(async () =>
+            await CreateDataService(provider).CalculateBenchmarkAsync(
+                new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None));
+        Assert.That(exception!.Message, Does.Contain("Нет значения LQDTM"));
+    }
+
+    [Test]
+    public void CalculateBenchmark_DoesNotTreatIndexStoreFailureAsInvalidRequest()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        var returnCalculator = new PortfolioReturnCalculator();
+        var benchmarkService = new PortfolioBenchmarkService(
+            provider,
+            provider,
+            new FailingMoexIndexHistoryStore(),
+            new PortfolioBenchmarkCalculator(returnCalculator));
+        var service = new PortfolioDataService(provider, provider, returnCalculator, benchmarkService);
+
+        Assert.ThrowsAsync<InvalidOperationException>(async () => await service.CalculateBenchmarkAsync(
+            new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None));
+    }
+
+    [Test]
+    public void CalculateBenchmark_DoesNotTreatMalformedIndexHistoryAsInvalidRequest()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 110, string.Empty));
+        var service = CreateDataService(provider,
+        [
+            new MoexIndexHistory { SecId = "LQDTM", TradeDate = from, Close = 0m }
+        ]);
+
+        Assert.ThrowsAsync<InvalidPortfolioBenchmarkHistoryException>(async () =>
+            await service.CalculateBenchmarkAsync(
+                new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None));
     }
 
     private static PortfolioController CreateController() => CreateController(new FakeProvider());
 
-    private static PortfolioController CreateController(FakeProvider provider)
+    private static PortfolioController CreateController(
+        FakeProvider provider,
+        IReadOnlyCollection<MoexIndexHistory>? indexHistory = null)
     {
         var positionsService = new FakePositionsService();
+        var returnCalculator = new PortfolioReturnCalculator();
+        var benchmarkCalculator = new PortfolioBenchmarkCalculator(returnCalculator);
+        var benchmarkService = new PortfolioBenchmarkService(
+            provider,
+            provider,
+            new FakeMoexIndexHistoryStore(indexHistory ?? []),
+            benchmarkCalculator);
         return new PortfolioController(
-            provider,
-            provider,
-            new PortfolioReturnCalculator(),
+            new PortfolioDataService(provider, provider, returnCalculator, benchmarkService),
             new PortfolioPageService(provider, provider, positionsService));
+    }
+
+    private static PortfolioDataService CreateDataService(
+        FakeProvider provider,
+        IReadOnlyCollection<MoexIndexHistory>? indexHistory = null)
+    {
+        var returnCalculator = new PortfolioReturnCalculator();
+        var benchmarkService = new PortfolioBenchmarkService(
+            provider,
+            provider,
+            new FakeMoexIndexHistoryStore(indexHistory ?? []),
+            new PortfolioBenchmarkCalculator(returnCalculator));
+        return new PortfolioDataService(provider, provider, returnCalculator, benchmarkService);
+    }
+
+    private sealed class FakeMoexIndexHistoryStore(IReadOnlyCollection<MoexIndexHistory> history)
+        : IMoexIndexHistoryStore
+    {
+        public Task UpsertAsync(IReadOnlyCollection<MoexIndexHistory> values, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MoexIndexHistory>> GetHistoryAsync(
+            string secId,
+            DateOnly from,
+            DateOnly to,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MoexIndexHistory>>(history
+                .Where(x => x.SecId == secId && x.TradeDate >= from && x.TradeDate <= to)
+                .ToArray());
+    }
+
+    private sealed class FailingMoexIndexHistoryStore : IMoexIndexHistoryStore
+    {
+        public Task UpsertAsync(IReadOnlyCollection<MoexIndexHistory> values, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<MoexIndexHistory>> GetHistoryAsync(
+            string secId,
+            DateOnly from,
+            DateOnly to,
+            CancellationToken cancellationToken) =>
+            Task.FromException<IReadOnlyList<MoexIndexHistory>>(new InvalidOperationException("Index store failed."));
     }
 
     private sealed class FakePositionsService : IPortfolioPositionsService

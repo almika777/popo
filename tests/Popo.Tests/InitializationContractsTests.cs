@@ -6,7 +6,7 @@ namespace Popo.Tests;
 public sealed class InitializationContractsTests
 {
     [Test]
-    public void Bootstrap_contains_only_the_eight_primary_jobs()
+    public void Bootstrap_contains_only_the_nine_primary_jobs()
     {
         Assert.That(
             InitializationBootstrap.Jobs.Select(x => x.Key),
@@ -17,6 +17,7 @@ public sealed class InitializationContractsTests
                 "MoexBondUpdateJob",
                 "MoexAmortsAndCouponsUpdateJob",
                 "MoexHistoryPricesUpdateJob",
+                "MoexIndexHistoryUpdateJob",
                 "MoexEmitentUpdateJob",
                 "BondRatingUpdateJob",
                 "CbrCurrencyRatesUpdateJob"
