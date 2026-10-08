@@ -129,6 +129,13 @@ internal static class MoexContractMapper
         ShortName = source.ShortName,
     };
 
+    public static CoreModels.MoexIndexHistory ToContract(this Iss.MoexIndexHistory source) => new()
+    {
+        TradeDate = source.TradeDate,
+        SecId = source.SecId,
+        Close = source.Close,
+    };
+
     public static CoreModels.MoexMarketdataYields ToContract(this Iss.MoexMarketdataYields source) => new()
     {
         SecId = source.SecId,
