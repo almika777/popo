@@ -525,7 +525,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
       <div className="portfolio-benchmark-chart-caption">
         {metric === "profit"
           ? "Прибыль на вложенные средства · портфель с начала периода = 0%; RU появляется с даты перехода"
-          : "TWR до налогов · портфель с начала периода = 0%; RU появляется с даты перехода"}
+          : "TWR после налогов · портфель с начала периода = 0%; RU появляется с даты перехода"}
       </div>
     </div>
   );
@@ -907,29 +907,29 @@ export default function PortfolioPage() {
                       {benchmarkResult && !hasCurrentBenchmarkContract(benchmarkResult) ? <Alert
                         type="warning"
                         showIcon
-                        title="Сервер вернул старый формат сравнения. Для точного графика обновите backend с отдельными рядами прибыли до налогов и TWR."
+                        title="Сервер вернул несовместимый формат сравнения. Обновите backend."
                         style={{ marginTop: 16 }}
                       /> : benchmarkResult ? <>
                         <div className="portfolio-benchmark-metrics">
                           <MetricCard
                             title="Портфель · прибыль на вложенные средства"
-                            hint={`TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
+                            hint={`TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
                           >
                             {formatBenchmarkPercent(benchmarkResult.portfolioProfitPercent)}
                           </MetricCard>
                           <MetricCard
                             title="LQDT · те же потоки"
-                            hint={`TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.lqdtTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                            hint={`TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.lqdtTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
                           >
                             {formatBenchmarkPercent(benchmarkResult.lqdtProfitPercent)}
                           </MetricCard>
                           <MetricCard
-                            title={`Портфель → RU000A10F504 · с ${benchmarkResult.indexedBondComparisonStartDate
+                            title={`RU000A10F504 · линия с ${benchmarkResult.indexedBondComparisonStartDate
                               ? dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")
-                              : "нет общей даты"}`}
+                              : "нет данных"}`}
                             hint={benchmarkResult.indexedBondProfitPercent == null
                               ? benchmarkResult.indexedBondUnavailableReason ?? "Недостаточно исторических данных"
-                              : `TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.indexedBondTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                              : `TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.indexedBondTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
                           >
                             {benchmarkResult.indexedBondProfitPercent == null
                               ? "—"
@@ -941,7 +941,7 @@ export default function PortfolioPage() {
                             Цены LQDT: данные с {dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.lqdtEndObservationDate).format("DD.MM.YYYY")}
                           </span>
                           {benchmarkResult.indexedBondStartObservationDate && benchmarkResult.indexedBondEndObservationDate && <span>
-                            RU000A10F504: цены с {dayjs(benchmarkResult.indexedBondStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.indexedBondEndObservationDate).format("DD.MM.YYYY")}{benchmarkResult.indexedBondComparisonStartDate && `; сравнение с портфелем с ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}`}
+                            RU000A10F504: цены с {dayjs(benchmarkResult.indexedBondStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.indexedBondEndObservationDate).format("DD.MM.YYYY")}{benchmarkResult.indexedBondComparisonStartDate && `; линия с ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}`}
                           </span>}
                         </div>
                         {benchmarkResult.indexedBondUnavailableReason && <Alert
@@ -954,7 +954,7 @@ export default function PortfolioPage() {
                           <BenchmarkChart result={benchmarkResult} />
                         </div>
                         <Typography.Paragraph type="secondary" className="portfolio-benchmark-note">
-                          Прибыль на вложенные средства = (стоимость портфеля + выводы + налоги − начальная стоимость − пополнения) / (начальная стоимость + пополнения). Налоги возвращаются в стоимость как бездоходный резерв, поэтому обе метрики показывают результат до налогов. Пополнение увеличивает базу взносов: процент прибыли может снизиться без денежного убытка; TWR нейтрализует этот эффект. Для сценариев используются одинаковые пополнения и выводы; комиссии и спред не учитываются. LQDT рассчитывается по историческим ценам закрытия MOEX. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД: между торговыми датами НКД начисляется ежедневно по формуле «номинал × ставка купона / 100 / 365», а фактические выплаты по сохранённой истории купонов учитываются в денежном остатке без реинвестирования. Если история облигации начинается позже выбранного периода, сценарий следует за портфелем до первой общей даты, затем переходит в RU000A10F504; линия появляется с этой даты. Оценки портфеля на даты операций должны отражать стоимость на конец дня после операции.
+                          Прибыль на вложенные средства = (стоимость портфеля + выводы − начальная стоимость − пополнения) / (начальная стоимость + пополнения). Фактические налоги уменьшают результат портфеля и каждого сценария в даты из журнала; налог для бенчмарка отдельно не пересчитывается. TWR показывает результат после налогов и нейтрализует пополнения и выводы. Для всех сценариев используются одинаковые даты и суммы потоков; комиссии и спред не учитываются. Поток в неторговый день оценивается по последней цене закрытия на эту дату или раньше, без переноса на следующую торговую дату. До первой котировки инструмента капитал остаётся кэшем без дохода, а линия начинается с первой доступной цены. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД: между торговыми датами НКД начисляется ежедневно по формуле «номинал × ставка купона / 100 / 365», а выплаченные купоны остаются кэшем без реинвестирования. Оценка портфеля на дату операции должна отражать стоимость после операции.
                         </Typography.Paragraph>
                       </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
                         Выберите период и нажмите «Сравнить».

@@ -178,11 +178,11 @@ public sealed class PortfolioReturnsApiContractTests
         Assert.Multiple(() =>
         {
             Assert.That(benchmark!.PortfolioReturn, Is.EqualTo(1d / 6).Within(0.000001));
-            Assert.That(benchmark.LqdtReturn, Is.EqualTo(1d / 6).Within(0.000001));
+            Assert.That(benchmark.LqdtReturn, Is.EqualTo(2d / 11).Within(0.000001));
             Assert.That(benchmark.PortfolioProfitPercent, Is.EqualTo(1d / 6).Within(0.000001));
-            Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(1d / 6).Within(0.000001));
+            Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(2d / 11).Within(0.000001));
             Assert.That(benchmark.PortfolioTwrPercent, Is.EqualTo(0.1846153846153846).Within(0.000001));
-            Assert.That(benchmark.LqdtTwrPercent, Is.EqualTo(0.1846153846153846).Within(0.000001));
+            Assert.That(benchmark.LqdtTwrPercent, Is.EqualTo(0.2).Within(0.000001));
             Assert.That(benchmark.PortfolioPoints[^1].ProfitPercent, Is.EqualTo(benchmark.PortfolioProfitPercent));
             Assert.That(benchmark.LqdtPoints[^1].ProfitPercent, Is.EqualTo(benchmark.LqdtProfitPercent));
             Assert.That(benchmark.PortfolioPoints[^1].TwrPercent, Is.EqualTo(benchmark.PortfolioTwrPercent));
@@ -191,21 +191,26 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public void CalculateBenchmark_RejectsPeriodWithoutStartingLqdtObservation()
+    public async Task CalculateBenchmark_KeepsStartingCapitalInCashUntilFirstLqdtObservation()
     {
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 2, 1);
         provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
         provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 110, string.Empty));
-        var exception = Assert.ThrowsAsync<InvalidApplicationRequestException>(async () =>
-            await CreateDataService(
+        var result = await CreateDataService(
                 provider,
                 [new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1.01m }],
                 [new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1.01m }])
-                .CalculateBenchmarkAsync(
-                new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None));
-        Assert.That(exception!.Message, Does.Contain("Нет исторической цены LQDT"));
+            .CalculateBenchmarkAsync(
+                new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.LqdtStartObservationDate, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.LqdtProfitPercent, Is.Zero.Within(0.000001));
+        });
     }
 
     [Test]
