@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRatingsProvider, RatingsProvider>();
         services.AddScoped<IHistoryProvider, HistoryProvider>();
         services.AddScoped<IMoexIndexHistoryStore, MoexIndexHistoryStore>();
+        services.AddScoped<IPortfolioBondBenchmarkHistoryProvider, PortfolioBondBenchmarkHistoryProvider>();
         services.AddScoped<DailyVolumeStatisticsStore>();
         services.AddScoped<ICashFlowProvider, CashFlowProvider>();
         services.AddScoped<IPortfolioValuationsProvider, PortfolioValuationsProvider>();

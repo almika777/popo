@@ -14,6 +14,7 @@ namespace Popo.HttpClients
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan MoneyMarketFundCacheDuration = TimeSpan.FromHours(1);
         private static readonly DateOnly LqdtIndexFirstCalculationDate = new(2022, 7, 22);
+        private static readonly DateOnly LqdtFirstTradingDate = new(2022, 7, 22);
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> CacheLocks = new();
 
         private readonly HttpClient _httpClient;
@@ -158,22 +159,92 @@ namespace Popo.HttpClients
 
                 result.AddRange(history);
 
-                if (cursor is null)
+                var nextStart = GetNextHistoryStart(
+                    start,
+                    history.Count,
+                    pageSize,
+                    cursor,
+                    "MOEX вернул некорректный курсор истории LQDTM.");
+                if (nextStart is null)
                     break;
 
-                var actualPageSize = cursor.PageSize > 0 ? cursor.PageSize : history.Count;
-                var nextStart = cursor.Index + actualPageSize;
-                if (nextStart >= cursor.Total)
-                    break;
-                if (nextStart <= start)
-                    throw new InvalidOperationException("MOEX вернул некорректный курсор истории LQDTM.");
-
-                start = nextStart;
+                start = nextStart.Value;
             }
 
+            result.AddRange(await GetLqdtDailyPriceHistoryAsync(ct));
             return result
-                .OrderBy(value => value.TradeDate)
+                .OrderBy(value => value.SecId)
+                .ThenBy(value => value.TradeDate)
                 .ToList();
+        }
+
+        private async Task<List<MoexIndexHistory>> GetLqdtDailyPriceHistoryAsync(CancellationToken ct)
+        {
+            const int pageSize = 500;
+            var start = 0;
+            var result = new List<MoexIndexHistory>();
+
+            while (true)
+            {
+                var url =
+                    "engines/stock/markets/shares/securities/LQDT/candles.json" +
+                    $"?iss.meta=off&iss.only=candles,candles.cursor&interval=24&from={LqdtFirstTradingDate:yyyy-MM-dd}" +
+                    $"&start={start}&limit={pageSize}";
+
+                using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var candles = ParseMoexResult<MoexDailyCandle>(json, "candles");
+                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "candles.cursor").FirstOrDefault();
+                result.AddRange(candles
+                    .Where(candle => candle.Begin is not null && candle.Close is > 0)
+                    .Select(candle => new MoexIndexHistory
+                    {
+                        SecId = "LQDT",
+                        TradeDate = candle.Begin,
+                        Close = candle.Close
+                    }));
+
+                if (candles.Count == 0)
+                    break;
+
+                var nextStart = GetNextHistoryStart(
+                    start,
+                    candles.Count,
+                    pageSize,
+                    cursor,
+                    "MOEX вернул некорректный курсор дневных цен LQDT.");
+                if (nextStart is null)
+                    break;
+
+                start = nextStart.Value;
+            }
+
+            return result;
+        }
+
+        private static int? GetNextHistoryStart(
+            int start,
+            int pageCount,
+            int requestedPageSize,
+            MoexHistoryCursor? cursor,
+            string invalidCursorMessage)
+        {
+            if (pageCount == 0)
+                return null;
+
+            if (cursor is null)
+                return pageCount < requestedPageSize ? null : start + pageCount;
+
+            var actualPageSize = cursor.PageSize > 0 ? cursor.PageSize : pageCount;
+            var nextStart = cursor.Index + actualPageSize;
+            if (nextStart >= cursor.Total)
+                return null;
+            if (nextStart <= start)
+                throw new InvalidOperationException(invalidCursorMessage);
+
+            return nextStart;
         }
 
         public async Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct)

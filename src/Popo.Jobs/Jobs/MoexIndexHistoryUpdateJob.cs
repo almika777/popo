@@ -17,22 +17,32 @@ public sealed class MoexIndexHistoryUpdateJob(
 {
     public async Task UpdateAsync(CancellationToken ct = default)
     {
-        await ReportProgressAsync(0, 1, "Загрузка истории LQDT", ct);
+        await ReportProgressAsync(0, 1, "Загрузка истории индекса и торговых цен LQDT", ct);
 
         var history = await moexHttpClient.GetLqdtIndexHistoryAsync(ct);
         if (history.Count == 0)
         {
-            throw new InvalidOperationException("MOEX не вернул историю индекса LQDTM.");
+            throw new InvalidOperationException("MOEX не вернул историю LQDT и LQDTM.");
         }
 
-        if (history.Any(x => !string.Equals(x.SecId, "LQDTM", StringComparison.Ordinal)))
+        if (history.Any(x => x.SecId is not ("LQDT" or "LQDTM")))
         {
-            throw new InvalidOperationException("MOEX вернул историю не того индекса для загрузки LQDTM.");
+            throw new InvalidOperationException("MOEX вернул историю постороннего инструмента при загрузке LQDT.");
+        }
+
+        if (!history.Any(x => string.Equals(x.SecId, "LQDT", StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("MOEX не вернул торговые цены LQDT.");
+        }
+
+        if (!history.Any(x => string.Equals(x.SecId, "LQDTM", StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("MOEX не вернул историю расчётного индекса LQDTM.");
         }
 
         await indexHistoryStore.UpsertAsync(history, ct);
         await ReportProgressAsync(1, 1, "История LQDT сохранена", ct);
-        logger.LogInformation("Сохранено {Count} дневных значений индекса LQDTM.", history.Count);
+        logger.LogInformation("Сохранено {Count} дневных значений LQDT и LQDTM.", history.Count);
     }
 }
 

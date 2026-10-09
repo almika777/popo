@@ -47,6 +47,7 @@ public static class ApiServiceCollectionExtensions
             .AllowAnyMethod()));
         services.AddPopoCore();
         services.AddExceptionHandler<ApiExceptionHandler>();
+        services.AddProblemDetails();
         services.AddPopoHttpClients();
         services.AddPopoStorage(configuration.GetPopoConnectionString());
         services.AddScoped<IValidator<BondSearchRequest>, BondSearchRequestValidator>();

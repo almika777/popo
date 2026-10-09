@@ -33,6 +33,38 @@ export type PortfolioReturn = {
   periodDays: number;
 };
 
+export type PortfolioBenchmarkPoint = {
+  date: string;
+  returnPercent: number;
+  profitPercent?: number | null;
+  twrPercent?: number | null;
+};
+
+export type PortfolioBenchmarkResult = {
+  from: string;
+  to: string;
+  portfolioReturn: number;
+  lqdtReturn: number;
+  excessReturn: number;
+  lqdtStartObservationDate: string;
+  lqdtEndObservationDate: string;
+  portfolioPoints: PortfolioBenchmarkPoint[];
+  lqdtPoints: PortfolioBenchmarkPoint[];
+  indexedBondReturn?: number | null;
+  indexedBondStartObservationDate?: string | null;
+  indexedBondEndObservationDate?: string | null;
+  indexedBondPoints?: PortfolioBenchmarkPoint[] | null;
+  indexedBondUnavailableReason?: string | null;
+  indexedBondComparisonStartDate?: string | null;
+  indexedBondPortfolioReturn?: number | null;
+  portfolioProfitPercent?: number | null;
+  lqdtProfitPercent?: number | null;
+  indexedBondProfitPercent?: number | null;
+  portfolioTwrPercent?: number | null;
+  lqdtTwrPercent?: number | null;
+  indexedBondTwrPercent?: number | null;
+};
+
 export type PortfolioPage = {
   valuations: PortfolioValuation[];
   cashFlows: PortfolioCashFlow[];
@@ -92,5 +124,7 @@ export const portfolioReturnApi = {
     }),
   deleteCashFlow: (id: string) => request<void>(`/portfolio/cash-flows/${id}`, { method: "DELETE" }),
   calculate: (from: string, to: string) =>
-    request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`)
+    request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`),
+  calculateBenchmark: (from: string, to: string) =>
+    request<PortfolioBenchmarkResult>(`/portfolio/benchmark?from=${from}&to=${to}`)
 };

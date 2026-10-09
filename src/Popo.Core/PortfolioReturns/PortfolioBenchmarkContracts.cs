@@ -4,22 +4,38 @@ public sealed class PortfolioBenchmarkHistoryUnavailableException(string message
 
 public sealed class InvalidPortfolioBenchmarkHistoryException(string message) : Exception(message);
 
-public sealed record PortfolioBenchmarkPoint(DateOnly Date, double IndexedValue);
+public sealed class MissingPortfolioBenchmarkValuationsException(IReadOnlyList<DateOnly> requiredDates)
+    : InvalidOperationException("Для каждой денежной операции нужна оценка портфеля на конец этой даты после операции.")
+{
+    public IReadOnlyList<DateOnly> RequiredDates { get; } = requiredDates;
+}
 
-public sealed record PortfolioIndexBenchmark(
-    string SecId,
-    string Name,
-    DateOnly StartObservationDate,
-    DateOnly EndObservationDate,
-    decimal StartValue,
-    decimal EndValue,
-    double PeriodReturn,
-    double ExcessReturn,
-    IReadOnlyList<PortfolioBenchmarkPoint> Points);
+public sealed record PortfolioBenchmarkPoint(
+    DateOnly Date,
+    double ReturnPercent,
+    double? ProfitPercent = null,
+    double? TwrPercent = null);
 
 public sealed record PortfolioBenchmarkResult(
     DateOnly From,
     DateOnly To,
-    PortfolioReturnResult Portfolio,
+    double PortfolioReturn,
+    double LqdtReturn,
+    double ExcessReturn,
+    DateOnly LqdtStartObservationDate,
+    DateOnly LqdtEndObservationDate,
     IReadOnlyList<PortfolioBenchmarkPoint> PortfolioPoints,
-    IReadOnlyList<PortfolioIndexBenchmark> Indexes);
+    IReadOnlyList<PortfolioBenchmarkPoint> LqdtPoints,
+    double? IndexedBondReturn = null,
+    DateOnly? IndexedBondStartObservationDate = null,
+    DateOnly? IndexedBondEndObservationDate = null,
+    IReadOnlyList<PortfolioBenchmarkPoint>? IndexedBondPoints = null,
+    string? IndexedBondUnavailableReason = null,
+    DateOnly? IndexedBondComparisonStartDate = null,
+    double? IndexedBondPortfolioReturn = null,
+    double? PortfolioProfitPercent = null,
+    double? LqdtProfitPercent = null,
+    double? IndexedBondProfitPercent = null,
+    double? PortfolioTwrPercent = null,
+    double? LqdtTwrPercent = null,
+    double? IndexedBondTwrPercent = null);

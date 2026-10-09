@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import {
@@ -16,6 +16,7 @@ import {
   Layout,
   Select,
   Space,
+  Tabs,
   Table,
   Typography,
 } from "antd";
@@ -23,6 +24,7 @@ import type { ColumnsType } from "antd/es/table";
 import {
   portfolioReturnApi,
   type CashFlowType,
+  type PortfolioBenchmarkResult,
   type PortfolioCashFlow,
   type PortfolioReturn,
   type PortfolioValuation
@@ -34,6 +36,9 @@ import {
   Brush,
   CartesianGrid,
   Cell,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -54,6 +59,43 @@ type CashFlowForm = { date: Dayjs; type: CashFlowType; amount: number; comment?:
 const money = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const percent = new Intl.NumberFormat("ru-RU", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatBenchmarkPercent = (value: number | null | undefined) =>
+  value == null || !Number.isFinite(value) ? "—" : percent.format(value);
+const formatBenchmarkDifference = (value: number | null | undefined, base: number | null | undefined) => {
+  if (value == null || base == null || !Number.isFinite(value) || !Number.isFinite(base)) {
+    return "—";
+  }
+
+  const difference = (value - base) * 100;
+  return `${difference > 0 ? "+" : ""}${number.format(difference)} п.п.`;
+};
+const isFiniteBenchmarkPercent = (value: number | null | undefined): value is number =>
+  value != null && Number.isFinite(value);
+
+function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult) {
+  const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key);
+  const isNullableFinite = (value: number | null | undefined) => value === null || isFiniteBenchmarkPercent(value);
+  const hasPointMetrics = (points: PortfolioBenchmarkResult["portfolioPoints"]) =>
+    points.every((point) => hasOwn(point, "profitPercent") && hasOwn(point, "twrPercent") &&
+      isFiniteBenchmarkPercent(point.profitPercent) && isNullableFinite(point.twrPercent));
+  const hasBondSeries = (result.indexedBondPoints?.length ?? 0) > 0;
+  const hasBondTotals = isFiniteBenchmarkPercent(result.indexedBondProfitPercent) &&
+    isNullableFinite(result.indexedBondTwrPercent);
+  const bondSeriesIsConsistent = hasBondSeries
+    ? hasBondTotals && hasPointMetrics(result.indexedBondPoints ?? [])
+    : result.indexedBondProfitPercent == null && isNullableFinite(result.indexedBondTwrPercent);
+
+  return hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
+    hasOwn(result, "portfolioTwrPercent") && hasOwn(result, "lqdtTwrPercent") &&
+    hasOwn(result, "indexedBondProfitPercent") && hasOwn(result, "indexedBondTwrPercent") &&
+    isFiniteBenchmarkPercent(result.portfolioProfitPercent) &&
+    isFiniteBenchmarkPercent(result.lqdtProfitPercent) &&
+    isNullableFinite(result.portfolioTwrPercent) &&
+    isNullableFinite(result.lqdtTwrPercent) &&
+    hasPointMetrics(result.portfolioPoints) &&
+    hasPointMetrics(result.lqdtPoints) &&
+    bondSeriesIsConsistent;
+}
 const formatChartAxis = (value: number) => {
   const sign = value < 0 ? "−" : "";
   const absolute = Math.abs(value);
@@ -73,6 +115,8 @@ function ValuationChart({
   selectedRange: [number, number] | null;
   onRangeChange: (range: [number, number] | null) => void;
 }) {
+  const [hasChartLayout, setHasChartLayout] = useState(false);
+
   if (rows.length === 0) {
     return <div className="portfolio-chart-empty">Добавьте первую оценку, чтобы увидеть изменение портфеля.</div>;
   }
@@ -118,6 +162,7 @@ function ValuationChart({
       isForecast: true
     }] : [])
   ];
+  const chartDomainKey = chartData.map((point) => point.id).join("|");
   const renderTooltip = ({ active, payload }: TooltipContentProps) => {
     if (!active || !payload?.length) {
       return null;
@@ -139,8 +184,14 @@ function ValuationChart({
   return (
     <div className="portfolio-chart-wrap" role="img" aria-label="Стоимость портфеля без учета пополнений и выводов">
       <div className="portfolio-chart-recharts">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 18, right: 18, bottom: 10, left: 8 }} barCategoryGap="8%" barGap={0}>
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(width, height) => setHasChartLayout(
+            Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+          )}
+        >
+          <BarChart key={chartDomainKey} data={chartData} margin={{ top: 18, right: 18, bottom: 10, left: 8 }} barCategoryGap="8%" barGap={0}>
             <CartesianGrid className="portfolio-chart-grid" vertical={false} />
             <XAxis
               dataKey="date"
@@ -175,7 +226,7 @@ function ValuationChart({
             >
               {chartData.map((point) => <Cell key={point.id} fill={point.isForecast ? "#b37feb" : "#1677ff"} />)}
             </Bar>
-            {chartRows.length > 2 && <Brush
+            {hasChartLayout && chartRows.length > 2 && <Brush
               dataKey="label"
               height={28}
               travellerWidth={10}
@@ -204,6 +255,282 @@ function ValuationChart({
   );
 }
 
+type BenchmarkChartRow = {
+  date: string;
+  timestamp: number;
+  portfolioProfitPercent?: number | null;
+  portfolioTwrPercent?: number | null;
+  lqdtProfitPercent?: number | null;
+  lqdtTwrPercent?: number | null;
+  indexedBondProfitPercent?: number | null;
+  indexedBondTwrPercent?: number | null;
+  [series: string]: string | number | null | undefined;
+};
+
+type BenchmarkSeriesPoint = {
+  date: string;
+  timestamp: number;
+  profitPercent?: number | null;
+  twrPercent?: number | null;
+};
+
+function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
+  const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>();
+  const [visibleIndexes, setVisibleIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
+  const [metric, setMetric] = useState<"profit" | "twr">("profit");
+  const [hasChartLayout, setHasChartLayout] = useState(false);
+  const [chartWidth, setChartWidth] = useState(0);
+  const sideLegend = chartWidth > 800;
+  const chartData = useMemo(() => {
+    const rowsByDate = new Map<string, BenchmarkChartRow>();
+    const addPoint = (date: string) => {
+      let row = rowsByDate.get(date);
+      if (!row) {
+        row = { date, timestamp: dayjs(date).valueOf() };
+        rowsByDate.set(date, row);
+      }
+      return row;
+    };
+
+    result.portfolioPoints.forEach((point) => {
+      const row = addPoint(point.date);
+      row.portfolioProfitPercent = point.profitPercent;
+      row.portfolioTwrPercent = point.twrPercent;
+    });
+    result.lqdtPoints.forEach((point) => {
+      const row = addPoint(point.date);
+      row.lqdtProfitPercent = point.profitPercent;
+      row.lqdtTwrPercent = point.twrPercent;
+    });
+    result.indexedBondPoints?.forEach((point) => {
+      const row = addPoint(point.date);
+      row.indexedBondProfitPercent = point.profitPercent;
+      row.indexedBondTwrPercent = point.twrPercent;
+    });
+
+    return [...rowsByDate.values()].sort((left, right) => left.timestamp - right.timestamp);
+  }, [result]);
+  const portfolioSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "portfolioProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.portfolioProfitPercent,
+      twrPercent: row.portfolioTwrPercent
+    })), [chartData]);
+  const lqdtSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "lqdtProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.lqdtProfitPercent,
+      twrPercent: row.lqdtTwrPercent
+    })), [chartData]);
+  const indexedBondSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "indexedBondProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.indexedBondProfitPercent,
+      twrPercent: row.indexedBondTwrPercent
+    })), [chartData]);
+  const selectedStartIndex = Math.min(brushRange?.startIndex ?? 0, chartData.length - 1);
+  const selectedEndIndex = Math.max(
+    selectedStartIndex,
+    Math.min(brushRange?.endIndex ?? chartData.length - 1, chartData.length - 1)
+  );
+  const isZoomed = selectedStartIndex > 0 || selectedEndIndex < chartData.length - 1;
+  const selectedStartTimestamp = chartData[selectedStartIndex]?.timestamp ?? 0;
+  const selectedEndTimestamp = chartData[selectedEndIndex]?.timestamp ?? selectedStartTimestamp;
+  const sliceSeriesToBrush = (points: BenchmarkSeriesPoint[]) => {
+    if (!isZoomed || points.length < 2) return points;
+    let firstVisibleIndex = points.findIndex((point) => point.timestamp >= selectedStartTimestamp);
+    if (firstVisibleIndex < 0) firstVisibleIndex = points.length - 1;
+    const lastVisibleIndex = points.findLastIndex((point) => point.timestamp <= selectedEndTimestamp);
+    const start = Math.max(0, firstVisibleIndex - 1);
+    const end = Math.min(points.length - 1, Math.max(firstVisibleIndex, lastVisibleIndex) + 1);
+    return points.slice(start, end + 1);
+  };
+  const visiblePortfolioSeriesData = useMemo(() => sliceSeriesToBrush(portfolioSeriesData),
+    [portfolioSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const visibleLqdtSeriesData = useMemo(() => sliceSeriesToBrush(lqdtSeriesData),
+    [lqdtSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const visibleIndexedBondSeriesData = useMemo(() => sliceSeriesToBrush(indexedBondSeriesData),
+    [indexedBondSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const renderTooltip = ({ active, payload }: TooltipContentProps) => {
+    if (!active || !payload?.length) {
+      return null;
+    }
+
+    const point = payload[0]?.payload as BenchmarkChartRow | undefined;
+    if (!point) {
+      return null;
+    }
+
+    return (
+      <div className="portfolio-chart-tooltip-card">
+        <strong>Дата: {dayjs(point.date).format("DD.MM.YYYY")}</strong>
+        {payload.map((entry) => entry.value == null ? null : (
+          <span key={`${entry.name}-${String(entry.dataKey)}`} style={{ color: entry.color }}>
+            {entry.name}: {percent.format(Number(entry.value))}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  if (chartData.length < 2) {
+    return <div className="portfolio-chart-empty">Для сравнения недостаточно точек истории.</div>;
+  }
+
+  return (
+    <div className="portfolio-chart-wrap" role="region" aria-label="Сравнение доходности портфеля и индексов">
+      <div className="portfolio-benchmark-series-select">
+        <Typography.Text type="secondary">Индексы на графике</Typography.Text>
+        <Select
+          mode="multiple"
+          aria-label="Индексы на графике"
+          value={visibleIndexes.filter((index) => index === "lqdt" || (result.indexedBondPoints?.length ?? 0) > 0)}
+          options={[
+            { label: "LQDT", value: "lqdt" },
+            { label: "RU000A10F504", value: "indexedBond", disabled: (result.indexedBondPoints?.length ?? 0) === 0 }
+          ]}
+          onChange={setVisibleIndexes}
+          maxTagCount={2}
+          style={{ minWidth: 240, maxWidth: "100%" }}
+        />
+        <Typography.Text type="secondary">Показатель</Typography.Text>
+        <Select
+          aria-label="Показатель графика индексов"
+          value={metric}
+          options={[
+            { label: "Прибыль на вложенные средства", value: "profit" },
+            { label: "TWR", value: "twr" }
+          ]}
+          onChange={setMetric}
+          style={{ minWidth: 230, maxWidth: "100%" }}
+        />
+      </div>
+      <div className="portfolio-chart-recharts">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(width, height) => {
+            setHasChartLayout(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
+            setChartWidth(width);
+          }}
+        >
+          <LineChart data={chartData} margin={{ top: 18, right: sideLegend ? 76 : 18, bottom: 10, left: 8 }}>
+            <CartesianGrid className="portfolio-chart-grid" vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              domain={isZoomed ? [selectedStartTimestamp, selectedEndTimestamp] : ["dataMin", "dataMax"]}
+              allowDataOverflow
+              tickFormatter={(value: number) => dayjs(value).format("MM.YYYY")}
+              tick={{ fill: "rgba(255, 255, 255, 0.55)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={24}
+              tickCount={6}
+            />
+            <YAxis
+              type="number"
+              domain={["auto", "auto"]}
+              tickFormatter={(value: number) => percent.format(value)}
+              width="auto"
+              tickMargin={12}
+              tick={{ fill: "rgba(255, 255, 255, 0.55)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              content={renderTooltip}
+              cursor={{ stroke: "rgba(255, 255, 255, 0.22)", strokeDasharray: "4 4" }}
+              allowEscapeViewBox={{ x: false, y: true }}
+              wrapperStyle={{ outline: "none" }}
+            />
+            <Legend
+              layout={sideLegend ? "vertical" : "horizontal"}
+              align={sideLegend ? "right" : "center"}
+              verticalAlign={sideLegend ? "middle" : "bottom"}
+              width={sideLegend ? 190 : undefined}
+              wrapperStyle={{ fontSize: 12, lineHeight: "24px" }}
+            />
+            <Line
+              data={visiblePortfolioSeriesData}
+              type="linear"
+              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              name="Портфель"
+              stroke="#1677ff"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+          />
+            {visibleIndexes.includes("indexedBond") && (result.indexedBondPoints?.length ?? 0) > 0 && <Line
+              data={visibleIndexedBondSeriesData}
+              type="linear"
+              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              name="RU000A10F504"
+              stroke="#faad14"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />}
+            {visibleIndexes.includes("lqdt") && <Line
+              data={visibleLqdtSeriesData}
+              type="linear"
+              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              name="LQDT"
+              stroke="#52c41a"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />}
+            {hasChartLayout && chartData.length > 2 && <Brush
+              dataKey="date"
+              ariaLabel="Перетащите границы, чтобы выбрать период графика"
+              height={40}
+              travellerWidth={24}
+              stroke="#1677ff"
+              fill="#141414"
+              startIndex={selectedStartIndex}
+              endIndex={selectedEndIndex}
+              tickFormatter={(value) => dayjs(String(value)).format("MM.YYYY")}
+              onChange={({ startIndex = 0, endIndex = chartData.length - 1 }) => {
+                const start = Number.isFinite(startIndex)
+                  ? Math.min(Math.max(0, startIndex), chartData.length - 1)
+                  : 0;
+                const end = Number.isFinite(endIndex)
+                  ? Math.min(Math.max(start, endIndex), chartData.length - 1)
+                  : chartData.length - 1;
+                setBrushRange({ startIndex: start, endIndex: end });
+              }}
+            />}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      {chartData.length > 2 && <div className="portfolio-chart-help">Тяните края выделения, чтобы менять даты; середину — чтобы прокручивать период</div>}
+      {isZoomed && <Button
+        type="link"
+        size="small"
+        className="portfolio-chart-reset"
+        onClick={() => setBrushRange({ startIndex: 0, endIndex: chartData.length - 1 })}
+      >
+        Показать весь период
+      </Button>}
+      <div className="portfolio-benchmark-chart-caption">
+        {metric === "profit"
+          ? "Прибыль на вложенные средства · портфель с начала периода = 0%; RU появляется с даты перехода"
+          : "TWR до налогов · портфель с начала периода = 0%; RU появляется с даты перехода"}
+      </div>
+    </div>
+  );
+}
+
 function MetricCard({ title, children, hint }: { title: string; children: ReactNode; hint?: string }) {
   return (
     <div className="portfolio-metric-card">
@@ -226,8 +553,14 @@ export default function PortfolioPage() {
   const [editingCashFlowId, setEditingCashFlowId] = useState<string>();
   const [editingCashFlow, setEditingCashFlow] = useState<PortfolioCashFlow>();
   const [period, setPeriod] = useState<[Dayjs, Dayjs]>();
+  const [benchmarkPeriod, setBenchmarkPeriod] = useState<[Dayjs, Dayjs]>();
+  const [benchmarkTabOpened, setBenchmarkTabOpened] = useState(false);
+  const autoBenchmarkCalculationStarted = useRef(false);
   const [result, setResult] = useState<PortfolioReturn>();
   const [calculationError, setCalculationError] = useState<string>();
+  const [benchmarkResult, setBenchmarkResult] = useState<PortfolioBenchmarkResult>();
+  const [benchmarkCalculationError, setBenchmarkCalculationError] = useState<string>();
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartRange, setChartRange] = useState<[number, number] | null>(null);
   const { message } = AntdApp.useApp();
@@ -250,6 +583,7 @@ export default function PortfolioPage() {
   useEffect(() => {
     const today = dayjs();
     setPeriod([today.startOf("year"), today]);
+    setBenchmarkPeriod([today.startOf("year"), today]);
     valuationForm.setFieldsValue({ date: today });
     cashFlowForm.setFieldsValue({ date: today, type: "Deposit" });
     void load();
@@ -335,6 +669,42 @@ export default function PortfolioPage() {
     }
   };
 
+  const calculateBenchmark = async (selectedPeriod: [Dayjs, Dayjs] | undefined = benchmarkPeriod) => {
+    if (!selectedPeriod) {
+      return;
+    }
+
+    try {
+      setBenchmarkLoading(true);
+      setBenchmarkCalculationError(undefined);
+      setBenchmarkResult(await portfolioReturnApi.calculateBenchmark(
+        selectedPeriod[0].format("YYYY-MM-DD"),
+        selectedPeriod[1].format("YYYY-MM-DD")
+      ));
+    } catch (error) {
+      setBenchmarkResult(undefined);
+      setBenchmarkCalculationError(error instanceof Error ? error.message : "Не удалось рассчитать сравнение с индексами");
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
+
+  const changePeriod = (start: Dayjs | null, end: Dayjs | null) => {
+    if (start && end) {
+      setPeriod([start, end]);
+      setResult(undefined);
+      setCalculationError(undefined);
+    }
+  };
+
+  const changeBenchmarkPeriod = (start: Dayjs | null, end: Dayjs | null) => {
+    if (start && end) {
+      setBenchmarkPeriod([start, end]);
+      setBenchmarkResult(undefined);
+      setBenchmarkCalculationError(undefined);
+    }
+  };
+
   const deleteValuation = async (id: string) => {
     await portfolioReturnApi.deleteValuation(id);
     await load();
@@ -349,6 +719,18 @@ export default function PortfolioPage() {
     () => [...valuations].sort((left, right) => left.date.localeCompare(right.date)),
     [valuations]
   );
+  useEffect(() => {
+    if (!benchmarkTabOpened || loading || autoBenchmarkCalculationStarted.current || orderedValuations.length === 0) {
+      return;
+    }
+
+    const start = dayjs().startOf("year");
+    const end = dayjs(orderedValuations.at(-1)!.date);
+    const selectedPeriod: [Dayjs, Dayjs] = [start, end];
+    autoBenchmarkCalculationStarted.current = true;
+    setBenchmarkPeriod(selectedPeriod);
+    void calculateBenchmark(selectedPeriod);
+  }, [benchmarkTabOpened, loading, orderedValuations, calculateBenchmark]);
   const valuationHistory = useMemo(
     () => [...orderedValuations].reverse(),
     [orderedValuations]
@@ -430,59 +812,165 @@ export default function PortfolioPage() {
         </Typography.Paragraph>
 
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-          <Card
-            title={(
-              <div className="portfolio-chart-title">
-                <span>Стоимость портфеля</span>
-              </div>
-            )}
-            className="portfolio-overview-card">
-            <div className="portfolio-metrics-row">
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Общий объём">
-                  {summary ? money.format(summary.totalValueRub) : "—"}
-                  {summary && <div className="portfolio-total-breakdown">
-                    <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
-                    <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
-                    <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
-                  </div>}
-                </MetricCard>
-              </div>
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Кеш" hint="Текущий расчётный остаток">
-                  {cashBalances.length === 0
-                    ? "—"
-                    : <div className="portfolio-cash-values">
-                        {cashBalances.map((balance) => (
-                          <span key={balance.currencyId}>{number.format(balance.amount)} {balance.currencyId}</span>
-                        ))}
+          <Tabs
+            className="portfolio-main-tabs"
+              defaultActiveKey="value"
+              onChange={(activeKey) => {
+                if (activeKey === "benchmark") {
+                  setBenchmarkTabOpened(true);
+                }
+              }}
+              items={[
+                {
+                  key: "value",
+                  label: "Стоимость портфеля",
+                  children: (
+                    <Card className="portfolio-overview-card">
+                      <div className="portfolio-metrics-row">
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Общий объём">
+                            {summary ? money.format(summary.totalValueRub) : "—"}
+                            {summary && <div className="portfolio-total-breakdown">
+                              <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
+                              <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
+                              <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
+                            </div>}
+                          </MetricCard>
+                        </div>
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Кеш" hint="Текущий расчётный остаток">
+                            {cashBalances.length === 0
+                              ? "—"
+                              : <div className="portfolio-cash-values">
+                                  {cashBalances.map((balance) => (
+                                    <span key={balance.currencyId}>{number.format(balance.amount)} {balance.currencyId}</span>
+                                  ))}
+                                </div>}
+                          </MetricCard>
+                        </div>
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
+                            {!summary || summary.unrealizedPnlRub == null
+                              ? "—"
+                              : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
+                                  {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}
+                                </Typography.Text>}
+                          </MetricCard>
+                        </div>
+                      </div>
+                      <div className="portfolio-chart-section">
+                        <ValuationChart
+                          rows={chartValuations}
+                          selectedRange={chartRange}
+                          onRangeChange={setChartRange}
+                        />
+                      </div>
+                    </Card>
+                  )
+                },
+                {
+                  key: "benchmark",
+                  label: "Индексы",
+                  children: (
+                    <Card className="portfolio-overview-card">
+                      <div className="portfolio-benchmark-content">
+                      <Space wrap className="portfolio-benchmark-controls">
+                        {benchmarkPeriod && <>
+                          <DatePicker
+                            aria-label="Начало периода сравнения"
+                            value={benchmarkPeriod[0]}
+                            disabledDate={(value) => value.isAfter(benchmarkPeriod[1], "day")}
+                            onChange={(value) => changeBenchmarkPeriod(value, benchmarkPeriod[1])}
+                          />
+                          <DatePicker
+                            aria-label="Конец периода сравнения"
+                            value={benchmarkPeriod[1]}
+                            disabledDate={(value) => value.isBefore(benchmarkPeriod[0], "day")}
+                            onChange={(value) => changeBenchmarkPeriod(benchmarkPeriod[0], value)}
+                          />
+                        </>}
+                        <Button
+                          type="primary"
+                          disabled={!benchmarkPeriod}
+                          loading={benchmarkLoading}
+                          onClick={() => void calculateBenchmark()}
+                        >
+                          Сравнить
+                        </Button>
+                      </Space>
+                      {benchmarkCalculationError && <Alert
+                        type="error"
+                        showIcon
+                        title={benchmarkCalculationError}
+                        style={{ marginTop: 16 }}
+                      />}
+                      {benchmarkResult && !hasCurrentBenchmarkContract(benchmarkResult) ? <Alert
+                        type="warning"
+                        showIcon
+                        title="Сервер вернул старый формат сравнения. Для точного графика обновите backend с отдельными рядами прибыли до налогов и TWR."
+                        style={{ marginTop: 16 }}
+                      /> : benchmarkResult ? <>
+                        <div className="portfolio-benchmark-metrics">
+                          <MetricCard
+                            title="Портфель · прибыль на вложенные средства"
+                            hint={`TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
+                          >
+                            {formatBenchmarkPercent(benchmarkResult.portfolioProfitPercent)}
+                          </MetricCard>
+                          <MetricCard
+                            title="LQDT · те же потоки"
+                            hint={`TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.lqdtTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                          >
+                            {formatBenchmarkPercent(benchmarkResult.lqdtProfitPercent)}
+                          </MetricCard>
+                          <MetricCard
+                            title={`Портфель → RU000A10F504 · с ${benchmarkResult.indexedBondComparisonStartDate
+                              ? dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")
+                              : "нет общей даты"}`}
+                            hint={benchmarkResult.indexedBondProfitPercent == null
+                              ? benchmarkResult.indexedBondUnavailableReason ?? "Недостаточно исторических данных"
+                              : `TWR до налогов: ${formatBenchmarkPercent(benchmarkResult.indexedBondTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                          >
+                            {benchmarkResult.indexedBondProfitPercent == null
+                              ? "—"
+                              : formatBenchmarkPercent(benchmarkResult.indexedBondProfitPercent)}
+                          </MetricCard>
+                        </div>
+                        <div className="portfolio-benchmark-observations">
+                          <span>
+                            Цены LQDT: данные с {dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.lqdtEndObservationDate).format("DD.MM.YYYY")}
+                          </span>
+                          {benchmarkResult.indexedBondStartObservationDate && benchmarkResult.indexedBondEndObservationDate && <span>
+                            RU000A10F504: цены с {dayjs(benchmarkResult.indexedBondStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.indexedBondEndObservationDate).format("DD.MM.YYYY")}{benchmarkResult.indexedBondComparisonStartDate && `; сравнение с портфелем с ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}`}
+                          </span>}
+                        </div>
+                        {benchmarkResult.indexedBondUnavailableReason && <Alert
+                          type="warning"
+                          showIcon
+                          title={benchmarkResult.indexedBondUnavailableReason}
+                          style={{ marginTop: 12 }}
+                        />}
+                        <div className="portfolio-chart-section">
+                          <BenchmarkChart result={benchmarkResult} />
+                        </div>
+                        <Typography.Paragraph type="secondary" className="portfolio-benchmark-note">
+                          Прибыль на вложенные средства = (стоимость портфеля + выводы + налоги − начальная стоимость − пополнения) / (начальная стоимость + пополнения). Налоги возвращаются в стоимость как бездоходный резерв, поэтому обе метрики показывают результат до налогов. Пополнение увеличивает базу взносов: процент прибыли может снизиться без денежного убытка; TWR нейтрализует этот эффект. Для сценариев используются одинаковые пополнения и выводы; комиссии и спред не учитываются. LQDT рассчитывается по историческим ценам закрытия MOEX. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД: между торговыми датами НКД начисляется ежедневно по формуле «номинал × ставка купона / 100 / 365», а фактические выплаты по сохранённой истории купонов учитываются в денежном остатке без реинвестирования. Если история облигации начинается позже выбранного периода, сценарий следует за портфелем до первой общей даты, затем переходит в RU000A10F504; линия появляется с этой даты. Оценки портфеля на даты операций должны отражать стоимость на конец дня после операции.
+                        </Typography.Paragraph>
+                      </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
+                        Выберите период и нажмите «Сравнить».
                       </div>}
-                </MetricCard>
-              </div>
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
-                  {!summary || summary.unrealizedPnlRub == null
-                    ? "—"
-                    : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
-                        {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}
-                      </Typography.Text>}
-                </MetricCard>
-              </div>
-            </div>
-            <div className="portfolio-chart-section">
-              <ValuationChart
-                rows={chartValuations}
-                selectedRange={chartRange}
-                onRangeChange={setChartRange}
-              />
-            </div>
-          </Card>
+                      </div>
+                    </Card>
+                  )
+                }
+              ]}
+          />
 
           <Card title="Доходность портфеля" className="portfolio-return-card">
             <Space wrap>
                {period && <>
-                 <DatePicker value={period[0]} onChange={(value) => value && setPeriod([value, period[1]])} />
-                 <DatePicker value={period[1]} onChange={(value) => value && setPeriod([period[0], value])} />
+                 <DatePicker value={period[0]} onChange={(value) => changePeriod(value, period[1])} />
+                 <DatePicker value={period[1]} onChange={(value) => changePeriod(period[0], value)} />
                </>}
                <Button type="primary" disabled={!period} onClick={() => void calculate()}>Рассчитать</Button>
             </Space>
