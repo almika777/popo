@@ -13,8 +13,7 @@ public sealed class MissingPortfolioBenchmarkValuationsException(IReadOnlyList<D
 public sealed record PortfolioBenchmarkPoint(
     DateOnly Date,
     double ReturnPercent,
-    double? ProfitPercent = null,
-    double? TwrPercent = null);
+    double? ProfitPercent = null);
 
 public sealed record PortfolioBenchmarkResult(
     DateOnly From,
@@ -32,11 +31,7 @@ public sealed record PortfolioBenchmarkResult(
     IReadOnlyList<PortfolioBenchmarkPoint>? IndexedBondPoints = null,
     string? IndexedBondUnavailableReason = null,
     DateOnly? IndexedBondComparisonStartDate = null,
-    double? IndexedBondPortfolioReturn = null,
     double? PortfolioProfitPercent = null,
     double? LqdtProfitPercent = null,
     double? IndexedBondProfitPercent = null,
-    double? PortfolioTwrPercent = null,
-    double? LqdtTwrPercent = null,
-    double? IndexedBondTwrPercent = null,
     string? PortfolioUnavailableReason = null);

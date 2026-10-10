@@ -238,11 +238,8 @@ type BenchmarkChartRow = {
   date: string;
   timestamp: number;
   portfolioProfitPercent?: number | null;
-  portfolioTwrPercent?: number | null;
   lqdtProfitPercent?: number | null;
-  lqdtTwrPercent?: number | null;
   indexedBondProfitPercent?: number | null;
-  indexedBondTwrPercent?: number | null;
   [series: string]: string | number | null | undefined;
 };
 
@@ -250,13 +247,11 @@ type BenchmarkSeriesPoint = {
   date: string;
   timestamp: number;
   profitPercent?: number | null;
-  twrPercent?: number | null;
 };
 
 function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>();
   const [visibleIndexes, setVisibleIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
-  const [metric, setMetric] = useState<"profit" | "twr">("profit");
   const [hasChartLayout, setHasChartLayout] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const sideLegend = chartWidth > 800;
@@ -274,17 +269,14 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
     result.portfolioPoints.forEach((point) => {
       const row = addPoint(point.date);
       row.portfolioProfitPercent = point.profitPercent;
-      row.portfolioTwrPercent = point.twrPercent;
     });
     result.lqdtPoints.forEach((point) => {
       const row = addPoint(point.date);
       row.lqdtProfitPercent = point.profitPercent;
-      row.lqdtTwrPercent = point.twrPercent;
     });
     result.indexedBondPoints?.forEach((point) => {
       const row = addPoint(point.date);
       row.indexedBondProfitPercent = point.profitPercent;
-      row.indexedBondTwrPercent = point.twrPercent;
     });
 
     return [...rowsByDate.values()].sort((left, right) => left.timestamp - right.timestamp);
@@ -294,24 +286,21 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
     .map((row): BenchmarkSeriesPoint => ({
       date: row.date,
       timestamp: row.timestamp,
-      profitPercent: row.portfolioProfitPercent,
-      twrPercent: row.portfolioTwrPercent
+      profitPercent: row.portfolioProfitPercent
     })), [chartData]);
   const lqdtSeriesData = useMemo(() => chartData
     .filter((row) => Object.prototype.hasOwnProperty.call(row, "lqdtProfitPercent"))
     .map((row): BenchmarkSeriesPoint => ({
       date: row.date,
       timestamp: row.timestamp,
-      profitPercent: row.lqdtProfitPercent,
-      twrPercent: row.lqdtTwrPercent
+      profitPercent: row.lqdtProfitPercent
     })), [chartData]);
   const indexedBondSeriesData = useMemo(() => chartData
     .filter((row) => Object.prototype.hasOwnProperty.call(row, "indexedBondProfitPercent"))
     .map((row): BenchmarkSeriesPoint => ({
       date: row.date,
       timestamp: row.timestamp,
-      profitPercent: row.indexedBondProfitPercent,
-      twrPercent: row.indexedBondTwrPercent
+      profitPercent: row.indexedBondProfitPercent
     })), [chartData]);
   const selectedStartIndex = Math.min(brushRange?.startIndex ?? 0, chartData.length - 1);
   const selectedEndIndex = Math.max(
@@ -378,17 +367,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
           maxTagCount={2}
           style={{ minWidth: 240, maxWidth: "100%" }}
         />
-        <Typography.Text type="secondary">Показатель</Typography.Text>
-        <Select
-          aria-label="Показатель графика индексов"
-          value={metric}
-          options={[
-            { label: "Прибыль на вложенные средства", value: "profit" },
-            { label: "TWR", value: "twr" }
-          ]}
-          onChange={setMetric}
-          style={{ minWidth: 230, maxWidth: "100%" }}
-        />
+        <Typography.Text type="secondary">Показатель: Прибыль на вложенные средства</Typography.Text>
       </div>
       <div className="portfolio-chart-recharts">
         <ResponsiveContainer
@@ -439,7 +418,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
             {visiblePortfolioSeriesData.length > 0 && <Line
               data={visiblePortfolioSeriesData}
               type="linear"
-              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              dataKey="profitPercent"
               name="Портфель"
               stroke="#1677ff"
               strokeWidth={2}
@@ -450,7 +429,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
             {visibleIndexes.includes("indexedBond") && (result.indexedBondPoints?.length ?? 0) > 0 && <Line
               data={visibleIndexedBondSeriesData}
               type="linear"
-              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              dataKey="profitPercent"
               name="RU000A10F504"
               stroke="#faad14"
               strokeWidth={2}
@@ -461,7 +440,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
             {visibleIndexes.includes("lqdt") && <Line
               data={visibleLqdtSeriesData}
               type="linear"
-              dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
+              dataKey="profitPercent"
               name="LQDT"
               stroke="#52c41a"
               strokeWidth={2}
@@ -502,9 +481,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
         Показать весь период
       </Button>}
       <div className="portfolio-benchmark-chart-caption">
-        {metric === "profit"
-          ? "Портфель: прибыль на вложенные средства · инструменты: доходность удержания по ценам"
-          : "Портфель: TWR после налогов · инструменты: доходность удержания без потоков и налогов"}
+        Портфель: прибыль на вложенные средства · LQDT и RU000A10F504: доходность удержания за выбранный период
       </div>
     </div>
   );
@@ -892,7 +869,7 @@ export default function PortfolioPage() {
                         <div className="portfolio-benchmark-metrics">
                           <MetricCard
                             title="Фактический портфель · прибыль на вложенные средства"
-                            hint={benchmarkResult.portfolioUnavailableReason ?? `TWR после фактических налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
+                            hint={benchmarkResult.portfolioUnavailableReason ?? "Пополнения и выводы учитываются; налоговые списания уменьшают результат"}
                           >
                             {formatBenchmarkPercent(benchmarkResult.portfolioProfitPercent)}
                           </MetricCard>
@@ -900,7 +877,7 @@ export default function PortfolioPage() {
                             title="LQDT · рост цены пая"
                             hint={getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ?? (
                               benchmarkResult.lqdtStartObservationDate === benchmarkResult.from
-                                ? `Без потоков, налогов, брокерских комиссий и спреда · LQDT − TWR портфеля: ${formatBenchmarkDifference(benchmarkResult.lqdtTwrPercent, benchmarkResult.portfolioTwrPercent)}`
+                                ? `Без потоков, налогов, брокерских комиссий и спреда · LQDT − портфель: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`
                                 : `LQDT: ${dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}; портфель: ${dayjs(benchmarkResult.from).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}. Периоды различаются.`
                             )}
                           >
@@ -913,7 +890,9 @@ export default function PortfolioPage() {
                             hint={benchmarkResult.indexedBondProfitPercent == null
                               ? benchmarkResult.indexedBondUnavailableReason ?? "Недостаточно исторических данных"
                               : getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ??
-                                `Доходность удержания без потоков и налогов · RU − TWR портфеля: ${formatBenchmarkDifference(benchmarkResult.indexedBondTwrPercent, benchmarkResult.portfolioTwrPercent)}`}
+                                (benchmarkResult.indexedBondComparisonStartDate === benchmarkResult.from
+                                  ? `Доходность удержания без потоков и налогов · RU − портфель: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`
+                                  : `RU: ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}; портфель: ${dayjs(benchmarkResult.from).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}. Периоды различаются.`)}
                           >
                             {benchmarkResult.indexedBondProfitPercent == null
                               ? "—"
@@ -944,7 +923,7 @@ export default function PortfolioPage() {
                           <BenchmarkChart result={benchmarkResult} />
                         </div>
                         <Typography.Paragraph type="secondary" className="portfolio-benchmark-note">
-                          Фактический портфель учитывает сохранённые пополнения, выводы и налоговые списания. Для LQDT считается доходность удержания по официальной цене закрытия основной сессии MOEX LEGALCLOSEPRICE: (последняя цена в выбранном периоде / первая цена в выбранном периоде) − 1. Начало линии — первая торговая дата не раньше «с», конец — последняя торговая дата не позже «по»; если последний день не торговый, последнее значение переносится на него. В гипотетических линиях инструментов пополнения, выводы, налоги, брокерские комиссии и спред не моделируются; расходы фонда, отражённые в цене пая, сохраняются. Это доходность по официальным ценам закрытия пая LQDT, не расчёт по индикатору LQDTM. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД; между торговыми датами НКД начисляется ежедневно как «номинал × ставка купона / 100 / 365», выплаченные купоны остаются деньгами без реинвестирования. TWR портфеля рассчитывается по фактическим оценкам и нейтрализует пополнения и выводы, но включает налоговые списания. Все проценты не годовые.
+                          Фактический портфель учитывает сохранённые пополнения, выводы и налоговые списания. Для LQDT считается доходность удержания по официальной цене закрытия основной сессии MOEX LEGALCLOSEPRICE: (последняя цена в выбранном периоде / первая цена в выбранном периоде) − 1. Начало линии — первая торговая дата не раньше «с», конец — последняя торговая дата не позже «по»; если последний день не торговый, последнее значение переносится на него. В гипотетических линиях инструментов пополнения, выводы, налоги, брокерские комиссии и спред не моделируются; расходы фонда, отражённые в цене пая, сохраняются. Это доходность по официальным ценам закрытия пая LQDT, не расчёт по индикатору LQDTM. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД; между торговыми датами НКД начисляется ежедневно как «номинал × ставка купона / 100 / 365», выплаченные купоны остаются деньгами без реинвестирования. Все проценты не годовые.
                         </Typography.Paragraph>
                       </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
                         Выберите период и нажмите «Сравнить».

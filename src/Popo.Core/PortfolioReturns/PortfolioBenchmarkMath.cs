@@ -30,60 +30,6 @@ internal static class PortfolioBenchmarkMath
         return profit;
     }
 
-    public static double? CalculateTwrPercent(
-        DateOnly from,
-        DateOnly to,
-        IReadOnlyCollection<PortfolioValuationInput> valuations,
-        IReadOnlyCollection<PortfolioCashFlowInput> flows)
-    {
-        if (to <= from)
-        {
-            return 0;
-        }
-
-        var start = FindValuation(from, valuations).TotalValue;
-        var flowGroups = flows.Where(flow => flow.Date > from && flow.Date <= to)
-            .GroupBy(flow => flow.Date).ToDictionary(group => group.Key, group => group.ToArray());
-        EnsureFlowDateValuations(flows.Where(flow => flow.Date > from && flow.Date <= to).ToArray(), valuations);
-
-        var multiplier = 1d;
-        var capital = start;
-        foreach (var valuation in valuations.Where(value => value.Date > from && value.Date <= to).OrderBy(value => value.Date))
-        {
-            var netFlow = flowGroups.TryGetValue(valuation.Date, out var dayFlows)
-                ? dayFlows.Sum(GetExternalCashMovement)
-                : 0d;
-            if (flowGroups.ContainsKey(valuation.Date))
-            {
-                if (capital <= 0)
-                {
-                    return null;
-                }
-
-                var preFlowValue = valuation.TotalValue - netFlow;
-                if (!double.IsFinite(preFlowValue) || preFlowValue < 0)
-                {
-                    return null;
-                }
-
-                multiplier *= preFlowValue / capital;
-                capital = valuation.TotalValue;
-            }
-            else if (capital > 0)
-            {
-                multiplier *= valuation.TotalValue / capital;
-                capital = valuation.TotalValue;
-            }
-            else if (valuation.TotalValue > 0)
-            {
-                return null;
-            }
-        }
-
-        var result = multiplier - 1;
-        return double.IsFinite(result) && result >= -1 ? result : null;
-    }
-
     public static IReadOnlyList<PortfolioBenchmarkPoint> BuildAssetPoints(
         DateOnly from,
         DateOnly to,
@@ -107,9 +53,7 @@ internal static class PortfolioBenchmarkMath
             var scenarioValue = FindValuation(date, simulation.Valuations).TotalValue;
             var allFlowsThroughDate = flows.Where(flow => flow.Date <= date).ToArray();
             var profit = CalculateProfitPercent(from, date, originalStartValue, scenarioValue, allFlowsThroughDate);
-            var localTwr = CalculateTwrPercent(from, date,
-                simulation.Valuations.Where(value => value.Date <= date).ToArray(), allFlowsThroughDate);
-            points.Add(new PortfolioBenchmarkPoint(date, profit, profit, localTwr));
+            points.Add(new PortfolioBenchmarkPoint(date, profit, profit));
         }
 
         return points;

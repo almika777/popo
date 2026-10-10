@@ -62,8 +62,8 @@ public sealed class PortfolioBenchmarkCalculator
             portfolioUnavailableReason = exception.Message;
         }
 
-        var excessReturn = portfolio is not null && lqdt.StartPriceDate == from
-            ? portfolio.TwrPercent - lqdt.Series.TwrPercent
+        double? excessReturn = portfolio is not null && lqdt.StartPriceDate == from
+            ? portfolio.ProfitPercent - lqdt.Series.ProfitPercent
             : null;
 
         return new PortfolioBenchmarkResult(
@@ -77,13 +77,9 @@ public sealed class PortfolioBenchmarkCalculator
             indexedBond.Series?.Points,
             indexedBond.UnavailableReason,
             indexedBond.ComparisonStartDate,
-            portfolio?.TwrPercent,
             portfolio?.ProfitPercent,
             lqdt.Series.ProfitPercent,
             indexedBond.Series?.ProfitPercent,
-            portfolio?.TwrPercent,
-            lqdt.Series.TwrPercent,
-            indexedBond.Series?.TwrPercent,
             portfolioUnavailableReason);
     }
 

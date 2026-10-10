@@ -181,12 +181,8 @@ public sealed class PortfolioReturnsApiContractTests
             Assert.That(benchmark.LqdtReturn, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioProfitPercent, Is.EqualTo(1d / 6).Within(0.000001));
             Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
-            Assert.That(benchmark.PortfolioTwrPercent, Is.EqualTo(0.1846153846153846).Within(0.000001));
-            Assert.That(benchmark.LqdtTwrPercent, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioPoints[^1].ProfitPercent, Is.EqualTo(benchmark.PortfolioProfitPercent));
             Assert.That(benchmark.LqdtPoints[^1].ProfitPercent, Is.EqualTo(benchmark.LqdtProfitPercent));
-            Assert.That(benchmark.PortfolioPoints[^1].TwrPercent, Is.EqualTo(benchmark.PortfolioTwrPercent));
-            Assert.That(benchmark.LqdtPoints[^1].TwrPercent, Is.EqualTo(benchmark.LqdtTwrPercent));
         });
     }
 
@@ -244,7 +240,7 @@ public sealed class PortfolioReturnsApiContractTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtReturn, Is.EqualTo(Math.Pow(1.1d, 1.8d) - 1d).Within(0.000001));
             Assert.That(store.UpsertCount, Is.EqualTo(1));
             Assert.That(store.History, Has.Count.EqualTo(3));
         });
@@ -289,8 +285,11 @@ public sealed class PortfolioReturnsApiContractTests
         {
             Assert.That(moexClient.LqdtHistoryRequestCount, Is.EqualTo(1));
             Assert.That(store.UpsertCount, Is.EqualTo(1));
-            Assert.That(result.LqdtReturn, Is.EqualTo(0.2).Within(0.000001));
+            var expectedReturn = 1.2d * Math.Pow(1.21d / 1.2d, 2d / 3d) - 1d;
+            Assert.That(result.LqdtReturn, Is.EqualTo(expectedReturn).Within(0.000001));
             Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 30)));
+            Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
+            Assert.That(result.LqdtPoints[^1].ProfitPercent, Is.EqualTo(expectedReturn).Within(0.000001));
         });
     }
 
@@ -332,7 +331,8 @@ public sealed class PortfolioReturnsApiContractTests
         Assert.Multiple(() =>
         {
             Assert.That(moexClient.LqdtHistoryRequestCount, Is.EqualTo(1));
-            Assert.That(result.LqdtReturn, Is.EqualTo(0.2).Within(0.000001));
+            var expectedReturn = 1.2d * Math.Pow(1.21d / 1.2d, 2d / 3d) - 1d;
+            Assert.That(result.LqdtReturn, Is.EqualTo(expectedReturn).Within(0.000001));
             Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 30)));
         });
     }
@@ -359,7 +359,7 @@ public sealed class PortfolioReturnsApiContractTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtReturn, Is.EqualTo(0.1d).Within(0.000001));
             Assert.That(result.LqdtStartObservationDate, Is.EqualTo(new DateOnly(2026, 1, 2)));
             Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 20)));
             Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
@@ -390,7 +390,7 @@ public sealed class PortfolioReturnsApiContractTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtReturn, Is.EqualTo(Math.Pow(1.1d, 30d / 28d) - 1d).Within(0.000001));
             Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(new DateOnly(2026, 1, 2)));
             Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
             Assert.That(result.PortfolioReturn, Is.Null);

@@ -28,8 +28,6 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                 Isin, from, to, InitialCapital, prices, [],
                 couponPeriods: history.CouponPeriods);
 
-            var localTwr = PortfolioBenchmarkMath.CalculateTwrPercent(
-                from, to, simulation.Valuations, []);
             var endValue = PortfolioBenchmarkMath.FindValuation(to, simulation.Valuations).TotalValue;
             var profit = PortfolioBenchmarkMath.CalculateProfitPercent(from, to, InitialCapital, endValue, []);
 
@@ -42,7 +40,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
 
             return new IndexedBondBenchmarkSeriesCalculation(
                 comparisonStartDate, startObservationDate, endObservationDate,
-                new BenchmarkSeriesCalculation(profit, localTwr, points), null);
+                new BenchmarkSeriesCalculation(profit, points), null);
         }
         catch (PortfolioBenchmarkHistoryUnavailableException exception)
         {

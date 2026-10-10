@@ -49,9 +49,7 @@ public sealed class PortfolioBenchmarkService(
                 to,
                 valuationsTask.Result.Select(x => new PortfolioValuationInput(x.Date, x.TotalValue)).ToArray(),
                 cashFlowsTask.Result.Select(x => new PortfolioCashFlowInput(x.Date, x.Type, x.Amount)).ToArray(),
-                lqdtPriceHistory
-                    .Where(value => value.TradeDate is not null && value.TradeDate <= to)
-                    .ToArray(),
+                lqdtPriceHistory,
                 indexedBondHistory);
         }
         catch (PortfolioBenchmarkHistoryUnavailableException exception)

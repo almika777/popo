@@ -12,8 +12,8 @@ const partialBenchmarkResult: PortfolioBenchmarkResult = {
   lqdtEndObservationDate: "2026-02-01",
   portfolioPoints: [],
   lqdtPoints: [
-    { date: "2026-01-01", returnPercent: 0, profitPercent: 0, twrPercent: 0 },
-    { date: "2026-02-01", returnPercent: 0.1, profitPercent: 0.1, twrPercent: 0.1 }
+    { date: "2026-01-01", returnPercent: 0, profitPercent: 0 },
+    { date: "2026-02-01", returnPercent: 0.1, profitPercent: 0.1 }
   ],
   indexedBondReturn: null,
   indexedBondStartObservationDate: null,
@@ -21,13 +21,9 @@ const partialBenchmarkResult: PortfolioBenchmarkResult = {
   indexedBondPoints: [],
   indexedBondUnavailableReason: "Нет исторических данных",
   indexedBondComparisonStartDate: null,
-  indexedBondPortfolioReturn: null,
   portfolioProfitPercent: null,
   lqdtProfitPercent: 0.1,
   indexedBondProfitPercent: null,
-  portfolioTwrPercent: null,
-  lqdtTwrPercent: 0.1,
-  indexedBondTwrPercent: null,
   portfolioUnavailableReason: "Нет оценки портфеля на дату"
 };
 

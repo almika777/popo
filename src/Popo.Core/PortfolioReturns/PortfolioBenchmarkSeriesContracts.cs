@@ -2,7 +2,6 @@ namespace Popo.Core.PortfolioReturns;
 
 internal sealed record BenchmarkSeriesCalculation(
     double ProfitPercent,
-    double? TwrPercent,
     IReadOnlyList<PortfolioBenchmarkPoint> Points);
 
 internal sealed record LqdtBenchmarkSeriesCalculation(
