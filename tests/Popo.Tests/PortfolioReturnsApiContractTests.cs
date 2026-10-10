@@ -178,11 +178,11 @@ public sealed class PortfolioReturnsApiContractTests
         Assert.Multiple(() =>
         {
             Assert.That(benchmark!.PortfolioReturn, Is.EqualTo(1d / 6).Within(0.000001));
-            Assert.That(benchmark.LqdtReturn, Is.EqualTo(2d / 11).Within(0.000001));
+            Assert.That(benchmark.LqdtReturn, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioProfitPercent, Is.EqualTo(1d / 6).Within(0.000001));
-            Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(2d / 11).Within(0.000001));
+            Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioTwrPercent, Is.EqualTo(0.1846153846153846).Within(0.000001));
-            Assert.That(benchmark.LqdtTwrPercent, Is.EqualTo(0.2).Within(0.000001));
+            Assert.That(benchmark.LqdtTwrPercent, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioPoints[^1].ProfitPercent, Is.EqualTo(benchmark.PortfolioProfitPercent));
             Assert.That(benchmark.LqdtPoints[^1].ProfitPercent, Is.EqualTo(benchmark.LqdtProfitPercent));
             Assert.That(benchmark.PortfolioPoints[^1].TwrPercent, Is.EqualTo(benchmark.PortfolioTwrPercent));
@@ -191,7 +191,7 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public async Task CalculateBenchmark_KeepsStartingCapitalInCashUntilFirstLqdtObservation()
+    public async Task CalculateBenchmark_StartsLqdtSeriesAtFirstObservationInsideSelectedPeriod()
     {
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
@@ -224,6 +224,7 @@ public sealed class PortfolioReturnsApiContractTests
         var downloadedHistory = new[]
         {
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2025, 12, 31), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 5), Close = 1m },
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 20), Close = 1.1m }
         };
         var store = new FakeMoexIndexHistoryStore([]);
@@ -245,12 +246,12 @@ public sealed class PortfolioReturnsApiContractTests
         {
             Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
             Assert.That(store.UpsertCount, Is.EqualTo(1));
-            Assert.That(store.History, Has.Count.EqualTo(2));
+            Assert.That(store.History, Has.Count.EqualTo(3));
         });
     }
 
     [Test]
-    public async Task CalculateBenchmark_RefreshesCachedHistoryThatDoesNotCoverPeriodEnd()
+    public async Task CalculateBenchmark_RefreshesCachedHistoryWhenSelectedPeriodEndIsNotCovered()
     {
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
@@ -260,6 +261,7 @@ public sealed class PortfolioReturnsApiContractTests
         var cachedHistory = new[]
         {
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2025, 12, 31), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 20), Close = 1.1m }
         };
         var downloadedHistory = cachedHistory.Concat(new[]
@@ -287,12 +289,56 @@ public sealed class PortfolioReturnsApiContractTests
         {
             Assert.That(moexClient.LqdtHistoryRequestCount, Is.EqualTo(1));
             Assert.That(store.UpsertCount, Is.EqualTo(1));
+            Assert.That(result.LqdtReturn, Is.EqualTo(0.2).Within(0.000001));
             Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 30)));
         });
     }
 
     [Test]
-    public void CalculateBenchmark_ReportsCashFlowDateWhenPortfolioValuationIsMissing()
+    public async Task CalculateBenchmark_RefreshesCachedHistoryWhenItMissesLatestQuoteInsidePeriod()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 110, string.Empty));
+        var cachedHistory = new[]
+        {
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 2, 2), Close = 1.21m }
+        };
+        var downloadedHistory = new[]
+        {
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 30), Close = 1.2m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 2, 2), Close = 1.21m }
+        };
+        var store = new FakeMoexIndexHistoryStore(cachedHistory);
+        var moexClient = new EmptyMoexHttpClient(downloadedHistory);
+        var service = new PortfolioDataService(
+            provider,
+            provider,
+            new PortfolioReturnCalculator(),
+            new PortfolioBenchmarkService(
+                provider,
+                provider,
+                store,
+                moexClient,
+                new PortfolioBenchmarkCalculator()));
+
+        var result = await service.CalculateBenchmarkAsync(
+            new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(moexClient.LqdtHistoryRequestCount, Is.EqualTo(1));
+            Assert.That(result.LqdtReturn, Is.EqualTo(0.2).Within(0.000001));
+            Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 30)));
+        });
+    }
+
+    [Test]
+    public async Task CalculateBenchmark_ReturnsLqdtWhenCashFlowDateValuationIsMissing()
     {
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
@@ -303,16 +349,55 @@ public sealed class PortfolioReturnsApiContractTests
             Guid.NewGuid(), new DateOnly(2026, 1, 5), PortfolioCashFlowType.Deposit, 10, string.Empty));
         var service = CreateDataService(provider,
         [
-            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2025, 12, 31), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 20), Close = 1.1m },
             new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 2, 2), Close = 1.1m }
         ]);
 
-        var exception = Assert.ThrowsAsync<InvalidApplicationRequestException>(async () =>
-            await service.CalculateBenchmarkAsync(
-                new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None));
+        var result = await service.CalculateBenchmarkAsync(
+            new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None);
 
-        Assert.That(exception!.Message, Does.Contain("2026-01-05"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtStartObservationDate, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.LqdtEndObservationDate, Is.EqualTo(new DateOnly(2026, 1, 20)));
+            Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
+            Assert.That(result.PortfolioReturn, Is.Null);
+            Assert.That(result.PortfolioProfitPercent, Is.Null);
+            Assert.That(result.PortfolioPoints, Is.Empty);
+            Assert.That(result.PortfolioUnavailableReason, Does.Contain("2026-01-05"));
+        });
+    }
+
+    [Test]
+    public async Task CalculateBenchmark_ReturnsLqdtWhenPortfolioEndValuationIsMissing()
+    {
+        var provider = new FakeProvider();
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(
+            Guid.NewGuid(), new DateOnly(2026, 1, 20), 105, string.Empty));
+        var service = CreateDataService(provider,
+        [
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 30), Close = 1.1m }
+        ]);
+
+        var result = await service.CalculateBenchmarkAsync(
+            new PortfolioReturnQuery { From = from, To = to }, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.LqdtReturn, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
+            Assert.That(result.PortfolioReturn, Is.Null);
+            Assert.That(result.PortfolioProfitPercent, Is.Null);
+            Assert.That(result.PortfolioPoints, Is.Empty);
+            Assert.That(result.PortfolioUnavailableReason, Does.Contain("01.02.2026"));
+        });
     }
 
     [Test]
@@ -321,12 +406,18 @@ public sealed class PortfolioReturnsApiContractTests
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 2, 1);
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), from, 100, string.Empty));
+        provider.Valuations.Add(new PortfolioValuationRecord(Guid.NewGuid(), to, 110, string.Empty));
         var returnCalculator = new PortfolioReturnCalculator();
         var benchmarkService = new PortfolioBenchmarkService(
             provider,
             provider,
             new FailingMoexIndexHistoryStore(),
-            new EmptyMoexHttpClient(),
+            new EmptyMoexHttpClient(
+                [
+                    new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 2), Close = 1m },
+                    new MoexIndexHistory { SecId = "LQDT", TradeDate = new DateOnly(2026, 1, 30), Close = 1.1m }
+                ]),
             new PortfolioBenchmarkCalculator());
         var service = new PortfolioDataService(provider, provider, returnCalculator, benchmarkService);
 
@@ -368,7 +459,7 @@ public sealed class PortfolioReturnsApiContractTests
             provider,
             provider,
             new FakeMoexIndexHistoryStore(indexHistory ?? []),
-            new EmptyMoexHttpClient(),
+            new EmptyMoexHttpClient(indexHistory),
             benchmarkCalculator);
         return new PortfolioController(
             new PortfolioDataService(provider, provider, returnCalculator, benchmarkService),
@@ -385,7 +476,7 @@ public sealed class PortfolioReturnsApiContractTests
             provider,
             provider,
             new FakeMoexIndexHistoryStore(indexHistory ?? []),
-            new EmptyMoexHttpClient(downloadedHistory),
+            new EmptyMoexHttpClient(downloadedHistory ?? indexHistory),
             new PortfolioBenchmarkCalculator());
         return new PortfolioDataService(provider, provider, returnCalculator, benchmarkService);
     }
@@ -422,14 +513,13 @@ public sealed class PortfolioReturnsApiContractTests
     private sealed class FailingMoexIndexHistoryStore : IMoexIndexHistoryStore
     {
         public Task UpsertAsync(IReadOnlyCollection<MoexIndexHistory> values, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            throw new InvalidOperationException("Index store failed.");
 
         public Task<IReadOnlyList<MoexIndexHistory>> GetHistoryAsync(
             string secId,
             DateOnly from,
             DateOnly to,
-            CancellationToken cancellationToken) =>
-            Task.FromException<IReadOnlyList<MoexIndexHistory>>(new InvalidOperationException("Index store failed."));
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<MoexIndexHistory>>([]);
     }
 
     private sealed class EmptyMoexHttpClient(IReadOnlyCollection<MoexIndexHistory>? lqdtHistory = null) : IMoexHttpClient
@@ -458,6 +548,12 @@ public sealed class PortfolioReturnsApiContractTests
         {
             LqdtHistoryRequestCount++;
             return Task.FromResult(lqdtHistory?.ToList() ?? []);
+        }
+
+        public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct)
+        {
+            LqdtHistoryRequestCount++;
+            return Task.FromResult(lqdtHistory?.Where(value => value.SecId == "LQDT").ToList() ?? []);
         }
 
         public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>

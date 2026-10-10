@@ -18,6 +18,7 @@ public interface IMoexHttpClient
     Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct);
     Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct);
     Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct);
+    Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct);
     Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct);
     Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct);
     Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct);

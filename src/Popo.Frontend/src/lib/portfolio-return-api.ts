@@ -43,9 +43,9 @@ export type PortfolioBenchmarkPoint = {
 export type PortfolioBenchmarkResult = {
   from: string;
   to: string;
-  portfolioReturn: number;
+  portfolioReturn: number | null;
   lqdtReturn: number;
-  excessReturn: number;
+  excessReturn: number | null;
   lqdtStartObservationDate: string;
   lqdtEndObservationDate: string;
   portfolioPoints: PortfolioBenchmarkPoint[];
@@ -63,7 +63,43 @@ export type PortfolioBenchmarkResult = {
   portfolioTwrPercent?: number | null;
   lqdtTwrPercent?: number | null;
   indexedBondTwrPercent?: number | null;
+  portfolioUnavailableReason: string | null;
 };
+
+const isFiniteBenchmarkPercent = (value: number | null | undefined): value is number =>
+  value != null && Number.isFinite(value);
+
+export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): boolean {
+  const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key);
+  const isNullableFinite = (value: number | null | undefined) => value === null || isFiniteBenchmarkPercent(value);
+  const hasPointMetrics = (points: PortfolioBenchmarkResult["portfolioPoints"]) =>
+    points.every((point) => hasOwn(point, "profitPercent") && hasOwn(point, "twrPercent") &&
+      isFiniteBenchmarkPercent(point.profitPercent) && isNullableFinite(point.twrPercent));
+  const hasBondSeries = (result.indexedBondPoints?.length ?? 0) > 0;
+  const hasBondTotals = isFiniteBenchmarkPercent(result.indexedBondProfitPercent) &&
+    isNullableFinite(result.indexedBondTwrPercent);
+  const bondSeriesIsConsistent = hasBondSeries
+    ? hasBondTotals && hasPointMetrics(result.indexedBondPoints ?? [])
+    : result.indexedBondProfitPercent == null && isNullableFinite(result.indexedBondTwrPercent);
+  const portfolioAvailable = isFiniteBenchmarkPercent(result.portfolioReturn) &&
+    isFiniteBenchmarkPercent(result.portfolioProfitPercent) &&
+    isNullableFinite(result.portfolioTwrPercent) && hasPointMetrics(result.portfolioPoints) &&
+    result.portfolioUnavailableReason === null;
+  const portfolioUnavailable = result.portfolioReturn === null && result.portfolioProfitPercent === null &&
+    result.portfolioTwrPercent === null && result.portfolioPoints.length === 0 &&
+    typeof result.portfolioUnavailableReason === "string" && result.portfolioUnavailableReason.length > 0;
+
+  return hasOwn(result, "portfolioUnavailableReason") &&
+    hasOwn(result, "portfolioReturn") &&
+    hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
+    hasOwn(result, "portfolioTwrPercent") && hasOwn(result, "lqdtTwrPercent") &&
+    hasOwn(result, "indexedBondProfitPercent") && hasOwn(result, "indexedBondTwrPercent") &&
+    (portfolioAvailable || portfolioUnavailable) &&
+    isFiniteBenchmarkPercent(result.lqdtProfitPercent) &&
+    isNullableFinite(result.lqdtTwrPercent) &&
+    hasPointMetrics(result.lqdtPoints) &&
+    bondSeriesIsConsistent;
+}
 
 export type PortfolioPage = {
   valuations: PortfolioValuation[];

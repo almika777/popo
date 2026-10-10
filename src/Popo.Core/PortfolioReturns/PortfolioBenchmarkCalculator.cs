@@ -25,41 +25,66 @@ public sealed class PortfolioBenchmarkCalculator
             throw new ArgumentException("Конечная дата должна быть позже начальной.", nameof(to));
         }
 
-        var periodValuations = GetPeriodValuations(from, to, valuations);
-        var startValue = PortfolioBenchmarkMath.FindValuation(from, periodValuations).TotalValue;
-        if (startValue <= 0)
+        var lqdt = _lqdtCalculator.Calculate(from, to, lqdtPriceHistory);
+        var indexedBond = _indexedBondCalculator.Calculate(from, to, indexedBondHistory);
+        BenchmarkSeriesCalculation? portfolio = null;
+        string? portfolioUnavailableReason = null;
+        try
         {
-            throw new ArgumentException("Стоимость портфеля на начало периода должна быть больше нуля.", nameof(valuations));
+            var periodValuations = GetPeriodValuations(from, to, valuations);
+            var startValue = PortfolioBenchmarkMath.FindValuation(from, periodValuations).TotalValue;
+            if (startValue <= 0)
+            {
+                throw new ArgumentException("Стоимость портфеля на начало периода должна быть больше нуля.", nameof(valuations));
+            }
+
+            var periodFlows = cashFlows.Where(flow => flow.Date > from && flow.Date <= to).OrderBy(flow => flow.Date).ToArray();
+            ValidateCashFlows(periodFlows);
+            PortfolioBenchmarkMath.EnsureFlowDateValuations(periodFlows, periodValuations);
+            portfolio = _portfolioCalculator.Calculate(from, to, periodValuations, periodFlows);
+        }
+        catch (MissingPortfolioBenchmarkValuationsException exception)
+        {
+            portfolioUnavailableReason =
+                $"Для сравнения добавьте оценку портфеля на конец дня после денежных операций: {string.Join(", ", exception.RequiredDates.Select(date => date.ToString("yyyy-MM-dd")))}.";
+        }
+        catch (MissingPortfolioValuationsException exception)
+        {
+            portfolioUnavailableReason =
+                $"Для сравнения добавьте оценку портфеля на даты: {string.Join(", ", exception.RequiredDates.Select(date => date.ToString("yyyy-MM-dd")))}.";
+        }
+        catch (ArgumentException exception)
+        {
+            portfolioUnavailableReason = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            portfolioUnavailableReason = exception.Message;
         }
 
-        var periodFlows = cashFlows.Where(flow => flow.Date > from && flow.Date <= to).OrderBy(flow => flow.Date).ToArray();
-        ValidateCashFlows(periodFlows);
-        PortfolioBenchmarkMath.EnsureFlowDateValuations(periodFlows, periodValuations);
-
-        var portfolio = _portfolioCalculator.Calculate(from, to, periodValuations, periodFlows);
-        var lqdt = _lqdtCalculator.Calculate(from, to, startValue, periodValuations, periodFlows, lqdtPriceHistory);
-        var indexedBond = _indexedBondCalculator.Calculate(
-            from, to, startValue, periodValuations, periodFlows,
-            portfolio.TwrPercent, indexedBondHistory);
+        var excessReturn = portfolio is not null && lqdt.StartPriceDate == from
+            ? portfolio.TwrPercent - lqdt.Series.TwrPercent
+            : null;
 
         return new PortfolioBenchmarkResult(
-            from, to, portfolio.ProfitPercent, lqdt.Series.ProfitPercent,
-            portfolio.ProfitPercent - lqdt.Series.ProfitPercent,
+            from, to, portfolio?.ProfitPercent, lqdt.Series.ProfitPercent,
+            excessReturn,
             lqdt.StartPriceDate, lqdt.EndPriceDate,
-            portfolio.Points, lqdt.Series.Points,
+            portfolio?.Points ?? [], lqdt.Series.Points,
             indexedBond.Series?.ProfitPercent,
             indexedBond.StartObservationDate,
             indexedBond.EndObservationDate,
             indexedBond.Series?.Points,
             indexedBond.UnavailableReason,
             indexedBond.ComparisonStartDate,
-            indexedBond.PortfolioTwrPercent,
-            portfolio.ProfitPercent,
+            portfolio?.TwrPercent,
+            portfolio?.ProfitPercent,
             lqdt.Series.ProfitPercent,
             indexedBond.Series?.ProfitPercent,
-            portfolio.TwrPercent,
+            portfolio?.TwrPercent,
             lqdt.Series.TwrPercent,
-            indexedBond.Series?.TwrPercent);
+            indexedBond.Series?.TwrPercent,
+            portfolioUnavailableReason);
     }
 
     private static IReadOnlyCollection<PortfolioValuationInput> GetPeriodValuations(

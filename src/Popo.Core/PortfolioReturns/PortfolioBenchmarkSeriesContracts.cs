@@ -14,6 +14,5 @@ internal sealed record IndexedBondBenchmarkSeriesCalculation(
     DateOnly? ComparisonStartDate,
     DateOnly? StartObservationDate,
     DateOnly? EndObservationDate,
-    double? PortfolioTwrPercent,
     BenchmarkSeriesCalculation? Series,
     string? UnavailableReason);

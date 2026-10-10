@@ -178,50 +178,120 @@ namespace Popo.HttpClients
                 .ToList();
         }
 
+        public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) =>
+            GetLqdtDailyPriceHistoryAsync(ct);
+
         private async Task<List<MoexIndexHistory>> GetLqdtDailyPriceHistoryAsync(CancellationToken ct)
         {
-            const int pageSize = 500;
+            const int pageSize = 100;
             var start = 0;
+            int? totalRows = null;
             var result = new List<MoexIndexHistory>();
+            var seenDates = new HashSet<DateOnly>();
 
             while (true)
             {
                 var url =
-                    "engines/stock/markets/shares/securities/LQDT/candles.json" +
-                    $"?iss.meta=off&iss.only=candles,candles.cursor&interval=24&from={LqdtFirstTradingDate:yyyy-MM-dd}" +
+                    "history/engines/stock/markets/shares/securities/LQDT.json" +
+                    $"?iss.meta=off&iss.only=history,history.cursor&from={LqdtFirstTradingDate:yyyy-MM-dd}" +
+                    "&history.columns=TRADEDATE,SECID,BOARDID,LEGALCLOSEPRICE" +
                     $"&start={start}&limit={pageSize}";
 
                 using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
                 var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                var candles = ParseMoexResult<MoexDailyCandle>(json, "candles");
-                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "candles.cursor").FirstOrDefault();
-                result.AddRange(candles
-                    .Where(candle => candle.Begin is not null && candle.Close is > 0)
-                    .Select(candle => new MoexIndexHistory
+                var history = ParseMoexResult<MoexShareDailyHistory>(json, "history");
+                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "history.cursor").FirstOrDefault();
+                if (cursor is null)
+                {
+                    throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+                }
+
+                if (totalRows.HasValue && cursor.Total != totalRows.Value)
+                {
+                    throw new InvalidOperationException("MOEX изменил общий размер истории дневных цен LQDT во время загрузки.");
+                }
+
+                totalRows ??= cursor.Total;
+                foreach (var point in history)
+                {
+                    if (point.TradeDate is null || point.SecId != "LQDT" ||
+                        string.IsNullOrWhiteSpace(point.BoardId) || point.LegalClosePrice is null or <= 0)
                     {
-                        SecId = "LQDT",
-                        TradeDate = candle.Begin,
-                        Close = candle.Close
-                    }));
+                        throw new InvalidOperationException("MOEX вернул некорректную дневную цену LQDT.");
+                    }
 
-                if (candles.Count == 0)
-                    break;
+                    if (!seenDates.Add(point.TradeDate.Value))
+                    {
+                        throw new InvalidOperationException("MOEX вернул несколько цен LQDT за одну дату.");
+                    }
 
-                var nextStart = GetNextHistoryStart(
+                    result.Add(new MoexIndexHistory
+                    {
+                        SecId = point.SecId,
+                        TradeDate = point.TradeDate,
+                        Close = point.LegalClosePrice
+                    });
+                }
+
+                var nextStart = GetNextLqdtPriceHistoryStart(
                     start,
-                    candles.Count,
+                    history.Count,
                     pageSize,
-                    cursor,
-                    "MOEX вернул некорректный курсор дневных цен LQDT.");
+                    cursor);
                 if (nextStart is null)
                     break;
 
                 start = nextStart.Value;
             }
 
-            return result;
+            return result.OrderBy(value => value.TradeDate).ToList();
+        }
+
+        private static int? GetNextLqdtPriceHistoryStart(
+            int start,
+            int pageCount,
+            int requestedPageSize,
+            MoexHistoryCursor? cursor)
+        {
+            if (cursor is null)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            if (cursor.Index != start || cursor.Total < 0 || cursor.PageSize < 0 ||
+                cursor.PageSize > requestedPageSize)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            if (pageCount == 0)
+            {
+                if (cursor.Index == cursor.Total && cursor.PageSize == 0)
+                    return null;
+
+                if (cursor.Index == cursor.Total)
+                {
+                    throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+                }
+
+                throw new InvalidOperationException("MOEX вернул неполную страницу истории дневных цен LQDT.");
+            }
+
+            if (cursor.Index >= cursor.Total || cursor.PageSize == 0)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            var expectedPageCount = Math.Min(cursor.PageSize, cursor.Total - cursor.Index);
+            if (pageCount != expectedPageCount)
+            {
+                throw new InvalidOperationException("MOEX вернул неполную страницу истории дневных цен LQDT.");
+            }
+
+            var nextStart = cursor.Index + cursor.PageSize;
+            return nextStart >= cursor.Total ? null : nextStart;
         }
 
         private static int? GetNextHistoryStart(

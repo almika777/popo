@@ -22,6 +22,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  hasCurrentBenchmarkContract,
   portfolioReturnApi,
   type CashFlowType,
   type PortfolioBenchmarkResult,
@@ -29,6 +30,11 @@ import {
   type PortfolioReturn,
   type PortfolioValuation
 } from "../../lib/portfolio-return-api";
+import {
+  getPortfolioComparisonUnavailableHint,
+  isBenchmarkEndDateDisabled,
+  isBenchmarkStartDateDisabled
+} from "../../lib/portfolio-benchmark-presentation";
 import type { CashBalance, PortfolioSummary } from "../../lib/portfolio-ledger-api";
 import {
   Bar,
@@ -69,33 +75,6 @@ const formatBenchmarkDifference = (value: number | null | undefined, base: numbe
   const difference = (value - base) * 100;
   return `${difference > 0 ? "+" : ""}${number.format(difference)} п.п.`;
 };
-const isFiniteBenchmarkPercent = (value: number | null | undefined): value is number =>
-  value != null && Number.isFinite(value);
-
-function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult) {
-  const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key);
-  const isNullableFinite = (value: number | null | undefined) => value === null || isFiniteBenchmarkPercent(value);
-  const hasPointMetrics = (points: PortfolioBenchmarkResult["portfolioPoints"]) =>
-    points.every((point) => hasOwn(point, "profitPercent") && hasOwn(point, "twrPercent") &&
-      isFiniteBenchmarkPercent(point.profitPercent) && isNullableFinite(point.twrPercent));
-  const hasBondSeries = (result.indexedBondPoints?.length ?? 0) > 0;
-  const hasBondTotals = isFiniteBenchmarkPercent(result.indexedBondProfitPercent) &&
-    isNullableFinite(result.indexedBondTwrPercent);
-  const bondSeriesIsConsistent = hasBondSeries
-    ? hasBondTotals && hasPointMetrics(result.indexedBondPoints ?? [])
-    : result.indexedBondProfitPercent == null && isNullableFinite(result.indexedBondTwrPercent);
-
-  return hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
-    hasOwn(result, "portfolioTwrPercent") && hasOwn(result, "lqdtTwrPercent") &&
-    hasOwn(result, "indexedBondProfitPercent") && hasOwn(result, "indexedBondTwrPercent") &&
-    isFiniteBenchmarkPercent(result.portfolioProfitPercent) &&
-    isFiniteBenchmarkPercent(result.lqdtProfitPercent) &&
-    isNullableFinite(result.portfolioTwrPercent) &&
-    isNullableFinite(result.lqdtTwrPercent) &&
-    hasPointMetrics(result.portfolioPoints) &&
-    hasPointMetrics(result.lqdtPoints) &&
-    bondSeriesIsConsistent;
-}
 const formatChartAxis = (value: number) => {
   const sign = value < 0 ? "−" : "";
   const absolute = Math.abs(value);
@@ -457,7 +436,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
               width={sideLegend ? 190 : undefined}
               wrapperStyle={{ fontSize: 12, lineHeight: "24px" }}
             />
-            <Line
+            {visiblePortfolioSeriesData.length > 0 && <Line
               data={visiblePortfolioSeriesData}
               type="linear"
               dataKey={metric === "profit" ? "profitPercent" : "twrPercent"}
@@ -467,7 +446,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
               dot={false}
               connectNulls={false}
               isAnimationActive={false}
-          />
+            />}
             {visibleIndexes.includes("indexedBond") && (result.indexedBondPoints?.length ?? 0) > 0 && <Line
               data={visibleIndexedBondSeriesData}
               type="linear"
@@ -524,8 +503,8 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
       </Button>}
       <div className="portfolio-benchmark-chart-caption">
         {metric === "profit"
-          ? "Прибыль на вложенные средства · портфель с начала периода = 0%; RU появляется с даты перехода"
-          : "TWR после налогов · портфель с начала периода = 0%; RU появляется с даты перехода"}
+          ? "Портфель: прибыль на вложенные средства · инструменты: доходность удержания по ценам"
+          : "Портфель: TWR после налогов · инструменты: доходность удержания без потоков и налогов"}
       </div>
     </div>
   );
@@ -879,13 +858,13 @@ export default function PortfolioPage() {
                           <DatePicker
                             aria-label="Начало периода сравнения"
                             value={benchmarkPeriod[0]}
-                            disabledDate={(value) => value.isAfter(benchmarkPeriod[1], "day")}
+                            disabledDate={(value) => isBenchmarkStartDateDisabled(value, benchmarkPeriod[1])}
                             onChange={(value) => changeBenchmarkPeriod(value, benchmarkPeriod[1])}
                           />
                           <DatePicker
                             aria-label="Конец периода сравнения"
                             value={benchmarkPeriod[1]}
-                            disabledDate={(value) => value.isBefore(benchmarkPeriod[0], "day")}
+                            disabledDate={(value) => isBenchmarkEndDateDisabled(value, benchmarkPeriod[0])}
                             onChange={(value) => changeBenchmarkPeriod(benchmarkPeriod[0], value)}
                           />
                         </>}
@@ -912,14 +891,18 @@ export default function PortfolioPage() {
                       /> : benchmarkResult ? <>
                         <div className="portfolio-benchmark-metrics">
                           <MetricCard
-                            title="Портфель · прибыль на вложенные средства"
-                            hint={`TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
+                            title="Фактический портфель · прибыль на вложенные средства"
+                            hint={benchmarkResult.portfolioUnavailableReason ?? `TWR после фактических налогов: ${formatBenchmarkPercent(benchmarkResult.portfolioTwrPercent)}`}
                           >
                             {formatBenchmarkPercent(benchmarkResult.portfolioProfitPercent)}
                           </MetricCard>
                           <MetricCard
-                            title="LQDT · те же потоки"
-                            hint={`TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.lqdtTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                            title="LQDT · рост цены пая"
+                            hint={getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ?? (
+                              benchmarkResult.lqdtStartObservationDate === benchmarkResult.from
+                                ? `Без потоков, налогов, брокерских комиссий и спреда · LQDT − TWR портфеля: ${formatBenchmarkDifference(benchmarkResult.lqdtTwrPercent, benchmarkResult.portfolioTwrPercent)}`
+                                : `LQDT: ${dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}; портфель: ${dayjs(benchmarkResult.from).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}. Периоды различаются.`
+                            )}
                           >
                             {formatBenchmarkPercent(benchmarkResult.lqdtProfitPercent)}
                           </MetricCard>
@@ -929,13 +912,20 @@ export default function PortfolioPage() {
                               : "нет данных"}`}
                             hint={benchmarkResult.indexedBondProfitPercent == null
                               ? benchmarkResult.indexedBondUnavailableReason ?? "Недостаточно исторических данных"
-                              : `TWR после налогов: ${formatBenchmarkPercent(benchmarkResult.indexedBondTwrPercent)} · разница прибыли с портфелем: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`}
+                              : getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ??
+                                `Доходность удержания без потоков и налогов · RU − TWR портфеля: ${formatBenchmarkDifference(benchmarkResult.indexedBondTwrPercent, benchmarkResult.portfolioTwrPercent)}`}
                           >
                             {benchmarkResult.indexedBondProfitPercent == null
                               ? "—"
                               : formatBenchmarkPercent(benchmarkResult.indexedBondProfitPercent)}
                           </MetricCard>
                         </div>
+                        {benchmarkResult.portfolioUnavailableReason && <Alert
+                          type="warning"
+                          showIcon
+                          title={`Фактический портфель не рассчитан: ${benchmarkResult.portfolioUnavailableReason}`}
+                          style={{ marginTop: 12 }}
+                        />}
                         <div className="portfolio-benchmark-observations">
                           <span>
                             Цены LQDT: данные с {dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.lqdtEndObservationDate).format("DD.MM.YYYY")}
@@ -954,7 +944,7 @@ export default function PortfolioPage() {
                           <BenchmarkChart result={benchmarkResult} />
                         </div>
                         <Typography.Paragraph type="secondary" className="portfolio-benchmark-note">
-                          Прибыль на вложенные средства = (стоимость портфеля + выводы − начальная стоимость − пополнения) / (начальная стоимость + пополнения). Фактические налоги уменьшают результат портфеля и каждого сценария в даты из журнала; налог для бенчмарка отдельно не пересчитывается. TWR показывает результат после налогов и нейтрализует пополнения и выводы. Для всех сценариев используются одинаковые даты и суммы потоков; комиссии и спред не учитываются. Поток в неторговый день оценивается по последней цене закрытия на эту дату или раньше, без переноса на следующую торговую дату. До первой котировки инструмента капитал остаётся кэшем без дохода, а линия начинается с первой доступной цены. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД: между торговыми датами НКД начисляется ежедневно по формуле «номинал × ставка купона / 100 / 365», а выплаченные купоны остаются кэшем без реинвестирования. Оценка портфеля на дату операции должна отражать стоимость после операции.
+                          Фактический портфель учитывает сохранённые пополнения, выводы и налоговые списания. Для LQDT считается доходность удержания по официальной цене закрытия основной сессии MOEX LEGALCLOSEPRICE: (последняя цена в выбранном периоде / первая цена в выбранном периоде) − 1. Начало линии — первая торговая дата не раньше «с», конец — последняя торговая дата не позже «по»; если последний день не торговый, последнее значение переносится на него. В гипотетических линиях инструментов пополнения, выводы, налоги, брокерские комиссии и спред не моделируются; расходы фонда, отражённые в цене пая, сохраняются. Это доходность по официальным ценам закрытия пая LQDT, не расчёт по индикатору LQDTM. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД; между торговыми датами НКД начисляется ежедневно как «номинал × ставка купона / 100 / 365», выплаченные купоны остаются деньгами без реинвестирования. TWR портфеля рассчитывается по фактическим оценкам и нейтрализует пополнения и выводы, но включает налоговые списания. Все проценты не годовые.
                         </Typography.Paragraph>
                       </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
                         Выберите период и нажмите «Сравнить».

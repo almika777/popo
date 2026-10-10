@@ -3,14 +3,11 @@ namespace Popo.Core.PortfolioReturns;
 internal sealed class Ru000A10F504BenchmarkSeriesCalculator
 {
     private const string Isin = "RU000A10F504";
+    private const double InitialCapital = 1_000_000d;
 
     public IndexedBondBenchmarkSeriesCalculation Calculate(
         DateOnly from,
         DateOnly to,
-        double startValue,
-        IReadOnlyCollection<PortfolioValuationInput> periodValuations,
-        IReadOnlyCollection<PortfolioCashFlowInput> externalFlows,
-        double? portfolioTwr,
         PortfolioBondBenchmarkHistory? history)
     {
         DateOnly? comparisonStartDate = null;
@@ -28,25 +25,23 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             var comparisonStart = comparisonStartDate.Value;
             var prices = BuildDailyPrices(from, to, history);
             var simulation = PortfolioBenchmarkMath.SimulatePriceSeries(
-                Isin, from, to, startValue, prices, externalFlows,
+                Isin, from, to, InitialCapital, prices, [],
                 couponPeriods: history.CouponPeriods);
 
             var localTwr = PortfolioBenchmarkMath.CalculateTwrPercent(
-                from, to, simulation.Valuations, externalFlows);
+                from, to, simulation.Valuations, []);
             var endValue = PortfolioBenchmarkMath.FindValuation(to, simulation.Valuations).TotalValue;
-            var profit = PortfolioBenchmarkMath.CalculateProfitPercent(from, to, startValue, endValue, externalFlows);
+            var profit = PortfolioBenchmarkMath.CalculateProfitPercent(from, to, InitialCapital, endValue, []);
 
-            startObservationDate = history.Points.Where(point => point.Date <= from)
-                .MaxBy(point => point.Date)?.Date
-                ?? history.Points.Where(point => point.Date > from && point.Date <= to)
-                    .MinBy(point => point.Date)?.Date;
+            startObservationDate = history.Points.Where(point => point.Date >= from && point.Date <= to)
+                .MinBy(point => point.Date)?.Date;
             endObservationDate = history.Points.Where(point => point.Date <= to)
                 .MaxBy(point => point.Date)?.Date;
             var points = PortfolioBenchmarkMath.BuildAssetPoints(
-                from, to, simulation, periodValuations, externalFlows, startValue, comparisonStart);
+                from, to, simulation, [], [], InitialCapital, comparisonStart);
 
             return new IndexedBondBenchmarkSeriesCalculation(
-                comparisonStartDate, startObservationDate, endObservationDate, portfolioTwr,
+                comparisonStartDate, startObservationDate, endObservationDate,
                 new BenchmarkSeriesCalculation(profit, localTwr, points), null);
         }
         catch (PortfolioBenchmarkHistoryUnavailableException exception)
@@ -63,7 +58,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         }
 
         IndexedBondBenchmarkSeriesCalculation Unavailable(string reason) =>
-            new(comparisonStartDate, startObservationDate, endObservationDate, null, null, reason);
+            new(comparisonStartDate, startObservationDate, endObservationDate, null, reason);
     }
 
     private static IReadOnlyList<PriceValue> BuildDailyPrices(
@@ -113,8 +108,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             }
         }
 
-        var startPoint = points.LastOrDefault(point => point.Date <= from)
-            ?? points.FirstOrDefault(point => point.Date > from && point.Date <= to)
+        var startPoint = points.FirstOrDefault(point => point.Date >= from && point.Date <= to)
             ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {Isin} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
         var observationIndexForCoverage = 0;
         var coverageTerms = startPoint;
@@ -205,7 +199,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         DateOnly to,
         PortfolioBondBenchmarkHistory history)
     {
-        if (history.Points.Any(point => point.Date <= from))
+        if (history.Points.Any(point => point.Date == from))
         {
             return from;
         }

@@ -20,36 +20,20 @@ public sealed class PortfolioBenchmarkService(
     {
         var valuationsTask = valuationsProvider.GetValuationsAsync(cancellationToken);
         var cashFlowsTask = cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
-        var lqdtPriceHistoryTask = indexHistoryStore.GetHistoryAsync(
-            "LQDT",
-            DateOnly.MinValue,
-            DateOnly.MaxValue,
-            cancellationToken);
 
-        await Task.WhenAll(valuationsTask, cashFlowsTask, lqdtPriceHistoryTask);
+        await Task.WhenAll(valuationsTask, cashFlowsTask);
+        // Cached rows cannot prove that the latest quote inside an arbitrary interval is present.
+        var lqdtPriceHistory = (await moexHttpClient.GetLqdtPriceHistoryAsync(cancellationToken))
+            .Where(value => string.Equals(value.SecId, "LQDT", StringComparison.Ordinal))
+            .ToArray();
+        if (!lqdtPriceHistory.Any(value => value.TradeDate.HasValue && value.Close is > 0))
+        {
+            throw new InvalidApplicationRequestException("MOEX не вернул торговые цены LQDT.");
+        }
+
+        PortfolioBenchmarkResult result;
         try
         {
-            var lqdtPriceHistory = lqdtPriceHistoryTask.Result;
-            var hasStartingPrice = lqdtPriceHistory.Any(value =>
-                value.TradeDate <= from && value.Close is > 0);
-            var hasPeriodPrice = lqdtPriceHistory.Any(value =>
-                value.TradeDate > from && value.TradeDate <= to && value.Close is > 0);
-            var historyCoversPeriodEnd = lqdtPriceHistory.Any(value =>
-                value.TradeDate >= to && value.Close is > 0);
-            if (!hasStartingPrice || !hasPeriodPrice || !historyCoversPeriodEnd)
-            {
-                var downloadedHistory = (await moexHttpClient.GetLqdtIndexHistoryAsync(cancellationToken))
-                    .Where(value => string.Equals(value.SecId, "LQDT", StringComparison.Ordinal))
-                    .ToArray();
-                if (downloadedHistory.Length == 0)
-                {
-                    throw new PortfolioBenchmarkHistoryUnavailableException("MOEX не вернул торговые цены LQDT.");
-                }
-
-                await indexHistoryStore.UpsertAsync(downloadedHistory, cancellationToken);
-                lqdtPriceHistory = downloadedHistory;
-            }
-
             PortfolioBondBenchmarkHistory? indexedBondHistory = null;
             if (bondHistoryProvider is not null)
             {
@@ -60,7 +44,7 @@ public sealed class PortfolioBenchmarkService(
                     cancellationToken);
             }
 
-            return calculator.Calculate(
+            result = calculator.Calculate(
                 from,
                 to,
                 valuationsTask.Result.Select(x => new PortfolioValuationInput(x.Date, x.TotalValue)).ToArray(),
@@ -94,5 +78,8 @@ public sealed class PortfolioBenchmarkService(
         {
             throw new InvalidApplicationRequestException(exception.Message, exception);
         }
+
+        await indexHistoryStore.UpsertAsync(lqdtPriceHistory, cancellationToken);
+        return result;
     }
 }

@@ -19,9 +19,9 @@ public sealed record PortfolioBenchmarkPoint(
 public sealed record PortfolioBenchmarkResult(
     DateOnly From,
     DateOnly To,
-    double PortfolioReturn,
+    double? PortfolioReturn,
     double LqdtReturn,
-    double ExcessReturn,
+    double? ExcessReturn,
     DateOnly LqdtStartObservationDate,
     DateOnly LqdtEndObservationDate,
     IReadOnlyList<PortfolioBenchmarkPoint> PortfolioPoints,
@@ -38,4 +38,5 @@ public sealed record PortfolioBenchmarkResult(
     double? IndexedBondProfitPercent = null,
     double? PortfolioTwrPercent = null,
     double? LqdtTwrPercent = null,
-    double? IndexedBondTwrPercent = null);
+    double? IndexedBondTwrPercent = null,
+    string? PortfolioUnavailableReason = null);
