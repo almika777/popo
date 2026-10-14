@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import {
@@ -16,17 +16,24 @@ import {
   Layout,
   Select,
   Space,
+  Tabs,
   Table,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  hasCurrentBenchmarkContract,
   portfolioReturnApi,
   type CashFlowType,
+  type PortfolioBenchmarkResult,
   type PortfolioCashFlow,
   type PortfolioReturn,
   type PortfolioValuation
 } from "../../lib/portfolio-return-api";
+import {
+  isBenchmarkEndDateDisabled,
+  isBenchmarkStartDateDisabled
+} from "../../lib/portfolio-benchmark-presentation";
 import type { CashBalance, PortfolioSummary } from "../../lib/portfolio-ledger-api";
 import {
   Bar,
@@ -34,10 +41,15 @@ import {
   Brush,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  usePlotArea,
+  useXAxisScale,
+  useYAxisScale,
   type TooltipContentProps
 } from "recharts";
 import {
@@ -54,6 +66,8 @@ type CashFlowForm = { date: Dayjs; type: CashFlowType; amount: number; comment?:
 const money = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const percent = new Intl.NumberFormat("ru-RU", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatBenchmarkPercent = (value: number | null | undefined) =>
+  value == null || !Number.isFinite(value) ? "—" : percent.format(value);
 const formatChartAxis = (value: number) => {
   const sign = value < 0 ? "−" : "";
   const absolute = Math.abs(value);
@@ -73,6 +87,8 @@ function ValuationChart({
   selectedRange: [number, number] | null;
   onRangeChange: (range: [number, number] | null) => void;
 }) {
+  const [hasChartLayout, setHasChartLayout] = useState(false);
+
   if (rows.length === 0) {
     return <div className="portfolio-chart-empty">Добавьте первую оценку, чтобы увидеть изменение портфеля.</div>;
   }
@@ -118,6 +134,7 @@ function ValuationChart({
       isForecast: true
     }] : [])
   ];
+  const chartDomainKey = chartData.map((point) => point.id).join("|");
   const renderTooltip = ({ active, payload }: TooltipContentProps) => {
     if (!active || !payload?.length) {
       return null;
@@ -139,8 +156,14 @@ function ValuationChart({
   return (
     <div className="portfolio-chart-wrap" role="img" aria-label="Стоимость портфеля без учета пополнений и выводов">
       <div className="portfolio-chart-recharts">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 18, right: 18, bottom: 10, left: 8 }} barCategoryGap="8%" barGap={0}>
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(width, height) => setHasChartLayout(
+            Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+          )}
+        >
+          <BarChart key={chartDomainKey} data={chartData} margin={{ top: 18, right: 18, bottom: 10, left: 8 }} barCategoryGap="8%" barGap={0}>
             <CartesianGrid className="portfolio-chart-grid" vertical={false} />
             <XAxis
               dataKey="date"
@@ -175,7 +198,7 @@ function ValuationChart({
             >
               {chartData.map((point) => <Cell key={point.id} fill={point.isForecast ? "#b37feb" : "#1677ff"} />)}
             </Bar>
-            {chartRows.length > 2 && <Brush
+            {hasChartLayout && chartRows.length > 2 && <Brush
               dataKey="label"
               height={28}
               travellerWidth={10}
@@ -204,6 +227,306 @@ function ValuationChart({
   );
 }
 
+type BenchmarkChartRow = {
+  date: string;
+  timestamp: number;
+  portfolioProfitPercent?: number | null;
+  lqdtProfitPercent?: number | null;
+  indexedBondProfitPercent?: number | null;
+  [series: string]: string | number | null | undefined;
+};
+
+type BenchmarkSeriesPoint = {
+  date: string;
+  timestamp: number;
+  profitPercent?: number | null;
+};
+
+type BenchmarkEndLabel = { key: string; name: string; color: string; value: number; timestamp: number };
+
+function BenchmarkEndLabels({ entries, from, to }: { entries: BenchmarkEndLabel[]; from: number; to: number }) {
+  const plot = usePlotArea();
+  const xScale = useXAxisScale();
+  const yScale = useYAxisScale();
+  if (!plot || !xScale || !yScale) return null;
+
+  const top = plot.y + 10;
+  const bottom = plot.y + plot.height - 10;
+  const labels = entries.flatMap((entry) => {
+    if (entry.timestamp < from || entry.timestamp > to) return [];
+    const x = xScale(entry.timestamp);
+    const y = yScale(entry.value);
+    return x != null && y != null && Number.isFinite(x) && Number.isFinite(y)
+      ? [{ ...entry, x, y, labelY: Math.max(top, Math.min(bottom, y)) }]
+      : [];
+  });
+  for (let index = 1; index < labels.length; index++) {
+    labels[index].labelY = Math.max(labels[index].labelY, labels[index - 1].labelY + 22);
+  }
+  if (labels.length > 0) {
+    labels[labels.length - 1].labelY = Math.min(bottom, labels[labels.length - 1].labelY);
+    for (let index = labels.length - 2; index >= 0; index--) {
+      labels[index].labelY = Math.min(labels[index].labelY, labels[index + 1].labelY - 22);
+    }
+  }
+  const labelX = plot.x + plot.width + 10;
+  return <g pointerEvents="none">
+    {labels.map((entry) => <g key={entry.key}>
+      <circle cx={entry.x} cy={entry.y} r={3} fill={entry.color} />
+      <path d={`M ${entry.x} ${entry.y} L ${labelX - 4} ${entry.labelY}`} stroke={entry.color} fill="none" opacity={0.65} />
+      <text x={labelX} y={entry.labelY} dominantBaseline="middle" fill={entry.color} fontSize={12} fontWeight={600} stroke="#141414" strokeWidth={3} paintOrder="stroke">
+        {entry.name} {formatBenchmarkPercent(entry.value)}
+      </text>
+    </g>)}
+  </g>;
+}
+
+function BenchmarkChart({
+  result,
+  visibleIndexes,
+  onVisibleIndexesChange
+}: {
+  result: PortfolioBenchmarkResult;
+  visibleIndexes: string[];
+  onVisibleIndexesChange: (indexes: string[]) => void;
+}) {
+  const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>();
+  const [hasChartLayout, setHasChartLayout] = useState(false);
+  const endLabels = [
+    { key: "portfolio", name: "Портфель", color: "#1677ff", point: result.portfolioPoints.at(-1), visible: true },
+    { key: "lqdt", name: "LQDT", color: "#52c41a", point: result.lqdtPoints.at(-1), visible: visibleIndexes.includes("lqdt") },
+    { key: "indexedBond", name: "ВЭБ-58", color: "#faad14", point: result.indexedBondPoints?.at(-1), visible: visibleIndexes.includes("indexedBond") }
+  ].flatMap((entry): BenchmarkEndLabel[] => {
+    const point = entry.point;
+    if (!entry.visible || point?.profitPercent == null || !Number.isFinite(point.profitPercent)) return [];
+    return [{ key: entry.key, name: entry.name, color: entry.color, value: point.profitPercent, timestamp: dayjs(point.date).valueOf() }];
+  }).sort((left, right) => right.value - left.value);
+  const chartData = useMemo(() => {
+    const rowsByDate = new Map<string, BenchmarkChartRow>();
+    const addPoint = (date: string) => {
+      let row = rowsByDate.get(date);
+      if (!row) {
+        row = { date, timestamp: dayjs(date).valueOf() };
+        rowsByDate.set(date, row);
+      }
+      return row;
+    };
+
+    result.portfolioPoints.forEach((point) => {
+      const row = addPoint(point.date);
+      row.portfolioProfitPercent = point.profitPercent;
+    });
+    result.lqdtPoints.forEach((point) => {
+      const row = addPoint(point.date);
+      row.lqdtProfitPercent = point.profitPercent;
+    });
+    result.indexedBondPoints?.forEach((point) => {
+      const row = addPoint(point.date);
+      row.indexedBondProfitPercent = point.profitPercent;
+    });
+
+    return [...rowsByDate.values()].sort((left, right) => left.timestamp - right.timestamp);
+  }, [result]);
+  const chartTimelineKey = useMemo(() => chartData.map((point) => point.date).join("|"), [chartData]);
+  useEffect(() => setBrushRange(undefined), [chartTimelineKey]);
+  const portfolioSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "portfolioProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.portfolioProfitPercent
+    })), [chartData]);
+  const lqdtSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "lqdtProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.lqdtProfitPercent
+    })), [chartData]);
+  const indexedBondSeriesData = useMemo(() => chartData
+    .filter((row) => Object.prototype.hasOwnProperty.call(row, "indexedBondProfitPercent"))
+    .map((row): BenchmarkSeriesPoint => ({
+      date: row.date,
+      timestamp: row.timestamp,
+      profitPercent: row.indexedBondProfitPercent
+    })), [chartData]);
+  const selectedStartIndex = Math.min(brushRange?.startIndex ?? 0, chartData.length - 1);
+  const selectedEndIndex = Math.max(
+    selectedStartIndex,
+    Math.min(brushRange?.endIndex ?? chartData.length - 1, chartData.length - 1)
+  );
+  const isZoomed = selectedStartIndex > 0 || selectedEndIndex < chartData.length - 1;
+  const selectedStartTimestamp = chartData[selectedStartIndex]?.timestamp ?? 0;
+  const selectedEndTimestamp = chartData[selectedEndIndex]?.timestamp ?? selectedStartTimestamp;
+  const sliceSeriesToBrush = (points: BenchmarkSeriesPoint[]) => {
+    if (!isZoomed || points.length < 2) return points;
+    let firstVisibleIndex = points.findIndex((point) => point.timestamp >= selectedStartTimestamp);
+    if (firstVisibleIndex < 0) firstVisibleIndex = points.length - 1;
+    const lastVisibleIndex = points.findLastIndex((point) => point.timestamp <= selectedEndTimestamp);
+    const start = Math.max(0, firstVisibleIndex - 1);
+    const end = Math.min(points.length - 1, Math.max(firstVisibleIndex, lastVisibleIndex) + 1);
+    return points.slice(start, end + 1);
+  };
+  const visiblePortfolioSeriesData = useMemo(() => sliceSeriesToBrush(portfolioSeriesData),
+    [portfolioSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const visibleLqdtSeriesData = useMemo(() => sliceSeriesToBrush(lqdtSeriesData),
+    [lqdtSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const visibleIndexedBondSeriesData = useMemo(() => sliceSeriesToBrush(indexedBondSeriesData),
+    [indexedBondSeriesData, isZoomed, selectedStartTimestamp, selectedEndTimestamp]);
+  const renderTooltip = ({ active, payload }: TooltipContentProps) => {
+    if (!active || !payload?.length) {
+      return null;
+    }
+
+    const point = payload[0]?.payload as BenchmarkChartRow | undefined;
+    if (!point) {
+      return null;
+    }
+
+    return (
+      <div className="portfolio-chart-tooltip-card">
+        <strong>Дата: {dayjs(point.date).format("DD.MM.YYYY")}</strong>
+        {payload.map((entry) => entry.value == null ? null : (
+          <span key={`${entry.name}-${String(entry.dataKey)}`} style={{ color: entry.color }}>
+            {entry.name}: {percent.format(Number(entry.value))}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  if (chartData.length < 2) {
+    return <div className="portfolio-chart-empty">Для сравнения недостаточно точек истории.</div>;
+  }
+
+  return (
+    <div className="portfolio-chart-wrap" role="region" aria-label="Сравнение доходности портфеля и индексов">
+      <div className="portfolio-benchmark-series-select">
+        <Typography.Text type="secondary">Индексы на графике</Typography.Text>
+        <Select
+          mode="multiple"
+          aria-label="Индексы на графике"
+          value={visibleIndexes.filter((index) => index === "lqdt" || (result.indexedBondPoints?.length ?? 0) > 0)}
+          options={[
+            { label: "LQDT", value: "lqdt" },
+            { label: "RU000A10F504", value: "indexedBond", disabled: (result.indexedBondPoints?.length ?? 0) === 0 }
+          ]}
+          onChange={onVisibleIndexesChange}
+          maxTagCount={2}
+          style={{ minWidth: 240, maxWidth: "100%" }}
+        />
+      </div>
+      <div className="portfolio-chart-recharts">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(width, height) => {
+            setHasChartLayout(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
+          }}
+        >
+          <LineChart key={chartTimelineKey} data={chartData} margin={{ top: 18, right: 170, bottom: 10, left: 8 }}>
+            <CartesianGrid className="portfolio-chart-grid" vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              domain={isZoomed ? [selectedStartTimestamp, selectedEndTimestamp] : ["dataMin", "dataMax"]}
+              allowDataOverflow
+              tickFormatter={(value: number) => dayjs(value).format("MM.YYYY")}
+              tick={{ fill: "rgba(255, 255, 255, 0.55)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={24}
+              tickCount={6}
+            />
+            <YAxis
+              type="number"
+              domain={["auto", "auto"]}
+              tickFormatter={(value: number) => percent.format(value)}
+              width="auto"
+              tickMargin={12}
+              tick={{ fill: "rgba(255, 255, 255, 0.55)", fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              content={renderTooltip}
+              cursor={{ stroke: "rgba(255, 255, 255, 0.22)", strokeDasharray: "4 4" }}
+              allowEscapeViewBox={{ x: false, y: true }}
+              wrapperStyle={{ outline: "none" }}
+            />
+            {visiblePortfolioSeriesData.length > 0 && <Line
+              data={visiblePortfolioSeriesData}
+              type="linear"
+              dataKey="profitPercent"
+              name="Портфель"
+              stroke="#1677ff"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />}
+            {visibleIndexes.includes("indexedBond") && (result.indexedBondPoints?.length ?? 0) > 0 && <Line
+              data={visibleIndexedBondSeriesData}
+              type="linear"
+              dataKey="profitPercent"
+              name="ВЭБ-58"
+              stroke="#faad14"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />}
+            {visibleIndexes.includes("lqdt") && <Line
+              data={visibleLqdtSeriesData}
+              type="linear"
+              dataKey="profitPercent"
+              name="LQDT"
+              stroke="#52c41a"
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              isAnimationActive={false}
+            />}
+            <BenchmarkEndLabels entries={endLabels} from={selectedStartTimestamp} to={selectedEndTimestamp} />
+            {hasChartLayout && chartData.length > 2 && <Brush
+              dataKey="date"
+              ariaLabel="Перетащите границы, чтобы выбрать период графика"
+              height={40}
+              travellerWidth={24}
+              stroke="#1677ff"
+              fill="#141414"
+              startIndex={selectedStartIndex}
+              endIndex={selectedEndIndex}
+              tickFormatter={(value) => dayjs(String(value)).format("MM.YYYY")}
+              onChange={({ startIndex = 0, endIndex = chartData.length - 1 }) => {
+                const start = Number.isFinite(startIndex)
+                  ? Math.min(Math.max(0, startIndex), chartData.length - 1)
+                  : 0;
+                const end = Number.isFinite(endIndex)
+                  ? Math.min(Math.max(start, endIndex), chartData.length - 1)
+                  : chartData.length - 1;
+                setBrushRange({ startIndex: start, endIndex: end });
+              }}
+            />}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      {chartData.length > 2 && <div className="portfolio-chart-help">Тяните края выделения, чтобы менять даты; середину — чтобы прокручивать период</div>}
+      {isZoomed && <Button
+        type="link"
+        size="small"
+        className="portfolio-chart-reset"
+        onClick={() => setBrushRange({ startIndex: 0, endIndex: chartData.length - 1 })}
+      >
+        Показать весь период
+      </Button>}
+      <div className="portfolio-benchmark-chart-caption">
+        Портфель: прибыль на вложенные средства · LQDT и RU000A10F504: доходность удержания за выбранный период
+      </div>
+    </div>
+  );
+}
+
 function MetricCard({ title, children, hint }: { title: string; children: ReactNode; hint?: string }) {
   return (
     <div className="portfolio-metric-card">
@@ -226,8 +549,15 @@ export default function PortfolioPage() {
   const [editingCashFlowId, setEditingCashFlowId] = useState<string>();
   const [editingCashFlow, setEditingCashFlow] = useState<PortfolioCashFlow>();
   const [period, setPeriod] = useState<[Dayjs, Dayjs]>();
+  const [benchmarkPeriod, setBenchmarkPeriod] = useState<[Dayjs, Dayjs]>();
+  const [benchmarkTabOpened, setBenchmarkTabOpened] = useState(false);
+  const autoBenchmarkCalculationStarted = useRef(false);
   const [result, setResult] = useState<PortfolioReturn>();
   const [calculationError, setCalculationError] = useState<string>();
+  const [benchmarkResult, setBenchmarkResult] = useState<PortfolioBenchmarkResult>();
+  const [visibleBenchmarkIndexes, setVisibleBenchmarkIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
+  const [benchmarkCalculationError, setBenchmarkCalculationError] = useState<string>();
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartRange, setChartRange] = useState<[number, number] | null>(null);
   const { message } = AntdApp.useApp();
@@ -250,6 +580,7 @@ export default function PortfolioPage() {
   useEffect(() => {
     const today = dayjs();
     setPeriod([today.startOf("year"), today]);
+    setBenchmarkPeriod([today.startOf("year"), today]);
     valuationForm.setFieldsValue({ date: today });
     cashFlowForm.setFieldsValue({ date: today, type: "Deposit" });
     void load();
@@ -335,6 +666,56 @@ export default function PortfolioPage() {
     }
   };
 
+  const calculateBenchmark = async (
+    selectedPeriod: [Dayjs, Dayjs] | undefined = benchmarkPeriod,
+    selectedIndexes: string[] = visibleBenchmarkIndexes
+  ) => {
+    if (!selectedPeriod) {
+      return;
+    }
+
+    try {
+      setBenchmarkLoading(true);
+      setBenchmarkCalculationError(undefined);
+      setBenchmarkResult(await portfolioReturnApi.calculateBenchmark(
+        selectedPeriod[0].format("YYYY-MM-DD"),
+        selectedPeriod[1].format("YYYY-MM-DD"),
+        selectedIndexes.includes("lqdt"),
+        selectedIndexes.includes("indexedBond")
+      ));
+    } catch (error) {
+      setBenchmarkResult(undefined);
+      setBenchmarkCalculationError(error instanceof Error ? error.message : "Не удалось рассчитать сравнение с индексами");
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
+
+  const changeVisibleBenchmarkIndexes = (indexes: string[]) => {
+    if (indexes.length === 0) {
+      return;
+    }
+
+    setVisibleBenchmarkIndexes(indexes);
+    void calculateBenchmark(benchmarkPeriod, indexes);
+  };
+
+  const changePeriod = (start: Dayjs | null, end: Dayjs | null) => {
+    if (start && end) {
+      setPeriod([start, end]);
+      setResult(undefined);
+      setCalculationError(undefined);
+    }
+  };
+
+  const changeBenchmarkPeriod = (start: Dayjs | null, end: Dayjs | null) => {
+    if (start && end) {
+      setBenchmarkPeriod([start, end]);
+      setBenchmarkResult(undefined);
+      setBenchmarkCalculationError(undefined);
+    }
+  };
+
   const deleteValuation = async (id: string) => {
     await portfolioReturnApi.deleteValuation(id);
     await load();
@@ -349,6 +730,18 @@ export default function PortfolioPage() {
     () => [...valuations].sort((left, right) => left.date.localeCompare(right.date)),
     [valuations]
   );
+  useEffect(() => {
+    if (!benchmarkTabOpened || loading || autoBenchmarkCalculationStarted.current || orderedValuations.length === 0) {
+      return;
+    }
+
+    const start = dayjs().startOf("year");
+    const end = dayjs(orderedValuations.at(-1)!.date);
+    const selectedPeriod: [Dayjs, Dayjs] = [start, end];
+    autoBenchmarkCalculationStarted.current = true;
+    setBenchmarkPeriod(selectedPeriod);
+    void calculateBenchmark(selectedPeriod);
+  }, [benchmarkTabOpened, loading, orderedValuations, calculateBenchmark]);
   const valuationHistory = useMemo(
     () => [...orderedValuations].reverse(),
     [orderedValuations]
@@ -430,59 +823,142 @@ export default function PortfolioPage() {
         </Typography.Paragraph>
 
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-          <Card
-            title={(
-              <div className="portfolio-chart-title">
-                <span>Стоимость портфеля</span>
-              </div>
-            )}
-            className="portfolio-overview-card">
-            <div className="portfolio-metrics-row">
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Общий объём">
-                  {summary ? money.format(summary.totalValueRub) : "—"}
-                  {summary && <div className="portfolio-total-breakdown">
-                    <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
-                    <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
-                    <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
-                  </div>}
-                </MetricCard>
-              </div>
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Кеш" hint="Текущий расчётный остаток">
-                  {cashBalances.length === 0
-                    ? "—"
-                    : <div className="portfolio-cash-values">
-                        {cashBalances.map((balance) => (
-                          <span key={balance.currencyId}>{number.format(balance.amount)} {balance.currencyId}</span>
-                        ))}
+          <Tabs
+            className="portfolio-main-tabs"
+              defaultActiveKey="value"
+              onChange={(activeKey) => {
+                if (activeKey === "benchmark") {
+                  setBenchmarkTabOpened(true);
+                }
+              }}
+              items={[
+                {
+                  key: "value",
+                  label: "Стоимость портфеля",
+                  children: (
+                    <Card className="portfolio-overview-card">
+                      <div className="portfolio-metrics-row">
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Общий объём">
+                            {summary ? money.format(summary.totalValueRub) : "—"}
+                            {summary && <div className="portfolio-total-breakdown">
+                              <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
+                              <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
+                              <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
+                            </div>}
+                          </MetricCard>
+                        </div>
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Кеш" hint="Текущий расчётный остаток">
+                            {cashBalances.length === 0
+                              ? "—"
+                              : <div className="portfolio-cash-values">
+                                  {cashBalances.map((balance) => (
+                                    <span key={balance.currencyId}>{number.format(balance.amount)} {balance.currencyId}</span>
+                                  ))}
+                                </div>}
+                          </MetricCard>
+                        </div>
+                        <div className="portfolio-metrics-section">
+                          <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
+                            {!summary || summary.unrealizedPnlRub == null
+                              ? "—"
+                              : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
+                                  {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}
+                                </Typography.Text>}
+                          </MetricCard>
+                        </div>
+                      </div>
+                      <div className="portfolio-chart-section">
+                        <ValuationChart
+                          rows={chartValuations}
+                          selectedRange={chartRange}
+                          onRangeChange={setChartRange}
+                        />
+                      </div>
+                    </Card>
+                  )
+                },
+                {
+                  key: "benchmark",
+                  label: "Индексы",
+                  children: (
+                    <Card className="portfolio-overview-card">
+                      <div className="portfolio-benchmark-content">
+                      <Space wrap className="portfolio-benchmark-controls">
+                        {benchmarkPeriod && <>
+                          <DatePicker
+                            aria-label="Начало периода сравнения"
+                            value={benchmarkPeriod[0]}
+                            disabledDate={(value) => isBenchmarkStartDateDisabled(value, benchmarkPeriod[1])}
+                            onChange={(value) => changeBenchmarkPeriod(value, benchmarkPeriod[1])}
+                          />
+                          <DatePicker
+                            aria-label="Конец периода сравнения"
+                            value={benchmarkPeriod[1]}
+                            disabledDate={(value) => isBenchmarkEndDateDisabled(value, benchmarkPeriod[0])}
+                            onChange={(value) => changeBenchmarkPeriod(benchmarkPeriod[0], value)}
+                          />
+                        </>}
+                        <Button
+                          type="primary"
+                          disabled={!benchmarkPeriod}
+                          loading={benchmarkLoading}
+                          onClick={() => void calculateBenchmark()}
+                        >
+                          Сравнить
+                        </Button>
+                      </Space>
+                      {benchmarkCalculationError && <Alert
+                        type="error"
+                        showIcon
+                        title={benchmarkCalculationError}
+                        style={{ marginTop: 16 }}
+                      />}
+                      {benchmarkResult && !hasCurrentBenchmarkContract(benchmarkResult) ? <Alert
+                        type="warning"
+                        showIcon
+                        title="Сервер вернул несовместимый формат сравнения. Обновите backend."
+                        style={{ marginTop: 16 }}
+                      /> : benchmarkResult ? <>
+                        {benchmarkResult.portfolioUnavailableReason && <Alert
+                          type="warning"
+                          showIcon
+                          title={`Фактический портфель не рассчитан: ${benchmarkResult.portfolioUnavailableReason}`}
+                          style={{ marginTop: 12 }}
+                        />}
+                        {visibleBenchmarkIndexes.includes("indexedBond") && benchmarkResult.indexedBondUnavailableReason && <Alert
+                          type="warning"
+                          showIcon
+                          title={benchmarkResult.indexedBondUnavailableReason}
+                          style={{ marginTop: 12 }}
+                        />}
+                        <div className="portfolio-chart-section">
+                          {benchmarkResult.comparisonStartDate
+                            ? <BenchmarkChart
+                                result={benchmarkResult}
+                                visibleIndexes={visibleBenchmarkIndexes}
+                                onVisibleIndexesChange={changeVisibleBenchmarkIndexes}
+                              />
+                            : <div className="portfolio-chart-empty">
+                                Общую дату для сравнения выбранных инструментов и портфеля определить нельзя. Проверьте доступность их истории.
+                              </div>}
+                        </div>
+                      </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
+                        Выберите период и нажмите «Сравнить».
                       </div>}
-                </MetricCard>
-              </div>
-              <div className="portfolio-metrics-section">
-                <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
-                  {!summary || summary.unrealizedPnlRub == null
-                    ? "—"
-                    : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
-                        {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}
-                      </Typography.Text>}
-                </MetricCard>
-              </div>
-            </div>
-            <div className="portfolio-chart-section">
-              <ValuationChart
-                rows={chartValuations}
-                selectedRange={chartRange}
-                onRangeChange={setChartRange}
-              />
-            </div>
-          </Card>
+                      </div>
+                    </Card>
+                  )
+                }
+              ]}
+          />
 
           <Card title="Доходность портфеля" className="portfolio-return-card">
             <Space wrap>
                {period && <>
-                 <DatePicker value={period[0]} onChange={(value) => value && setPeriod([value, period[1]])} />
-                 <DatePicker value={period[1]} onChange={(value) => value && setPeriod([period[0], value])} />
+                 <DatePicker value={period[0]} onChange={(value) => changePeriod(value, period[1])} />
+                 <DatePicker value={period[1]} onChange={(value) => changePeriod(period[0], value)} />
                </>}
                <Button type="primary" disabled={!period} onClick={() => void calculate()}>Рассчитать</Button>
             </Space>

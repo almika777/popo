@@ -1,4 +1,5 @@
 using Popo.Core.Bonds;
+using Popo.Core.Common;
 using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Trades;
@@ -35,17 +36,21 @@ public sealed class PortfolioTradesService(
         return await tradesProvider.AddTradeAsync(tradeWithHistoricalFaceValue, cancellationToken);
     }
 
-    public async Task<bool> UpdateTradeAsync(
+    public async Task UpdateTradeAsync(
         Guid id,
         PortfolioTrade trade,
         CancellationToken cancellationToken)
     {
         var tradeWithHistoricalFaceValue = await UseFaceValueAtTradeDateAsync(trade, cancellationToken);
-        return await tradesProvider.UpdateTradeAsync(id, tradeWithHistoricalFaceValue, cancellationToken);
+        if (!await tradesProvider.UpdateTradeAsync(id, tradeWithHistoricalFaceValue, cancellationToken))
+            throw new ApplicationResourceNotFoundException();
     }
 
-    public Task<bool> DeleteTradeAsync(Guid id, CancellationToken cancellationToken) =>
-        tradesProvider.DeleteTradeAsync(id, cancellationToken);
+    public async Task DeleteTradeAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await tradesProvider.DeleteTradeAsync(id, cancellationToken))
+            throw new ApplicationResourceNotFoundException();
+    }
 
     private async Task<PortfolioTrade> UseFaceValueAtTradeDateAsync(
         PortfolioTrade trade,

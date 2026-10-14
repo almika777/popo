@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Diagnostics;
 using Popo.Api;
 using Scalar.AspNetCore;
 
@@ -33,19 +32,7 @@ var app = builder.Build();
 
 PopoDatabaseInitializer.Initialize(app);
 
-app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
-{
-    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    if (exception is not null)
-    {
-        logger.LogError(exception, "Необработанная ошибка API.");
-    }
-
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "text/plain; charset=utf-8";
-    await context.Response.WriteAsync("Внутренняя ошибка сервера. Попробуйте ещё раз.");
-}));
+app.UseExceptionHandler();
 
 app.UseCors("LocalFrontend");
 app.MapControllers();

@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMoexBondUpdateJob, MoexBondUpdateJob>();
         services.AddScoped<IMoexBondSecuritiesUpdateJob, MoexBondSecuritiesUpdateJob>();
         services.AddScoped<IMoexHistoryPricesUpdateJob, MoexHistoryPricesUpdateJob>();
+        services.AddScoped<IMoexIndexHistoryUpdateJob, MoexIndexHistoryUpdateJob>();
         services.AddScoped<IMoexAmortsAndCouponsUpdateJob, MoexAmortsAndCouponsUpdateJob>();
         services.AddScoped<ISecUpdateJob, SecUpdateJob>();
         services.AddScoped<IMoexEmitentUpdateJob, MoexEmitentUpdateJob>();

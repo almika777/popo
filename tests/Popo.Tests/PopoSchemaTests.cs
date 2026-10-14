@@ -18,7 +18,8 @@ public sealed class PopoSchemaTests
             "MoexCouponsEntities", "MoexAmortsEntities", "MoexEmitents", "BondRatings",
             "CurrencyRates", "PortfolioValuations", "PortfolioCashFlows", "PortfolioTrades", "CashSnapshots",
             "MoneyMarketFunds", "MoneyMarketFundOperations", "InvestmentStrategySettings",
-            "PositionRecommendationStates", "DailyVolumeStatistics", "InitializationJobStates"
+            "PositionRecommendationStates", "DailyVolumeStatistics", "InitializationJobStates",
+            "MoexIndexHistories"
         }));
     }
 

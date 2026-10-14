@@ -23,4 +23,10 @@ public sealed class PortfolioReturnQuery
 
     [FromQuery(Name = "to")]
     public DateOnly To { get; init; }
+
+    [FromQuery(Name = "includeLqdt")]
+    public bool IncludeLqdt { get; init; } = true;
+
+    [FromQuery(Name = "includeIndexedBond")]
+    public bool IncludeIndexedBond { get; init; } = true;
 }

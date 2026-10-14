@@ -33,6 +33,67 @@ export type PortfolioReturn = {
   periodDays: number;
 };
 
+export type PortfolioBenchmarkPoint = {
+  date: string;
+  returnPercent: number;
+  profitPercent?: number | null;
+};
+
+export type PortfolioBenchmarkResult = {
+  from: string;
+  to: string;
+  portfolioReturn: number | null;
+  lqdtReturn: number;
+  excessReturn: number | null;
+  lqdtStartObservationDate: string;
+  lqdtEndObservationDate: string;
+  portfolioPoints: PortfolioBenchmarkPoint[];
+  lqdtPoints: PortfolioBenchmarkPoint[];
+  indexedBondReturn?: number | null;
+  indexedBondStartObservationDate?: string | null;
+  indexedBondEndObservationDate?: string | null;
+  indexedBondPoints?: PortfolioBenchmarkPoint[] | null;
+  indexedBondUnavailableReason?: string | null;
+  indexedBondComparisonStartDate?: string | null;
+  portfolioProfitPercent?: number | null;
+  lqdtProfitPercent?: number | null;
+  indexedBondProfitPercent?: number | null;
+  portfolioUnavailableReason: string | null;
+  comparisonStartDate: string | null;
+};
+
+const isFiniteBenchmarkPercent = (value: number | null | undefined): value is number =>
+  value != null && Number.isFinite(value);
+
+export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): boolean {
+  const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key);
+  const hasPointMetrics = (points: PortfolioBenchmarkResult["portfolioPoints"]) =>
+    points.every((point) => hasOwn(point, "profitPercent") && isFiniteBenchmarkPercent(point.profitPercent));
+  const hasBondSeries = (result.indexedBondPoints?.length ?? 0) > 0;
+  const hasBondTotals = isFiniteBenchmarkPercent(result.indexedBondProfitPercent);
+  const bondSeriesIsConsistent = hasBondSeries
+    ? hasBondTotals && hasPointMetrics(result.indexedBondPoints ?? [])
+    : result.indexedBondProfitPercent == null;
+  const portfolioAvailable = isFiniteBenchmarkPercent(result.portfolioReturn) &&
+    isFiniteBenchmarkPercent(result.portfolioProfitPercent) &&
+    hasPointMetrics(result.portfolioPoints) &&
+    result.portfolioUnavailableReason === null;
+  const portfolioUnavailable = result.portfolioReturn === null && result.portfolioProfitPercent === null &&
+    result.portfolioPoints.length === 0 &&
+    typeof result.portfolioUnavailableReason === "string" && result.portfolioUnavailableReason.length > 0;
+
+  return hasOwn(result, "portfolioUnavailableReason") &&
+    hasOwn(result, "portfolioReturn") &&
+    hasOwn(result, "comparisonStartDate") &&
+    (result.comparisonStartDate === null || typeof result.comparisonStartDate === "string") &&
+    hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
+    hasOwn(result, "indexedBondProfitPercent") &&
+    (portfolioAvailable || portfolioUnavailable) &&
+    isFiniteBenchmarkPercent(result.lqdtProfitPercent) &&
+    hasPointMetrics(result.lqdtPoints) &&
+    bondSeriesIsConsistent;
+}
+
 export type PortfolioPage = {
   valuations: PortfolioValuation[];
   cashFlows: PortfolioCashFlow[];
@@ -92,5 +153,9 @@ export const portfolioReturnApi = {
     }),
   deleteCashFlow: (id: string) => request<void>(`/portfolio/cash-flows/${id}`, { method: "DELETE" }),
   calculate: (from: string, to: string) =>
-    request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`)
+    request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`),
+  calculateBenchmark: (from: string, to: string, includeLqdt = true, includeIndexedBond = true) =>
+    request<PortfolioBenchmarkResult>(
+      `/portfolio/benchmark?from=${from}&to=${to}&includeLqdt=${includeLqdt}&includeIndexedBond=${includeIndexedBond}`
+    )
 };

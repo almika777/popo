@@ -13,6 +13,8 @@ namespace Popo.HttpClients
     {
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan MoneyMarketFundCacheDuration = TimeSpan.FromHours(1);
+        private static readonly DateOnly LqdtIndexFirstCalculationDate = new(2022, 7, 22);
+        private static readonly DateOnly LqdtFirstTradingDate = new(2022, 7, 22);
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> CacheLocks = new();
 
         private readonly HttpClient _httpClient;
@@ -130,6 +132,189 @@ namespace Popo.HttpClients
                 var quote = (await GetCollectionAsync<MoexMarketdata>(url, "marketdata", ct)).FirstOrDefault();
                 return quote ?? throw new InvalidOperationException($"MOEX не вернул котировку для {secId}/{boardId}.");
             }, ct, MoneyMarketFundCacheDuration);
+        }
+
+        public async Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct)
+        {
+            const int pageSize = 100;
+            var start = 0;
+            var result = new List<MoexIndexHistory>();
+
+            while (true)
+            {
+                var url =
+                    "history/engines/stock/markets/index/securities/LQDTM.json" +
+                    $"?iss.meta=off&iss.only=history,history.cursor&from={LqdtIndexFirstCalculationDate:yyyy-MM-dd}" +
+                    $"&history.columns=TRADEDATE,SECID,CLOSE&start={start}&limit={pageSize}";
+
+                using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var history = ParseMoexResult<MoexIndexHistory>(json, "history");
+                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "history.cursor").FirstOrDefault();
+
+                if (history.Count == 0)
+                    break;
+
+                result.AddRange(history);
+
+                var nextStart = GetNextHistoryStart(
+                    start,
+                    history.Count,
+                    pageSize,
+                    cursor,
+                    "MOEX вернул некорректный курсор истории LQDTM.");
+                if (nextStart is null)
+                    break;
+
+                start = nextStart.Value;
+            }
+
+            result.AddRange(await GetLqdtDailyPriceHistoryAsync(ct));
+            return result
+                .OrderBy(value => value.SecId)
+                .ThenBy(value => value.TradeDate)
+                .ToList();
+        }
+
+        public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) =>
+            GetLqdtDailyPriceHistoryAsync(ct);
+
+        private async Task<List<MoexIndexHistory>> GetLqdtDailyPriceHistoryAsync(CancellationToken ct)
+        {
+            const int pageSize = 100;
+            var start = 0;
+            int? totalRows = null;
+            var result = new List<MoexIndexHistory>();
+            var seenDates = new HashSet<DateOnly>();
+
+            while (true)
+            {
+                var url =
+                    "history/engines/stock/markets/shares/securities/LQDT.json" +
+                    $"?iss.meta=off&iss.only=history,history.cursor&from={LqdtFirstTradingDate:yyyy-MM-dd}" +
+                    "&history.columns=TRADEDATE,SECID,BOARDID,LEGALCLOSEPRICE" +
+                    $"&start={start}&limit={pageSize}";
+
+                using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var history = ParseMoexResult<MoexShareDailyHistory>(json, "history");
+                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "history.cursor").FirstOrDefault();
+                if (cursor is null)
+                {
+                    throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+                }
+
+                if (totalRows.HasValue && cursor.Total != totalRows.Value)
+                {
+                    throw new InvalidOperationException("MOEX изменил общий размер истории дневных цен LQDT во время загрузки.");
+                }
+
+                totalRows ??= cursor.Total;
+                foreach (var point in history)
+                {
+                    if (point.TradeDate is null || point.SecId != "LQDT" ||
+                        string.IsNullOrWhiteSpace(point.BoardId) || point.LegalClosePrice is null or <= 0)
+                    {
+                        throw new InvalidOperationException("MOEX вернул некорректную дневную цену LQDT.");
+                    }
+
+                    if (!seenDates.Add(point.TradeDate.Value))
+                    {
+                        throw new InvalidOperationException("MOEX вернул несколько цен LQDT за одну дату.");
+                    }
+
+                    result.Add(new MoexIndexHistory
+                    {
+                        SecId = point.SecId,
+                        TradeDate = point.TradeDate,
+                        Close = point.LegalClosePrice
+                    });
+                }
+
+                var nextStart = GetNextLqdtPriceHistoryStart(
+                    start,
+                    history.Count,
+                    pageSize,
+                    cursor);
+                if (nextStart is null)
+                    break;
+
+                start = nextStart.Value;
+            }
+
+            return result.OrderBy(value => value.TradeDate).ToList();
+        }
+
+        private static int? GetNextLqdtPriceHistoryStart(
+            int start,
+            int pageCount,
+            int requestedPageSize,
+            MoexHistoryCursor? cursor)
+        {
+            if (cursor is null)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            if (cursor.Index != start || cursor.Total < 0 || cursor.PageSize < 0 ||
+                cursor.PageSize > requestedPageSize)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            if (pageCount == 0)
+            {
+                if (cursor.Index == cursor.Total && cursor.PageSize == 0)
+                    return null;
+
+                if (cursor.Index == cursor.Total)
+                {
+                    throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+                }
+
+                throw new InvalidOperationException("MOEX вернул неполную страницу истории дневных цен LQDT.");
+            }
+
+            if (cursor.Index >= cursor.Total || cursor.PageSize == 0)
+            {
+                throw new InvalidOperationException("MOEX вернул некорректный курсор истории дневных цен LQDT.");
+            }
+
+            var expectedPageCount = Math.Min(cursor.PageSize, cursor.Total - cursor.Index);
+            if (pageCount != expectedPageCount)
+            {
+                throw new InvalidOperationException("MOEX вернул неполную страницу истории дневных цен LQDT.");
+            }
+
+            var nextStart = cursor.Index + cursor.PageSize;
+            return nextStart >= cursor.Total ? null : nextStart;
+        }
+
+        private static int? GetNextHistoryStart(
+            int start,
+            int pageCount,
+            int requestedPageSize,
+            MoexHistoryCursor? cursor,
+            string invalidCursorMessage)
+        {
+            if (pageCount == 0)
+                return null;
+
+            if (cursor is null)
+                return pageCount < requestedPageSize ? null : start + pageCount;
+
+            var actualPageSize = cursor.PageSize > 0 ? cursor.PageSize : pageCount;
+            var nextStart = cursor.Index + actualPageSize;
+            if (nextStart >= cursor.Total)
+                return null;
+            if (nextStart <= start)
+                throw new InvalidOperationException(invalidCursorMessage);
+
+            return nextStart;
         }
 
         public async Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct)
