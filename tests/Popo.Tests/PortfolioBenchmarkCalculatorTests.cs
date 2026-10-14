@@ -363,7 +363,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         var result = new PortfolioBenchmarkCalculator().Calculate(from, to, valuations, [], lqdtHistory, bondHistory);
 
-        Assert.That(result.IndexedBondUnavailableReason, Does.Contain("расписания купонов"));
+        Assert.That(result.IndexedBondUnavailableReason, Does.Contain("Расписание купонов"));
         Assert.That(result.IndexedBondProfitPercent, Is.Null);
     }
 
@@ -387,14 +387,19 @@ public sealed class PortfolioBenchmarkCalculatorTests
         var lqdtHistory = new[]
         {
             Point("LQDT", new DateOnly(2025, 12, 31), 100m),
+            Point("LQDT", from, 100m),
             Point("LQDT", to, 100m)
         };
 
         var result = new PortfolioBenchmarkCalculator().Calculate(from, to, valuations, [], lqdtHistory, bondHistory);
 
         var expectedValue = 1000d / 1050d * 1001;
-        Assert.That(result.IndexedBondPoints![^1].ProfitPercent,
-            Is.EqualTo((expectedValue - 1000) / 1000).Within(0.000001));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ComparisonStartDate, Is.EqualTo(from));
+            Assert.That(result.IndexedBondPoints![^1].ProfitPercent,
+                Is.EqualTo((expectedValue - 1000) / 1000).Within(0.000001));
+        });
     }
 
     [Test]
@@ -417,14 +422,19 @@ public sealed class PortfolioBenchmarkCalculatorTests
         var lqdtHistory = new[]
         {
             Point("LQDT", new DateOnly(2026, 1, 2), 100m),
+            Point("LQDT", new DateOnly(2026, 1, 6), 100m),
             Point("LQDT", to, 100m)
         };
 
         var result = new PortfolioBenchmarkCalculator().Calculate(from, to, valuations, [], lqdtHistory, bondHistory);
 
         var expectedValue = 1004d / 1003d * 1000;
-        Assert.That(result.IndexedBondPoints![^1].ProfitPercent,
-            Is.EqualTo((expectedValue - 1000) / 1000).Within(0.000001));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ComparisonStartDate, Is.EqualTo(new DateOnly(2026, 1, 6)));
+            Assert.That(result.IndexedBondPoints![^1].ProfitPercent,
+                Is.EqualTo((expectedValue - 1000) / 1000).Within(0.000001));
+        });
     }
 
     [Test]
