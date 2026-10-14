@@ -103,5 +103,10 @@ public sealed class PortfolioDataService(
     public async Task<PortfolioBenchmarkResult> CalculateBenchmarkAsync(
         PortfolioReturnQuery request,
         CancellationToken cancellationToken) =>
-        await benchmarkService.CalculateAsync(request.From, request.To, cancellationToken);
+        await benchmarkService.CalculateAsync(
+            request.From,
+            request.To,
+            cancellationToken,
+            request.IncludeLqdt,
+            request.IncludeIndexedBond);
 }

@@ -24,7 +24,8 @@ const partialBenchmarkResult: PortfolioBenchmarkResult = {
   portfolioProfitPercent: null,
   lqdtProfitPercent: 0.1,
   indexedBondProfitPercent: null,
-  portfolioUnavailableReason: "Нет оценки портфеля на дату"
+  portfolioUnavailableReason: "Нет оценки портфеля на дату",
+  comparisonStartDate: "2026-01-01"
 };
 
 test("frontend accepts serialized partial response with a valid LQDT series", () => {
@@ -40,4 +41,10 @@ test("frontend rejects a partial response without an explanation", () => {
   };
 
   assert.equal(hasCurrentBenchmarkContract(invalidResponse), false);
+});
+
+test("frontend rejects a benchmark response without the shared comparison start date", () => {
+  const { comparisonStartDate: _comparisonStartDate, ...invalidResponse } = partialBenchmarkResult;
+
+  assert.equal(hasCurrentBenchmarkContract(invalidResponse as PortfolioBenchmarkResult), false);
 });

@@ -177,9 +177,9 @@ public sealed class PortfolioReturnsApiContractTests
         Assert.That(benchmark, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(benchmark!.PortfolioReturn, Is.EqualTo(1d / 6).Within(0.000001));
+            Assert.That(benchmark!.PortfolioReturn, Is.EqualTo(0.18461538461538463).Within(0.000001));
             Assert.That(benchmark.LqdtReturn, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
-            Assert.That(benchmark.PortfolioProfitPercent, Is.EqualTo(1d / 6).Within(0.000001));
+            Assert.That(benchmark.PortfolioProfitPercent, Is.EqualTo(0.18461538461538463).Within(0.000001));
             Assert.That(benchmark.LqdtProfitPercent, Is.EqualTo(1.2d / 1.1d - 1).Within(0.000001));
             Assert.That(benchmark.PortfolioPoints[^1].ProfitPercent, Is.EqualTo(benchmark.PortfolioProfitPercent));
             Assert.That(benchmark.LqdtPoints[^1].ProfitPercent, Is.EqualTo(benchmark.LqdtProfitPercent));

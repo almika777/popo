@@ -59,6 +59,7 @@ export type PortfolioBenchmarkResult = {
   lqdtProfitPercent?: number | null;
   indexedBondProfitPercent?: number | null;
   portfolioUnavailableReason: string | null;
+  comparisonStartDate: string | null;
 };
 
 const isFiniteBenchmarkPercent = (value: number | null | undefined): value is number =>
@@ -83,6 +84,8 @@ export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): b
 
   return hasOwn(result, "portfolioUnavailableReason") &&
     hasOwn(result, "portfolioReturn") &&
+    hasOwn(result, "comparisonStartDate") &&
+    (result.comparisonStartDate === null || typeof result.comparisonStartDate === "string") &&
     hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
     hasOwn(result, "indexedBondProfitPercent") &&
     (portfolioAvailable || portfolioUnavailable) &&
@@ -151,6 +154,8 @@ export const portfolioReturnApi = {
   deleteCashFlow: (id: string) => request<void>(`/portfolio/cash-flows/${id}`, { method: "DELETE" }),
   calculate: (from: string, to: string) =>
     request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`),
-  calculateBenchmark: (from: string, to: string) =>
-    request<PortfolioBenchmarkResult>(`/portfolio/benchmark?from=${from}&to=${to}`)
+  calculateBenchmark: (from: string, to: string, includeLqdt = true, includeIndexedBond = true) =>
+    request<PortfolioBenchmarkResult>(
+      `/portfolio/benchmark?from=${from}&to=${to}&includeLqdt=${includeLqdt}&includeIndexedBond=${includeIndexedBond}`
+    )
 };

@@ -8,28 +8,107 @@ namespace Popo.Tests;
 public sealed class PortfolioBenchmarkSeriesCalculatorTests
 {
     [Test]
-    public void Portfolio_series_calculates_profit_on_invested_capital()
+    public void Portfolio_series_normalizes_all_valuations_to_the_exact_start_value()
     {
         var from = new DateOnly(2026, 1, 1);
-        var to = new DateOnly(2026, 1, 6);
+        var to = new DateOnly(2026, 1, 4);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 1_000_000),
+            new(new DateOnly(2026, 1, 2), 990_000),
+            new(new DateOnly(2026, 1, 3), 1_100_000),
+            new(to, 1_200_000)
+        };
+
+        var result = new PortfolioBenchmarkSeriesCalculator().Calculate(from, to, valuations, []);
+
+        Assert.That(result.Points.Select(point => point.ProfitPercent),
+            Is.EqualTo(new double?[] { 0, -0.01, 0.1, 0.2 }).Within(0.000001));
+    }
+
+    [Test]
+    public void Portfolio_series_links_returns_after_neutralizing_deposits()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var depositDate = new DateOnly(2026, 1, 5);
+        var growthDate = new DateOnly(2026, 1, 6);
+        var to = new DateOnly(2026, 1, 7);
         var valuations = new PortfolioValuationInput[]
         {
             new(from, 100),
             new(new DateOnly(2026, 1, 4), 110),
-            new(new DateOnly(2026, 1, 5), 130),
-            new(to, 130)
+            new(depositDate, 210),
+            new(growthDate, 231),
+            new(to, 231)
         };
         var flows = new[]
         {
-            new PortfolioCashFlowInput(new DateOnly(2026, 1, 5), PortfolioCashFlowType.Deposit, 20)
+            new PortfolioCashFlowInput(depositDate, PortfolioCashFlowType.Deposit, 100)
         };
 
         var result = new PortfolioBenchmarkSeriesCalculator().Calculate(from, to, valuations, flows);
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.ProfitPercent, Is.EqualTo(1d / 12).Within(0.000001));
+            Assert.That(result.ProfitPercent, Is.EqualTo(0.21).Within(0.000001));
+            Assert.That(result.Points.Single(point => point.Date == depositDate).ProfitPercent,
+                Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.Points[^1].ProfitPercent, Is.EqualTo(result.ProfitPercent).Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void Portfolio_series_links_returns_after_neutralizing_withdrawals()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var withdrawalDate = new DateOnly(2026, 1, 5);
+        var growthDate = new DateOnly(2026, 1, 6);
+        var to = new DateOnly(2026, 1, 7);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 100),
+            new(new DateOnly(2026, 1, 4), 110),
+            new(withdrawalDate, 100),
+            new(growthDate, 110),
+            new(to, 110)
+        };
+        var flows = new[]
+        {
+            new PortfolioCashFlowInput(withdrawalDate, PortfolioCashFlowType.Withdrawal, 10)
+        };
+
+        var result = new PortfolioBenchmarkSeriesCalculator().Calculate(from, to, valuations, flows);
+
+        Assert.That(result.ProfitPercent, Is.EqualTo(0.21).Within(0.000001));
+    }
+
+    [Test]
+    public void Portfolio_series_excludes_tax_from_linked_returns()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var taxDate = new DateOnly(2026, 1, 5);
+        var growthDate = new DateOnly(2026, 1, 6);
+        var to = new DateOnly(2026, 1, 7);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 100),
+            new(new DateOnly(2026, 1, 4), 110),
+            new(taxDate, 100),
+            new(growthDate, 110),
+            new(to, 110)
+        };
+        var flows = new[]
+        {
+            new PortfolioCashFlowInput(taxDate, PortfolioCashFlowType.Tax, 10)
+        };
+
+        var result = new PortfolioBenchmarkSeriesCalculator().Calculate(from, to, valuations, flows);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ProfitPercent, Is.EqualTo(0.21).Within(0.000001));
+            Assert.That(result.Points.Single(point => point.Date == taxDate).ProfitPercent,
+                Is.EqualTo(0.1).Within(0.000001));
         });
     }
 

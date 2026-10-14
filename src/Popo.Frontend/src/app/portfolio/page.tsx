@@ -31,7 +31,6 @@ import {
   type PortfolioValuation
 } from "../../lib/portfolio-return-api";
 import {
-  getPortfolioComparisonUnavailableHint,
   isBenchmarkEndDateDisabled,
   isBenchmarkStartDateDisabled
 } from "../../lib/portfolio-benchmark-presentation";
@@ -42,13 +41,15 @@ import {
   Brush,
   CartesianGrid,
   Cell,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  usePlotArea,
+  useXAxisScale,
+  useYAxisScale,
   type TooltipContentProps
 } from "recharts";
 import {
@@ -67,14 +68,6 @@ const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximu
 const percent = new Intl.NumberFormat("ru-RU", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatBenchmarkPercent = (value: number | null | undefined) =>
   value == null || !Number.isFinite(value) ? "—" : percent.format(value);
-const formatBenchmarkDifference = (value: number | null | undefined, base: number | null | undefined) => {
-  if (value == null || base == null || !Number.isFinite(value) || !Number.isFinite(base)) {
-    return "—";
-  }
-
-  const difference = (value - base) * 100;
-  return `${difference > 0 ? "+" : ""}${number.format(difference)} п.п.`;
-};
 const formatChartAxis = (value: number) => {
   const sign = value < 0 ? "−" : "";
   const absolute = Math.abs(value);
@@ -249,12 +242,65 @@ type BenchmarkSeriesPoint = {
   profitPercent?: number | null;
 };
 
-function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
+type BenchmarkEndLabel = { key: string; name: string; color: string; value: number; timestamp: number };
+
+function BenchmarkEndLabels({ entries, from, to }: { entries: BenchmarkEndLabel[]; from: number; to: number }) {
+  const plot = usePlotArea();
+  const xScale = useXAxisScale();
+  const yScale = useYAxisScale();
+  if (!plot || !xScale || !yScale) return null;
+
+  const top = plot.y + 10;
+  const bottom = plot.y + plot.height - 10;
+  const labels = entries.flatMap((entry) => {
+    if (entry.timestamp < from || entry.timestamp > to) return [];
+    const x = xScale(entry.timestamp);
+    const y = yScale(entry.value);
+    return x != null && y != null && Number.isFinite(x) && Number.isFinite(y)
+      ? [{ ...entry, x, y, labelY: Math.max(top, Math.min(bottom, y)) }]
+      : [];
+  });
+  for (let index = 1; index < labels.length; index++) {
+    labels[index].labelY = Math.max(labels[index].labelY, labels[index - 1].labelY + 22);
+  }
+  if (labels.length > 0) {
+    labels[labels.length - 1].labelY = Math.min(bottom, labels[labels.length - 1].labelY);
+    for (let index = labels.length - 2; index >= 0; index--) {
+      labels[index].labelY = Math.min(labels[index].labelY, labels[index + 1].labelY - 22);
+    }
+  }
+  const labelX = plot.x + plot.width + 10;
+  return <g pointerEvents="none">
+    {labels.map((entry) => <g key={entry.key}>
+      <circle cx={entry.x} cy={entry.y} r={3} fill={entry.color} />
+      <path d={`M ${entry.x} ${entry.y} L ${labelX - 4} ${entry.labelY}`} stroke={entry.color} fill="none" opacity={0.65} />
+      <text x={labelX} y={entry.labelY} dominantBaseline="middle" fill={entry.color} fontSize={12} fontWeight={600} stroke="#141414" strokeWidth={3} paintOrder="stroke">
+        {entry.name} {formatBenchmarkPercent(entry.value)}
+      </text>
+    </g>)}
+  </g>;
+}
+
+function BenchmarkChart({
+  result,
+  visibleIndexes,
+  onVisibleIndexesChange
+}: {
+  result: PortfolioBenchmarkResult;
+  visibleIndexes: string[];
+  onVisibleIndexesChange: (indexes: string[]) => void;
+}) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>();
-  const [visibleIndexes, setVisibleIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
   const [hasChartLayout, setHasChartLayout] = useState(false);
-  const [chartWidth, setChartWidth] = useState(0);
-  const sideLegend = chartWidth > 800;
+  const endLabels = [
+    { key: "portfolio", name: "Портфель", color: "#1677ff", point: result.portfolioPoints.at(-1), visible: true },
+    { key: "lqdt", name: "LQDT", color: "#52c41a", point: result.lqdtPoints.at(-1), visible: visibleIndexes.includes("lqdt") },
+    { key: "indexedBond", name: "ВЭБ-58", color: "#faad14", point: result.indexedBondPoints?.at(-1), visible: visibleIndexes.includes("indexedBond") }
+  ].flatMap((entry): BenchmarkEndLabel[] => {
+    const point = entry.point;
+    if (!entry.visible || point?.profitPercent == null || !Number.isFinite(point.profitPercent)) return [];
+    return [{ key: entry.key, name: entry.name, color: entry.color, value: point.profitPercent, timestamp: dayjs(point.date).valueOf() }];
+  }).sort((left, right) => right.value - left.value);
   const chartData = useMemo(() => {
     const rowsByDate = new Map<string, BenchmarkChartRow>();
     const addPoint = (date: string) => {
@@ -281,6 +327,8 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
 
     return [...rowsByDate.values()].sort((left, right) => left.timestamp - right.timestamp);
   }, [result]);
+  const chartTimelineKey = useMemo(() => chartData.map((point) => point.date).join("|"), [chartData]);
+  useEffect(() => setBrushRange(undefined), [chartTimelineKey]);
   const portfolioSeriesData = useMemo(() => chartData
     .filter((row) => Object.prototype.hasOwnProperty.call(row, "portfolioProfitPercent"))
     .map((row): BenchmarkSeriesPoint => ({
@@ -363,11 +411,10 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
             { label: "LQDT", value: "lqdt" },
             { label: "RU000A10F504", value: "indexedBond", disabled: (result.indexedBondPoints?.length ?? 0) === 0 }
           ]}
-          onChange={setVisibleIndexes}
+          onChange={onVisibleIndexesChange}
           maxTagCount={2}
           style={{ minWidth: 240, maxWidth: "100%" }}
         />
-        <Typography.Text type="secondary">Показатель: Прибыль на вложенные средства</Typography.Text>
       </div>
       <div className="portfolio-chart-recharts">
         <ResponsiveContainer
@@ -375,10 +422,9 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
           height="100%"
           onResize={(width, height) => {
             setHasChartLayout(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
-            setChartWidth(width);
           }}
         >
-          <LineChart data={chartData} margin={{ top: 18, right: sideLegend ? 76 : 18, bottom: 10, left: 8 }}>
+          <LineChart key={chartTimelineKey} data={chartData} margin={{ top: 18, right: 170, bottom: 10, left: 8 }}>
             <CartesianGrid className="portfolio-chart-grid" vertical={false} />
             <XAxis
               dataKey="timestamp"
@@ -408,13 +454,6 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
               allowEscapeViewBox={{ x: false, y: true }}
               wrapperStyle={{ outline: "none" }}
             />
-            <Legend
-              layout={sideLegend ? "vertical" : "horizontal"}
-              align={sideLegend ? "right" : "center"}
-              verticalAlign={sideLegend ? "middle" : "bottom"}
-              width={sideLegend ? 190 : undefined}
-              wrapperStyle={{ fontSize: 12, lineHeight: "24px" }}
-            />
             {visiblePortfolioSeriesData.length > 0 && <Line
               data={visiblePortfolioSeriesData}
               type="linear"
@@ -430,7 +469,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
               data={visibleIndexedBondSeriesData}
               type="linear"
               dataKey="profitPercent"
-              name="RU000A10F504"
+              name="ВЭБ-58"
               stroke="#faad14"
               strokeWidth={2}
               dot={false}
@@ -448,6 +487,7 @@ function BenchmarkChart({ result }: { result: PortfolioBenchmarkResult }) {
               connectNulls={false}
               isAnimationActive={false}
             />}
+            <BenchmarkEndLabels entries={endLabels} from={selectedStartTimestamp} to={selectedEndTimestamp} />
             {hasChartLayout && chartData.length > 2 && <Brush
               dataKey="date"
               ariaLabel="Перетащите границы, чтобы выбрать период графика"
@@ -515,6 +555,7 @@ export default function PortfolioPage() {
   const [result, setResult] = useState<PortfolioReturn>();
   const [calculationError, setCalculationError] = useState<string>();
   const [benchmarkResult, setBenchmarkResult] = useState<PortfolioBenchmarkResult>();
+  const [visibleBenchmarkIndexes, setVisibleBenchmarkIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
   const [benchmarkCalculationError, setBenchmarkCalculationError] = useState<string>();
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -625,7 +666,10 @@ export default function PortfolioPage() {
     }
   };
 
-  const calculateBenchmark = async (selectedPeriod: [Dayjs, Dayjs] | undefined = benchmarkPeriod) => {
+  const calculateBenchmark = async (
+    selectedPeriod: [Dayjs, Dayjs] | undefined = benchmarkPeriod,
+    selectedIndexes: string[] = visibleBenchmarkIndexes
+  ) => {
     if (!selectedPeriod) {
       return;
     }
@@ -635,7 +679,9 @@ export default function PortfolioPage() {
       setBenchmarkCalculationError(undefined);
       setBenchmarkResult(await portfolioReturnApi.calculateBenchmark(
         selectedPeriod[0].format("YYYY-MM-DD"),
-        selectedPeriod[1].format("YYYY-MM-DD")
+        selectedPeriod[1].format("YYYY-MM-DD"),
+        selectedIndexes.includes("lqdt"),
+        selectedIndexes.includes("indexedBond")
       ));
     } catch (error) {
       setBenchmarkResult(undefined);
@@ -643,6 +689,15 @@ export default function PortfolioPage() {
     } finally {
       setBenchmarkLoading(false);
     }
+  };
+
+  const changeVisibleBenchmarkIndexes = (indexes: string[]) => {
+    if (indexes.length === 0) {
+      return;
+    }
+
+    setVisibleBenchmarkIndexes(indexes);
+    void calculateBenchmark(benchmarkPeriod, indexes);
   };
 
   const changePeriod = (start: Dayjs | null, end: Dayjs | null) => {
@@ -866,65 +921,29 @@ export default function PortfolioPage() {
                         title="Сервер вернул несовместимый формат сравнения. Обновите backend."
                         style={{ marginTop: 16 }}
                       /> : benchmarkResult ? <>
-                        <div className="portfolio-benchmark-metrics">
-                          <MetricCard
-                            title="Фактический портфель · прибыль на вложенные средства"
-                            hint={benchmarkResult.portfolioUnavailableReason ?? "Пополнения и выводы учитываются; налоговые списания уменьшают результат"}
-                          >
-                            {formatBenchmarkPercent(benchmarkResult.portfolioProfitPercent)}
-                          </MetricCard>
-                          <MetricCard
-                            title="LQDT · рост цены пая"
-                            hint={getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ?? (
-                              benchmarkResult.lqdtStartObservationDate === benchmarkResult.from
-                                ? `Без потоков, налогов, брокерских комиссий и спреда · LQDT − портфель: ${formatBenchmarkDifference(benchmarkResult.lqdtProfitPercent, benchmarkResult.portfolioProfitPercent)}`
-                                : `LQDT: ${dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}; портфель: ${dayjs(benchmarkResult.from).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}. Периоды различаются.`
-                            )}
-                          >
-                            {formatBenchmarkPercent(benchmarkResult.lqdtProfitPercent)}
-                          </MetricCard>
-                          <MetricCard
-                            title={`RU000A10F504 · линия с ${benchmarkResult.indexedBondComparisonStartDate
-                              ? dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")
-                              : "нет данных"}`}
-                            hint={benchmarkResult.indexedBondProfitPercent == null
-                              ? benchmarkResult.indexedBondUnavailableReason ?? "Недостаточно исторических данных"
-                              : getPortfolioComparisonUnavailableHint(benchmarkResult.portfolioUnavailableReason) ??
-                                (benchmarkResult.indexedBondComparisonStartDate === benchmarkResult.from
-                                  ? `Доходность удержания без потоков и налогов · RU − портфель: ${formatBenchmarkDifference(benchmarkResult.indexedBondProfitPercent, benchmarkResult.portfolioProfitPercent)}`
-                                  : `RU: ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}; портфель: ${dayjs(benchmarkResult.from).format("DD.MM.YYYY")}–${dayjs(benchmarkResult.to).format("DD.MM.YYYY")}. Периоды различаются.`)}
-                          >
-                            {benchmarkResult.indexedBondProfitPercent == null
-                              ? "—"
-                              : formatBenchmarkPercent(benchmarkResult.indexedBondProfitPercent)}
-                          </MetricCard>
-                        </div>
                         {benchmarkResult.portfolioUnavailableReason && <Alert
                           type="warning"
                           showIcon
                           title={`Фактический портфель не рассчитан: ${benchmarkResult.portfolioUnavailableReason}`}
                           style={{ marginTop: 12 }}
                         />}
-                        <div className="portfolio-benchmark-observations">
-                          <span>
-                            Цены LQDT: данные с {dayjs(benchmarkResult.lqdtStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.lqdtEndObservationDate).format("DD.MM.YYYY")}
-                          </span>
-                          {benchmarkResult.indexedBondStartObservationDate && benchmarkResult.indexedBondEndObservationDate && <span>
-                            RU000A10F504: цены с {dayjs(benchmarkResult.indexedBondStartObservationDate).format("DD.MM.YYYY")} по {dayjs(benchmarkResult.indexedBondEndObservationDate).format("DD.MM.YYYY")}{benchmarkResult.indexedBondComparisonStartDate && `; линия с ${dayjs(benchmarkResult.indexedBondComparisonStartDate).format("DD.MM.YYYY")}`}
-                          </span>}
-                        </div>
-                        {benchmarkResult.indexedBondUnavailableReason && <Alert
+                        {visibleBenchmarkIndexes.includes("indexedBond") && benchmarkResult.indexedBondUnavailableReason && <Alert
                           type="warning"
                           showIcon
                           title={benchmarkResult.indexedBondUnavailableReason}
                           style={{ marginTop: 12 }}
                         />}
                         <div className="portfolio-chart-section">
-                          <BenchmarkChart result={benchmarkResult} />
+                          {benchmarkResult.comparisonStartDate
+                            ? <BenchmarkChart
+                                result={benchmarkResult}
+                                visibleIndexes={visibleBenchmarkIndexes}
+                                onVisibleIndexesChange={changeVisibleBenchmarkIndexes}
+                              />
+                            : <div className="portfolio-chart-empty">
+                                Общую дату для сравнения выбранных инструментов и портфеля определить нельзя. Проверьте доступность их истории.
+                              </div>}
                         </div>
-                        <Typography.Paragraph type="secondary" className="portfolio-benchmark-note">
-                          Фактический портфель учитывает сохранённые пополнения, выводы и налоговые списания. Для LQDT считается доходность удержания по официальной цене закрытия основной сессии MOEX LEGALCLOSEPRICE: (последняя цена в выбранном периоде / первая цена в выбранном периоде) − 1. Начало линии — первая торговая дата не раньше «с», конец — последняя торговая дата не позже «по»; если последний день не торговый, последнее значение переносится на него. В гипотетических линиях инструментов пополнения, выводы, налоги, брокерские комиссии и спред не моделируются; расходы фонда, отражённые в цене пая, сохраняются. Это доходность по официальным ценам закрытия пая LQDT, не расчёт по индикатору LQDTM. Для RU000A10F504 стоимость включает чистую цену, исторический номинал и НКД; между торговыми датами НКД начисляется ежедневно как «номинал × ставка купона / 100 / 365», выплаченные купоны остаются деньгами без реинвестирования. Все проценты не годовые.
-                        </Typography.Paragraph>
                       </> : !benchmarkCalculationError && <div className="portfolio-chart-empty portfolio-benchmark-empty">
                         Выберите период и нажмите «Сравнить».
                       </div>}

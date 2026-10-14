@@ -16,7 +16,9 @@ public sealed class PortfolioBenchmarkService(
     public async Task<PortfolioBenchmarkResult> CalculateAsync(
         DateOnly from,
         DateOnly to,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeLqdt = true,
+        bool includeIndexedBond = true)
     {
         var valuationsTask = valuationsProvider.GetValuationsAsync(cancellationToken);
         var cashFlowsTask = cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
@@ -50,7 +52,9 @@ public sealed class PortfolioBenchmarkService(
                 valuationsTask.Result.Select(x => new PortfolioValuationInput(x.Date, x.TotalValue)).ToArray(),
                 cashFlowsTask.Result.Select(x => new PortfolioCashFlowInput(x.Date, x.Type, x.Amount)).ToArray(),
                 lqdtPriceHistory,
-                indexedBondHistory);
+                indexedBondHistory,
+                includeLqdt,
+                includeIndexedBond);
         }
         catch (PortfolioBenchmarkHistoryUnavailableException exception)
         {

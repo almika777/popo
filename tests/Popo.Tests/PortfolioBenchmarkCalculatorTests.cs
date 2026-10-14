@@ -36,16 +36,16 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(0.05).Within(0.000001));
+            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.LqdtProfitPercent, Is.EqualTo(0.1).Within(0.000001));
-            Assert.That(result.ExcessReturn, Is.EqualTo(-0.05).Within(0.000001));
+            Assert.That(result.ExcessReturn, Is.Zero.Within(0.000001));
             Assert.That(result.PortfolioPoints[^1].ProfitPercent,
                 Is.EqualTo(result.PortfolioProfitPercent).Within(0.000001));
         });
     }
 
     [Test]
-    public void Calculate_reports_profit_on_total_invested_funds_for_uneven_capital()
+    public void Calculate_links_portfolio_returns_after_large_deposit()
     {
         var from = new DateOnly(2026, 1, 1);
         var flowDate = new DateOnly(2026, 1, 4);
@@ -77,7 +77,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(20d / 1100).Within(0.000001));
+            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(0.2).Within(0.000001));
             Assert.That(result.LqdtProfitPercent, Is.EqualTo(0.1).Within(0.000001));
         });
     }
@@ -110,7 +110,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(-0.1).Within(0.000001));
+            Assert.That(result.PortfolioProfitPercent, Is.Zero.Within(0.000001));
             Assert.That(result.LqdtProfitPercent, Is.Zero.Within(0.000001));
         });
     }
@@ -203,6 +203,119 @@ public sealed class PortfolioBenchmarkCalculatorTests
             Assert.That(result.IndexedBondProfitPercent,
                 Is.EqualTo(result.IndexedBondPoints[^1].ProfitPercent).Within(0.000001));
             Assert.That(result.IndexedBondProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void Calculate_rebases_all_series_to_first_shared_instrument_date()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var comparisonStart = new DateOnly(2026, 1, 5);
+        var to = new DateOnly(2026, 1, 10);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 100),
+            new(comparisonStart, 500),
+            new(to, 550)
+        };
+        var cashFlows = new[]
+        {
+            new PortfolioCashFlowInput(new DateOnly(2026, 1, 3), PortfolioCashFlowType.Deposit, 100)
+        };
+        var lqdtHistory = new[]
+        {
+            Point("LQDT", comparisonStart, 200m),
+            Point("LQDT", to, 220m)
+        };
+        var bondHistory = BondHistory(
+            new PortfolioBondBenchmarkPricePoint(new DateOnly(2026, 1, 2), 100, null, 1000, 0, 0),
+            new PortfolioBondBenchmarkPricePoint(comparisonStart, 120, null, 1000, 0, 0),
+            new PortfolioBondBenchmarkPricePoint(to, 132, null, 1000, 0, 0));
+
+        var result = new PortfolioBenchmarkCalculator().Calculate(
+            from, to, valuations, cashFlows, lqdtHistory, bondHistory);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ComparisonStartDate, Is.EqualTo(comparisonStart));
+            Assert.That(result.PortfolioPoints[0].Date, Is.EqualTo(comparisonStart));
+            Assert.That(result.PortfolioProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(comparisonStart));
+            Assert.That(result.LqdtPoints[0].ProfitPercent, Is.Zero.Within(0.000001));
+            Assert.That(result.LqdtProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.IndexedBondComparisonStartDate, Is.EqualTo(comparisonStart));
+            Assert.That(result.IndexedBondPoints![0].Date, Is.EqualTo(comparisonStart));
+            Assert.That(result.IndexedBondPoints[0].ProfitPercent, Is.Zero.Within(0.000001));
+            Assert.That(result.IndexedBondProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void Calculate_reports_missing_portfolio_valuation_at_shared_start_date()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var comparisonStart = new DateOnly(2026, 1, 5);
+        var to = new DateOnly(2026, 1, 10);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 100),
+            new(to, 110)
+        };
+        var lqdtHistory = new[]
+        {
+            Point("LQDT", from, 100m),
+            Point("LQDT", comparisonStart, 200m),
+            Point("LQDT", to, 220m)
+        };
+        var bondHistory = BondHistory(
+            new PortfolioBondBenchmarkPricePoint(comparisonStart, 100, null, 1000, 0, 0),
+            new PortfolioBondBenchmarkPricePoint(to, 110, null, 1000, 0, 0));
+
+        var result = new PortfolioBenchmarkCalculator().Calculate(
+            from, to, valuations, [], lqdtHistory, bondHistory);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ComparisonStartDate, Is.EqualTo(comparisonStart));
+            Assert.That(result.PortfolioPoints, Is.Empty);
+            Assert.That(result.PortfolioProfitPercent, Is.Null);
+            Assert.That(result.PortfolioUnavailableReason, Does.Contain("05.01.2026"));
+            Assert.That(result.PortfolioUnavailableReason, Does.Contain("Добавьте оценку"));
+            Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(comparisonStart));
+            Assert.That(result.LqdtPoints[0].ProfitPercent, Is.Zero.Within(0.000001));
+            Assert.That(result.LqdtProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.IndexedBondProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void Calculate_does_not_use_unavailable_bond_series_to_choose_shared_start_date()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var firstBondQuoteDate = new DateOnly(2026, 1, 5);
+        var to = new DateOnly(2026, 1, 10);
+        var valuations = new PortfolioValuationInput[] { new(from, 100), new(to, 110) };
+        var lqdtHistory = new[]
+        {
+            Point("LQDT", from, 100m),
+            Point("LQDT", to, 110m)
+        };
+        var bondHistory = BondHistory(
+            new PortfolioBondBenchmarkPricePoint(firstBondQuoteDate, 100, null, 1000, 0, 0),
+            new PortfolioBondBenchmarkPricePoint(to, 110, null, 1000, 0, 0)) with
+        {
+            FaceUnit = "USD"
+        };
+
+        var result = new PortfolioBenchmarkCalculator().Calculate(
+            from, to, valuations, [], lqdtHistory, bondHistory);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IndexedBondProfitPercent, Is.Null);
+            Assert.That(result.ComparisonStartDate, Is.Null);
+            Assert.That(result.PortfolioPoints[0].Date, Is.EqualTo(from));
+            Assert.That(result.LqdtPoints[0].Date, Is.EqualTo(from));
         });
     }
 
@@ -345,7 +458,9 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioReturn, Is.EqualTo(1d / 6).Within(0.000001));
+            Assert.That(result.PortfolioReturn, Is.EqualTo(0.18461538461538463).Within(0.000001));
+            Assert.That(result.PortfolioPoints.Single(point => point.Date == new DateOnly(2026, 1, 5)).ProfitPercent,
+                Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.LqdtReturn, Is.EqualTo(120d / 110 - 1).Within(0.000001));
             Assert.That(result.PortfolioPoints.Select(x => x.Date),
                 Is.EqualTo(new[] { from, new DateOnly(2026, 1, 4), new DateOnly(2026, 1, 5), to }));
@@ -359,7 +474,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
     }
 
     [Test]
-    public void Calculate_ignores_tax_outflows_for_lqdt_holding_return()
+    public void Calculate_excludes_tax_outflows_from_portfolio_return()
     {
         var from = new DateOnly(2026, 1, 1);
         var taxDate = new DateOnly(2026, 1, 5);
@@ -387,7 +502,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioReturn, Is.Zero.Within(0.000001));
+            Assert.That(result.PortfolioReturn, Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.LqdtReturn, Is.Zero.Within(0.000001));
         });
     }
@@ -419,13 +534,13 @@ public sealed class PortfolioBenchmarkCalculatorTests
             Assert.That(result.LqdtPoints[^1].Date, Is.EqualTo(to));
             Assert.That(result.PortfolioPoints[^1].ReturnPercent, Is.EqualTo(result.PortfolioReturn).Within(0.000001));
             Assert.That(result.LqdtPoints[^1].ReturnPercent, Is.EqualTo(result.LqdtReturn).Within(0.000001));
-            Assert.That(result.PortfolioReturn, Is.Zero.Within(0.000001));
+            Assert.That(result.PortfolioReturn, Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.LqdtReturn, Is.Zero.Within(0.000001));
         });
     }
 
     [Test]
-    public void Calculate_includes_tax_cash_outflow_in_after_tax_return()
+    public void Calculate_excludes_tax_cash_outflow_from_portfolio_return()
     {
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 2, 1);
@@ -461,7 +576,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioReturn, Is.EqualTo(30d / 150).Within(0.000001));
+            Assert.That(result.PortfolioReturn, Is.EqualTo(0.32).Within(0.000001));
             Assert.That(result.LqdtReturn, Is.EqualTo(0.2).Within(0.000001));
         });
     }
@@ -497,7 +612,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.PortfolioReturn, Is.EqualTo(0.025).Within(0.000001));
+            Assert.That(result.PortfolioReturn, Is.EqualTo(0.1).Within(0.000001));
             Assert.That(result.LqdtReturn, Is.EqualTo(Math.Pow(1.1d, 1d + 12d / 14d) - 1d).Within(0.000001));
         });
     }

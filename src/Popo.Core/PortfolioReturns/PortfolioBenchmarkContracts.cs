@@ -34,4 +34,5 @@ public sealed record PortfolioBenchmarkResult(
     double? PortfolioProfitPercent = null,
     double? LqdtProfitPercent = null,
     double? IndexedBondProfitPercent = null,
-    string? PortfolioUnavailableReason = null);
+    string? PortfolioUnavailableReason = null,
+    DateOnly? ComparisonStartDate = null);
