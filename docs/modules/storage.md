@@ -21,7 +21,6 @@ Popo.Storage содержит EF Core-модель PostgreSQL, справочн�
 `PortfolioMoneyMarketFundsProvider` обслуживает агрегат фонда денежного рынка: базовую позицию и историю её операций.
 `PortfolioCashProvider` обслуживает только снимки кеша. Остатки кеша рассчитывает application service `PortfolioService` из снимков, сделок, операций фондов и денежных потоков.
 `PortfolioValuationsProvider` хранит ручные оценки портфеля, `PortfolioCashFlowsProvider` — пополнения, выводы и налоги.
-`BrokerReportImportProvider` атомарно добавляет выбранные сделки, операции фондов и движения денег, не обновляя существующие записи.
 Правила редактирования записей при `NoTracking` и контракт `PUT /resource/{id}` описаны в
 [ADR-0003](../adr/0003-edit-records-with-no-tracking.md).
 

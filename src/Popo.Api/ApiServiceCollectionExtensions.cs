@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Popo.Api.Filters;
 using Popo.Api.Models;
 using Popo.Api.Services;
-using Popo.Api.Services.BrokerReports;
 using Popo.Api.Services.Position;
 using Popo.Api.Services.Trades;
 using Popo.Api.Services.ClosedPositions;
@@ -53,8 +52,6 @@ public static class ApiServiceCollectionExtensions
         services.AddPopoStorage(configuration.GetPopoConnectionString());
         services.AddClosedPositionSessionsApi(configuration);
         services.AddScoped<IValidator<BondSearchRequest>, BondSearchRequestValidator>();
-        services.AddScoped<IValidator<BrokerReportPreviewRequest>, BrokerReportPreviewRequestValidator>();
-        services.AddScoped<IValidator<BrokerReportImportRequest>, BrokerReportImportRequestValidator>();
         services.AddScoped<InvestmentStrategySettingsRequestValidator>();
         services.AddScoped<IValidator<InvestmentStrategySettingsRequest>>(provider =>
             provider.GetRequiredService<InvestmentStrategySettingsRequestValidator>());
@@ -69,9 +66,6 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IPortfolioPositionsService, PortfolioPositionsService>();
         services.AddScoped<PortfolioTradesService>();
         services.AddScoped<IPortfolioService, PortfolioService>();
-        services.AddScoped<BrokerReportFaceValueResolver>();
-        services.AddScoped<IBrokerReportPdfParser, TBankBrokerReportPdfParser>();
-        services.AddScoped<BrokerReportImportService>();
         services.AddScoped<CashPageService>();
         services.AddScoped<CashManagementService>();
         services.AddScoped<PortfolioPageService>();

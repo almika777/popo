@@ -24,9 +24,6 @@ public sealed class ApiRequestValidatorsTests
         Assert.That(typeof(BondSearchRequest).GetProperty(nameof(BondSearchRequest.Query))!
             .GetCustomAttributes(typeof(FromQueryAttribute), true)
             .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("q"));
-        Assert.That(typeof(BrokerReportPreviewRequest).GetProperty(nameof(BrokerReportPreviewRequest.File))!
-            .GetCustomAttributes(typeof(FromFormAttribute), true)
-            .Cast<FromFormAttribute>().Single().Name, Is.EqualTo("file"));
         Assert.That(typeof(PortfolioReturnQuery).GetProperty(nameof(PortfolioReturnQuery.From))!
             .GetCustomAttributes(typeof(FromQueryAttribute), true)
             .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("from"));
@@ -45,21 +42,6 @@ public sealed class ApiRequestValidatorsTests
 
         Assert.That(shortResult.Errors.Single().ErrorMessage, Is.EqualTo("Введите не менее 3 символов для поиска."));
         Assert.That(validResult.IsValid, Is.True);
-    }
-
-    [Test]
-    public async Task Broker_report_preview_rejects_missing_or_invalid_pdf_signature()
-    {
-        var validator = new BrokerReportPreviewRequestValidator();
-        var missingResult = await validator.ValidateAsync(new BrokerReportPreviewRequest());
-        await using var stream = new MemoryStream("not-pdf"u8.ToArray());
-        var file = new FormFile(stream, 0, stream.Length, "file", "report.pdf");
-        var invalidPdfResult = await validator.ValidateAsync(new BrokerReportPreviewRequest { File = file });
-
-        Assert.That(missingResult.Errors.Single().ErrorMessage,
-            Is.EqualTo("Выберите PDF-файл брокерского отчёта."));
-        Assert.That(invalidPdfResult.Errors.Single().ErrorMessage,
-            Is.EqualTo("Загруженный файл не является корректным PDF-документом."));
     }
 
     [Test]
@@ -126,27 +108,6 @@ public sealed class ApiRequestValidatorsTests
             Is.EqualTo("Минимальный срок до погашения не может быть отрицательным."));
         Assert.That(missingSettingsResult.Errors.Single().ErrorMessage, Is.EqualTo("Параметры стратегии не переданы."));
         Assert.That(missingPresetNameResult.Errors.Single().ErrorMessage, Is.EqualTo("Укажите название пресета."));
-    }
-
-    [Test]
-    public async Task Broker_report_import_validator_rejects_empty_and_invalid_operations()
-    {
-        var validator = new BrokerReportImportRequestValidator();
-        var emptyResult = await validator.ValidateAsync(new BrokerReportImportRequest([]));
-        var invalidOperationResult = await validator.ValidateAsync(new BrokerReportImportRequest(
-        [
-            new BrokerReportOperationRequest(
-                Guid.NewGuid(), BrokerReportOperationKind.BondTrade, default, null, null, null,
-                null, null, null, null, null, null, null)
-        ]));
-        var nullOperationResult = await validator.ValidateAsync(new BrokerReportImportRequest([null!]));
-
-        Assert.That(emptyResult.Errors.Single().ErrorMessage,
-            Is.EqualTo("Выберите хотя бы одну операцию для добавления."));
-        Assert.That(invalidOperationResult.Errors.Select(error => error.ErrorMessage),
-            Does.Contain("Укажите дату каждой импортируемой операции."));
-        Assert.That(nullOperationResult.Errors.Select(error => error.ErrorMessage),
-            Does.Contain("В запросе обнаружены повторяющиеся или некорректные операции."));
     }
 
     [Test]
