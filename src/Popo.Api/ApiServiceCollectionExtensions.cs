@@ -9,6 +9,7 @@ using Popo.Api.Services;
 using Popo.Api.Services.BrokerReports;
 using Popo.Api.Services.Position;
 using Popo.Api.Services.Trades;
+using Popo.Api.Services.ClosedPositions;
 using Popo.Api.Validators;
 using Popo.Core;
 using Popo.HttpClients;
@@ -50,6 +51,7 @@ public static class ApiServiceCollectionExtensions
         services.AddProblemDetails();
         services.AddPopoHttpClients();
         services.AddPopoStorage(configuration.GetPopoConnectionString());
+        services.AddClosedPositionSessionsApi(configuration);
         services.AddScoped<IValidator<BondSearchRequest>, BondSearchRequestValidator>();
         services.AddScoped<IValidator<BrokerReportPreviewRequest>, BrokerReportPreviewRequestValidator>();
         services.AddScoped<IValidator<BrokerReportImportRequest>, BrokerReportImportRequestValidator>();

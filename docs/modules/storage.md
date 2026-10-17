@@ -1,5 +1,8 @@
 # Popo.Storage
 
+`ClosedPositionSessions` хранит отдельный снимок завершённых сессий, публикуемый атомарно.
+Entity, configuration и providers отделены от открытых позиций; [подробности](closed-position-sessions.md).
+
 Popo.Storage содержит EF Core-модель PostgreSQL, справочники MOEX/CBond, сделки, снимки кеша,
 фонды ликвидности и их операции, ручные оценки портфеля, внешние денежные операции,
 миграции и провайдеры синхронизации.

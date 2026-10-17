@@ -1,5 +1,8 @@
 # Popo.Api
 
+Просмотр закрытых сессий и постановка фонового пересчёта используют отдельный
+`ClosedPositionSessionsController`; [контракты](closed-position-sessions.md).
+
 ## Ответственность
 
 Popo.Api регистрирует Core, HTTP-клиенты, Storage и валидаторы, применяет EF Core-миграции и предоставляет локальные endpoints. Hangfire работает отдельно в [Popo.Jobs](jobs.md).

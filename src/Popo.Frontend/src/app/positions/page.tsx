@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Descriptions, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { App as AntdApp, Card, Descriptions, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
@@ -12,6 +12,7 @@ import { positionDetailsPath } from "../../lib/position-details";
 import { getPositionLiquidityLevel, type PositionLiquidityLevel } from "../../lib/position-liquidity";
 import { type PositionRecommendationAction, type PositionRecommendationState } from "../../lib/position-recommendations-api";
 import { findPositionRecommendation, formatPositionRecommendationReason } from "../../lib/position-recommendations";
+import ClosedPositionSessionsTab from "./closed-sessions-tab";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nominalNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 });
@@ -192,39 +193,56 @@ export default function PositionsPage() {
   };
 
   return <main className="app-content">
-    <Typography.Title level={1}>Текущие позиции</Typography.Title>
-    <Typography.Paragraph type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
-    {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
-    <Card>
-      <div className="positions-summary">
-        <div className="position-summary-item">
-          <Typography.Text type="secondary">Итого</Typography.Text>
-          <Typography.Text className="position-summary-value">{rows.length} позиций</Typography.Text>
-        </div>
-        <div className="position-summary-item">
-          <Typography.Text type="secondary">Рыночная стоимость</Typography.Text>
-          <Typography.Text className="position-summary-value">{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
-        </div>
-        <div className="position-summary-item">
-          <Typography.Text type="secondary">Текущая себестоимость</Typography.Text>
-          <Typography.Text className="position-summary-value">{totals?.investedAmountRub == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text>
-        </div>
-        <div className="position-summary-item">
-          <Typography.Text type="secondary">Результат</Typography.Text>
-          <Typography.Text className="position-summary-value" type={resultType}>{totals?.unrealizedPnlRub == null || totals.unrealizedPnlPercent == null ? "Нет данных" : `${formatResult(totals.unrealizedPnlRub)} ₽ (${formatResult(totals.unrealizedPnlPercent)}%)`}</Typography.Text>
-        </div>
-      </div>
-      <Table
-        className="positions-table"
-        rowKey={(row) => `${row.secId}-${row.boardId}-${row.currencyId}`}
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        tableLayout="fixed"
-        scroll={{ x: 1080 }}
-        expandable={{ expandedRowRender, columnWidth: 40, rowExpandable: () => true }}
-        pagination={{ pageSize: 20 }}
-      />
-    </Card>
+    <Typography.Title level={1}>Позиции</Typography.Title>
+    <Tabs
+      className="portfolio-main-tabs"
+      defaultActiveKey="open"
+      items={[
+        {
+          key: "open",
+          label: "Открытые позиции",
+          children: <>
+            <Typography.Paragraph type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
+            {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
+            <Card>
+              <div className="positions-summary">
+                <div className="position-summary-item">
+                  <Typography.Text type="secondary">Итого</Typography.Text>
+                  <Typography.Text className="position-summary-value">{rows.length} позиций</Typography.Text>
+                </div>
+                <div className="position-summary-item">
+                  <Typography.Text type="secondary">Рыночная стоимость</Typography.Text>
+                  <Typography.Text className="position-summary-value">{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
+                </div>
+                <div className="position-summary-item">
+                  <Typography.Text type="secondary">Текущая себестоимость</Typography.Text>
+                  <Typography.Text className="position-summary-value">{totals?.investedAmountRub == null ? "Нет данных" : `${number.format(totals.investedAmountRub)} ₽`}</Typography.Text>
+                </div>
+                <div className="position-summary-item">
+                  <Typography.Text type="secondary">Результат</Typography.Text>
+                  <Typography.Text className="position-summary-value" type={resultType}>{totals?.unrealizedPnlRub == null || totals.unrealizedPnlPercent == null ? "Нет данных" : `${formatResult(totals.unrealizedPnlRub)} ₽ (${formatResult(totals.unrealizedPnlPercent)}%)`}</Typography.Text>
+                </div>
+              </div>
+              <Table
+                className="positions-table"
+                rowKey={(row) => `${row.secId}-${row.boardId}-${row.currencyId}`}
+                loading={loading}
+                columns={columns}
+                dataSource={rows}
+                tableLayout="fixed"
+                scroll={{ x: 1080 }}
+                expandable={{ expandedRowRender, columnWidth: 40, rowExpandable: () => true }}
+                pagination={{ pageSize: 20 }}
+              />
+            </Card>
+          </>
+        },
+        {
+          key: "closed",
+          label: "Закрытые позиции",
+          children: <ClosedPositionSessionsTab />
+        }
+      ]}
+    />
   </main>;
 }

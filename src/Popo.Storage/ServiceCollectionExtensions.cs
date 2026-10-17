@@ -11,6 +11,7 @@ using Popo.Core.Recommendations;
 using Popo.Core.Initialization;
 using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
+using Popo.Core.Portfolio.ClosedSessions;
 using Popo.Storage.Providers;
 using Popo.Storage.Providers.Ratings;
 
@@ -35,6 +36,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPortfolioCashProvider, PortfolioCashProvider>();
         services.AddScoped<IPortfolioTradesProvider, PortfolioTradesProvider>();
         services.AddScoped<IPortfolioPositionsProvider, PortfolioPositionsProvider>();
+        services.AddScoped<IClosedPositionSessionSourceProvider, ClosedPositionSessionSourceProvider>();
+        services.AddScoped<IClosedPositionSessionsProvider, ClosedPositionSessionsProvider>();
         services.AddScoped<IBrokerReportImportProvider, BrokerReportImportProvider>();
         services.AddScoped<IPortfolioCouponProvider, PortfolioCouponProvider>();
         services.AddScoped<ICashInvestmentRecommendationStore, InvestmentStrategySettingsStore>();

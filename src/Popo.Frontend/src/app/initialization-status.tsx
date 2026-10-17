@@ -90,7 +90,7 @@ export function InitializationStatusBanner() {
   };
 
   if (!status?.isVisible) {
-    return loadError ? <Alert className="initialization-status-error" type="warning" showIcon message={loadError} /> : null;
+    return loadError ? <Alert className="initialization-status-error" type="warning" showIcon title={loadError} /> : null;
   }
 
   return (
@@ -98,7 +98,7 @@ export function InitializationStatusBanner() {
       <Alert
         type="warning"
         showIcon
-        message="Идёт первичная инициализация данных"
+        title="Идёт первичная инициализация данных"
         description="Приложение уже доступно, но до завершения всех загрузок данные и расчёты могут быть неполными или некорректными. Навигация не заблокирована."
       />
       <Collapse
@@ -123,7 +123,7 @@ export function InitializationStatusBanner() {
           )
         }]}
       />
-      {loadError && <Alert type="error" showIcon message={loadError} />}
+      {loadError && <Alert type="error" showIcon title={loadError} />}
     </section>
   );
 }

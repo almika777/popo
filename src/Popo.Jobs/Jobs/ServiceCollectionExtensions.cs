@@ -2,6 +2,7 @@ using Popo.HttpClients;
 using Popo.Jobs.Initialization;
 using Popo.Jobs.Jobs.Mappings;
 using Popo.Storage;
+using Popo.Core.Portfolio.ClosedSessions;
 
 namespace Popo.Jobs.Jobs;
 
@@ -24,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBondRatingUpdateJob, BondRatingUpdateJob>();
         services.AddScoped<ICbrCurrencyRatesUpdateJob, CbrCurrencyRatesUpdateJob>();
         services.AddScoped<IPositionRecommendationJob, PositionRecommendationJob>();
+        services.AddScoped<IClosedPositionSessionsJob, ClosedPositionSessionsJob>();
         services.AddScoped<InitializationExecutionContext>();
         services.AddScoped<IInitializationProgressReporter, InitializationProgressReporter>();
         return services;
