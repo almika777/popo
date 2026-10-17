@@ -1,5 +1,6 @@
 using Hangfire;
 using Popo.Core.Common;
+using Popo.Core.Portfolio.ClosedSessions;
 using Popo.Jobs.Jobs;
 
 namespace Popo.Jobs;
@@ -8,6 +9,12 @@ public static class RecurringJobsScheduler
 {
     public static void ScheduleAll()
     {
+        RecurringJob.AddOrUpdate<IClosedPositionSessionsJob>(
+            nameof(IClosedPositionSessionsJob),
+            "fast",
+            job => job.UpdateAsync(CancellationToken.None),
+            "*/15 * * * *",
+            new RecurringJobOptions { TimeZone = MoscowTime.Zone });
         Schedule<IMoexBondUpdateJob>("long");
         Schedule<IMoexBondSecuritiesUpdateJob>("long");
         Schedule<IMoexHistoryPricesUpdateJob>("long");
@@ -27,6 +34,7 @@ public static class RecurringJobsScheduler
 
     public static void RemoveAll()
     {
+        RecurringJob.RemoveIfExists(nameof(IClosedPositionSessionsJob));
         RecurringJob.RemoveIfExists(nameof(IMoexBondUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexBondSecuritiesUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IMoexHistoryPricesUpdateJob));

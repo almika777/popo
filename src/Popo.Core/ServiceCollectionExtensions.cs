@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Popo.Core.Bonds;
+using Popo.Core.Portfolio.ClosedSessions;
 using Popo.Core.PortfolioReturns;
 using Popo.Core.Recommendations;
 
@@ -15,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPositionRecommendationService, PositionRecommendationService>();
         services.AddSingleton<PortfolioReturnCalculator>();
         services.AddSingleton<PortfolioBenchmarkCalculator>();
+        services.AddScoped<ClosedPositionSessionsService>();
         return services;
     }
 }

@@ -79,6 +79,99 @@ namespace Popo.Storage.Migrations
                     b.ToTable("CashSnapshots");
                 });
 
+            modelBuilder.Entity("Popo.Storage.Entities.ClosedPositionSessionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AmortizationIncome")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<decimal?>("AnnualizedPnlPercent")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<string>("BoardId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("BodyPnl")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<decimal>("BoughtCleanAmount")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<decimal>("BoughtQuantity")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<DateTimeOffset>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CalculatorKind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Commission")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<decimal?>("CouponIncome")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<string>("CurrencyId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HoldingDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("IncompleteReason")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SecId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("SoldCleanAmount")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("TotalPnl")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.Property<decimal?>("TotalPnlPercent")
+                        .HasPrecision(28, 8)
+                        .HasColumnType("numeric(28,8)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndDate")
+                        .IsDescending();
+
+                    b.HasIndex("SecId", "BoardId", "CurrencyId", "StartDate");
+
+                    b.ToTable("ClosedPositionSessions", (string)null);
+                });
+
             modelBuilder.Entity("Popo.Storage.Entities.CurrencyRateEntity", b =>
                 {
                     b.Property<DateOnly>("RateDate")

@@ -8,6 +8,7 @@ namespace Popo.Storage;
 
 public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbContext(options)
 {
+    public DbSet<ClosedPositionSessionEntity> ClosedPositionSessions => Set<ClosedPositionSessionEntity>();
     public DbSet<DailyVolumeStatisticsEntity> DailyVolumeStatistics => Set<DailyVolumeStatisticsEntity>();
     public DbSet<SecInfoEntity> ActiveSecEntities => Set<SecInfoEntity>();
     public DbSet<MoexBondEntity> MoexBonds => Set<MoexBondEntity>();
@@ -31,6 +32,7 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfiguration(new Configuration.ClosedPositionSessionConfiguration());
         modelBuilder.Entity<DailyVolumeStatisticsEntity>().HasKey(x => x.SecId);
         modelBuilder.Entity<SecInfoEntity>().HasKey(x => x.SecId);
         modelBuilder.Entity<MoexBondEntity>(entity =>

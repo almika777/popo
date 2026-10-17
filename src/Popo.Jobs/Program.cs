@@ -23,7 +23,7 @@ builder.Services.AddHangfire(configuration => configuration
     .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 builder.Services.AddHangfireServer(options =>
 {
-    options.Queues = ["fast"];
+    options.Queues = ["fast", "default"];
     options.WorkerCount = 1;
 });
 builder.Services.AddHostedService<InitializationBootstrapService>();
