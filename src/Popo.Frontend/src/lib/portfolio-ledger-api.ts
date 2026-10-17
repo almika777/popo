@@ -3,7 +3,8 @@ import type { PositionRecommendationState } from "./position-recommendations-api
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5109/api";
 
 export type TradeSide = "Buy" | "Sell";
-export type BondSearchResult = { secId: string; boardId: string; currency: string; shortName: string; accruedInterest: number; faceValue: number };
+export const MIN_BOND_SEARCH_LENGTH = 3;
+export type BondSearchResult = { secId: string; boardId: string; currency: string; shortName: string; accruedInterest: number | null; faceValue: number };
 export type PortfolioTrade = { id: string; secId: string; boardId: string; currencyId: string; tradeDate: string; side: TradeSide; quantity: number; price: number; faceValue: number; accruedInterest: number; commission: number; commissionPercent: number; amount: number; shortName: string };
 export type PortfolioPosition = { secId: string; boardId: string; currencyId: string; quantity: number; boughtQuantity: number; soldQuantity: number; boughtAmount: number; soldAmount: number; averageBuyPrice: number | null; averageBuyPriceAtCurrentFaceValue: number | null; averageBuyPricePercent: number | null; currentFaceValue: number | null; faceUnit: string | null; marketPricePercent: number | null; marketPrice: number | null; marketValue: number | null; unrealizedPnl: number | null; unrealizedPnlPercent: number | null; approximateCouponIncome: number | null; approximateTotalPnl: number | null; approximateTotalPnlPercent: number | null; approximateAnnualizedTotalPnlPercent: number | null; shortName: string; averageDailyVolume: number | null; medianDailyVolume: number | null; isNominalIndexed: boolean };
 export type CashSnapshot = { id: string; currencyId: string; snapshotDate: string; amount: number; comment: string };
@@ -38,7 +39,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const portfolioLedgerApi = {
-  searchBonds: (query: string) => request<BondSearchResult[]>(`/bonds/search?q=${encodeURIComponent(query)}`),
+  searchBonds: (query: string) => {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < MIN_BOND_SEARCH_LENGTH) return Promise.resolve<BondSearchResult[]>([]);
+    return request<BondSearchResult[]>(`/bonds/search?q=${encodeURIComponent(normalizedQuery)}`);
+  },
   getTrades: () => request<PortfolioTrade[]>("/trades"),
   saveTrade: (payload: TradePayload, id?: string) => request<PortfolioTrade>(id ? `/trades/${id}` : "/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) }),
   deleteTrade: (id: string) => request<void>(`/trades/${id}`, { method: "DELETE" }),

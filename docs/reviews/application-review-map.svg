@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1570" viewBox="0 0 2200 1570" role="img" aria-labelledby="title desc">
+  <title id="title">Карта ревью контроллеров и методов приложения</title>
+  <desc id="desc">Дерево из 8 API-контроллеров и 38 маршрутов, ссылки на уникальные application-сервисы, providers, калькуляторы и фоновые задачи. Общие узлы имеют единый ID для ревью один раз.</desc>
+  <defs>
+    <style>
+      text { font-family: Segoe UI, Arial, sans-serif; fill: #17212b; }
+      .muted { fill: #526170; }
+      .title { font-size: 28px; font-weight: 600; }
+      .subtitle { font-size: 15px; }
+      .section { font-size: 18px; font-weight: 600; }
+      .card-title { font-size: 15px; font-weight: 600; }
+      .body { font-size: 13px; }
+      .small { font-size: 12px; }
+      .panel { fill: #ffffff; stroke: #cbd5df; stroke-width: 1.2; }
+      .card { fill: #f8fafc; stroke: #d6dee7; stroke-width: 1; }
+      .controller { fill: #eef5fb; stroke: #a9c7df; }
+      .service { fill: #f3f7f3; stroke: #b8d2bb; }
+      .reviewed-card { fill: #eaf7ef; stroke: #16834c; stroke-width: 3; }
+      .reviewed-pill { fill: #d2f0dc; stroke: #16834c; stroke-width: 1.5; }
+      .reviewed-text { fill: #11683c; font-weight: 700; }
+      .reviewed-badge { fill: #16834c; }
+      .reviewed-badge-text { fill: #ffffff; font-size: 10px; font-weight: 700; }
+      .dependency { fill: #faf8f1; stroke: #ded4ac; }
+      .calc { fill: #f7f2fa; stroke: #d0b9dd; }
+      .job { fill: #fdf3ef; stroke: #e5c0b3; }
+      .line { stroke: #d4dde6; stroke-width: 1; }
+      .connector { fill: none; stroke: #708396; stroke-width: 1.3; marker-end: url(#arrow); }
+      .id { fill: #1f5d83; font-weight: 600; }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,4 L0,8 z" fill="#708396"/>
+    </marker>
+  </defs>
+  <rect width="2200" height="1570" fill="#f2f5f8"/>
+  <text x="34" y="46" class="title">Ревью контроллеров и методов приложения</text>
+  <text x="35" y="75" class="subtitle muted">Этап 1 завершён · 8 контроллеров · 38 HTTP-методов · C01 ✓ · S01.SearchAsync ✓ · D01.SearchAsync ✓ · R01–R03 исправлены · этап 2</text>
+  <text x="35" y="99" class="small muted">Зелёная рамка и плашка означают, что узел прошёл ревью. Общий S/D/K/J-узел проверяется один раз.</text>
+
+  <rect x="24" y="115" width="690" height="1425" rx="8" class="panel"/>
+  <text x="44" y="145" class="section">Контроллеры и HTTP-методы → application services</text>
+
+  <rect x="38" y="160" width="662" height="76" rx="6" class="card controller reviewed-card"/>
+  <text x="52" y="183" class="card-title"><tspan class="id">C01</tspan> BondsController · /api/bonds</text>
+  <rect x="562" y="169" width="124" height="22" rx="11" class="reviewed-badge"/>
+  <text x="575" y="184" class="reviewed-badge-text">ПРОВЕРЕНО</text>
+  <text x="52" y="208" class="body reviewed-text">GET /search → S01</text>
+  <text x="52" y="226" class="small muted">R01–R03 исправлены · 1 action</text>
+
+  <rect x="38" y="346" width="662" height="176" rx="6" class="card controller"/>
+  <text x="52" y="369" class="card-title"><tspan class="id">C02</tspan> CashController · /api/cash</text>
+  <text x="52" y="392" class="body">GET /page → S02</text>
+  <text x="52" y="410" class="body">POST, PUT, DELETE /snapshots[/{id}] → S03</text>
+  <text x="52" y="428" class="body">POST, PUT, DELETE /money-market-funds[/{id}] → S03</text>
+  <text x="52" y="446" class="body">POST /money-market-fund-operations → S03</text>
+  <text x="52" y="466" class="small muted">8 actions · shares S01, S04, S11 and D02–D04</text>
+
+  <rect x="38" y="530" width="662" height="202" rx="6" class="card controller"/>
+  <text x="52" y="553" class="card-title"><tspan class="id">C03</tspan> CashRecommendationsController · /api/recommendations</text>
+  <text x="52" y="576" class="body">GET /cash/page → S05</text>
+  <text x="52" y="594" class="body">GET /cash, POST /cash/recalculate → S07</text>
+  <text x="52" y="612" class="body">GET /cash/settings, PUT /cash/settings → S06</text>
+  <text x="52" y="630" class="body">GET, POST /cash/presets → S06</text>
+  <text x="52" y="648" class="body">PUT, DELETE /cash/presets/{id} → S06</text>
+  <text x="52" y="666" class="body">POST /cash/presets/{id}/activate → S06</text>
+  <text x="52" y="697" class="small muted">10 actions · S05–S07 share D01, D09–D13 and H01</text>
+
+  <rect x="38" y="740" width="662" height="96" rx="6" class="card controller"/>
+  <text x="52" y="763" class="card-title"><tspan class="id">C04</tspan> ClosedPositionSessionsController · /api/closed-position-sessions</text>
+  <text x="52" y="788" class="body">GET / → S13 · POST /recalculate → S13 → J04</text>
+  <text x="52" y="806" class="body">GET /recalculation/{jobId} → S13</text>
+  <text x="52" y="825" class="small muted">3 actions · read/status and recalculation are separate paths</text>
+
+  <rect x="38" y="844" width="662" height="78" rx="6" class="card controller"/>
+  <text x="52" y="867" class="card-title"><tspan class="id">C05</tspan> InitializationController · /api/initialization</text>
+  <text x="52" y="892" class="body">GET /status, POST /jobs/{jobKey}/retry → S14</text>
+  <text x="52" y="911" class="small muted">2 actions · state is also read/written by J01</text>
+
+  <rect x="38" y="930" width="662" height="178" rx="6" class="card controller"/>
+  <text x="52" y="953" class="card-title"><tspan class="id">C06</tspan> PortfolioController · /api/portfolio</text>
+  <text x="52" y="976" class="body">GET / → S08</text>
+  <text x="52" y="994" class="body">POST, PUT, DELETE /valuations → S09</text>
+  <text x="52" y="1012" class="body">POST, PUT, DELETE /cash-flows → S09</text>
+  <text x="52" y="1030" class="body">GET /return → S09 → K05</text>
+  <text x="52" y="1048" class="body">GET /benchmark → S09 → S10 → K06</text>
+  <text x="52" y="1078" class="small muted">9 actions · S08–S10 share D05–D06</text>
+
+  <rect x="38" y="1116" width="662" height="72" rx="6" class="card controller"/>
+  <text x="52" y="1139" class="card-title"><tspan class="id">C07</tspan> PositionsController · /api/positions</text>
+  <text x="52" y="1164" class="body">GET / → S11 · saved recommendations are produced by J03</text>
+  <text x="52" y="1182" class="small muted">1 action</text>
+
+  <rect x="38" y="1196" width="662" height="96" rx="6" class="card controller"/>
+  <text x="52" y="1219" class="card-title"><tspan class="id">C08</tspan> TradesController · /api/trades</text>
+  <text x="52" y="1244" class="body">GET /, POST /, PUT /{id}, DELETE /{id} → S12</text>
+  <text x="52" y="1263" class="small muted">4 actions · S12 also uses S01, D04 and H01</text>
+
+  <rect x="38" y="1300" width="662" height="74" rx="6" class="card"/>
+  <text x="52" y="1324" class="card-title">Вне контроллеров</text>
+  <text x="52" y="1348" class="body">GET /health → Program.cs · OpenAPI/Scalar → общий HTTP-контур</text>
+  <text x="52" y="1366" class="small muted">Отдельно от 38 action-методов контроллеров</text>
+
+  <rect x="728" y="115" width="708" height="1425" rx="8" class="panel"/>
+  <text x="748" y="145" class="section">Уникальные application/Core-узлы (Sxx)</text>
+
+  <rect x="742" y="160" width="680" height="96" rx="6" class="card service"/>
+  <text x="756" y="183" class="card-title"><tspan class="id">S01</tspan> BondsService · поиск, валюты, исторический номинал</text>
+  <rect x="752" y="191" width="112" height="25" rx="5" class="reviewed-pill"/>
+  <text x="760" y="208" class="body reviewed-text">SearchAsync ✓</text>
+  <text x="873" y="208" class="body">GetTradingCurrenciesAsync · GetFaceUnitsAsync</text>
+  <text x="756" y="230" class="small muted">GetHistoricalFaceValuesAsync → D01 · общая ветка C01, S02, S05, S07, S12</text>
+
+  <rect x="742" y="342" width="680" height="62" rx="6" class="card service"/>
+  <text x="756" y="365" class="card-title"><tspan class="id">S02</tspan> CashPageService.GetAsync</text>
+  <text x="756" y="387" class="small muted">Uses S01, S04, S11 and D02–D03</text>
+
+  <rect x="742" y="412" width="680" height="76" rx="6" class="card service"/>
+  <text x="756" y="435" class="card-title"><tspan class="id">S03</tspan> CashManagementService · 7 write methods</text>
+  <text x="756" y="460" class="body">Snapshots CRUD · funds CRUD · AddMoneyMarketFundOperationAsync</text>
+  <text x="756" y="478" class="small muted">Uses D02–D03; review all public methods once</text>
+
+  <rect x="742" y="496" width="680" height="66" rx="6" class="card service"/>
+  <text x="756" y="519" class="card-title"><tspan class="id">S04</tspan> PortfolioService.GetCashBalancesAsync</text>
+  <text x="756" y="541" class="small muted">Shared by S02 and S08 → S11; uses D02–D05 and K01</text>
+
+  <rect x="742" y="570" width="680" height="58" rx="6" class="card service"/>
+  <text x="756" y="593" class="card-title"><tspan class="id">S05</tspan> CashRecommendationsPageService.GetAsync</text>
+  <text x="756" y="615" class="small muted">Uses S01 and D11</text>
+
+  <rect x="742" y="636" width="680" height="82" rx="6" class="card service"/>
+  <text x="756" y="659" class="card-title"><tspan class="id">S06</tspan> CashRecommendationSettingsService · settings / presets</text>
+  <text x="756" y="684" class="body">Get · Create · Update · Delete · Activate preset · UpdateSettings</text>
+  <text x="756" y="704" class="small muted">Uses D11; each public method is a separate review item in the file</text>
+
+  <rect x="742" y="726" width="680" height="82" rx="6" class="card service"/>
+  <text x="756" y="749" class="card-title"><tspan class="id">S07</tspan> CashRecommendationService → BondAssessmentService</text>
+  <text x="756" y="774" class="body">GetRecommendations · GetAssessmentsAsync · rating / volume / YTM filters</text>
+  <text x="756" y="794" class="small muted">Uses D01, D09–D13 and H01; yield engine K07</text>
+
+  <rect x="742" y="816" width="680" height="62" rx="6" class="card service"/>
+  <text x="756" y="839" class="card-title"><tspan class="id">S08</tspan> PortfolioPageService.GetAsync</text>
+  <text x="756" y="861" class="small muted">Uses D05–D06 and S11.GetOverviewAsync</text>
+
+  <rect x="742" y="886" width="680" height="82" rx="6" class="card service"/>
+  <text x="756" y="909" class="card-title"><tspan class="id">S09</tspan> PortfolioDataService · valuation / cash-flow CRUD / returns</text>
+  <text x="756" y="934" class="body">8 methods: Add/Update/Delete Valuation · Add/Update/Delete CashFlow · Return · Benchmark</text>
+  <text x="756" y="954" class="small muted">Uses D05–D06; delegates to S10 / K05 / K06</text>
+
+  <rect x="742" y="976" width="680" height="66" rx="6" class="card service"/>
+  <text x="756" y="999" class="card-title"><tspan class="id">S10</tspan> PortfolioBenchmarkService.CalculateAsync</text>
+  <text x="756" y="1021" class="small muted">Uses D05–D06, D17–D18 and H01; calculators K06</text>
+
+  <rect x="742" y="1050" width="680" height="90" rx="6" class="card service"/>
+  <text x="756" y="1073" class="card-title"><tspan class="id">S11</tspan> PortfolioPositionsService · positions / overview / fund quotes</text>
+  <text x="756" y="1098" class="body">GetPageAsync · GetPositionsAsync · GetOverviewAsync · GetMoneyMarketFundsAsync</text>
+  <text x="756" y="1118" class="small muted">Shared by C07, S02, S08; uses S04, D03–D04, D07–D09, D14, D19, H01, K02–K03</text>
+
+  <rect x="742" y="1148" width="680" height="66" rx="6" class="card service"/>
+  <text x="756" y="1171" class="card-title"><tspan class="id">S12</tspan> PortfolioTradesService · 4 methods</text>
+  <text x="756" y="1193" class="small muted">Get/Add/Update/Delete · uses S01, D04, H01 and K03</text>
+
+  <rect x="742" y="1222" width="680" height="66" rx="6" class="card service"/>
+  <text x="756" y="1245" class="card-title"><tspan class="id">S13</tspan> ClosedPositionSessionsPageService · read / enqueue / status</text>
+  <text x="756" y="1267" class="small muted">Uses D15–D16, D20; J04 reads D21 → K08 and writes D15</text>
+
+  <rect x="742" y="1296" width="680" height="66" rx="6" class="card service"/>
+  <text x="756" y="1319" class="card-title"><tspan class="id">S14</tspan> InitializationService · status / retry</text>
+  <text x="756" y="1341" class="small muted">Uses D16; retry state is processed by J01</text>
+
+  <rect x="742" y="1370" width="680" height="120" rx="6" class="card"/>
+  <text x="756" y="1394" class="card-title">Правило пересечений</text>
+  <text x="756" y="1418" class="body">Проверять call site на ветке контроллера, но общий S/D/K/J-узел отмечать только в его канонической записи.</text>
+  <text x="756" y="1443" class="body">Например, D04 используется балансом, позициями и сделками, но проверяется один раз.</text>
+  <text x="756" y="1472" class="small muted">Полный перечень методов и чекбоксов — application-review-map.md</text>
+
+  <rect x="1450" y="115" width="726" height="1425" rx="8" class="panel"/>
+  <path class="connector" d="M700 208 H742"/>
+  <path class="connector" d="M700 400 H714 V387 H742"/>
+  <path class="connector" d="M700 430 H720 V460 H742"/>
+  <path class="connector" d="M700 580 H714 V600 H742"/>
+  <path class="connector" d="M700 620 H720 V676 H742"/>
+  <path class="connector" d="M700 640 H726 V768 H742"/>
+  <path class="connector" d="M700 790 H714 V1255 H742"/>
+  <path class="connector" d="M700 895 H720 V1330 H742"/>
+  <path class="connector" d="M700 980 H714 V847 H742"/>
+  <path class="connector" d="M700 1020 H720 V927 H742"/>
+  <path class="connector" d="M700 1050 H726 V1009 H742"/>
+  <path class="connector" d="M700 1165 H714 V1095 H742"/>
+  <path class="connector" d="M700 1244 H720 V1180 H742"/>
+  <text x="1470" y="145" class="section">Общие зависимости и источники</text>
+  <text x="1470" y="168" class="small muted">Один ID = одна проверка; consumers перечислены в Markdown.</text>
+
+  <rect x="1464" y="184" width="344" height="574" rx="6" class="card dependency"/>
+  <text x="1478" y="208" class="card-title">D01, D02–D10 · Storage</text>
+  <text x="1478" y="235" class="body"><tspan class="id">D01</tspan> BondsProvider</text>
+  <rect x="1474" y="246" width="206" height="25" rx="5" class="reviewed-pill"/>
+  <text x="1482" y="263" class="small reviewed-text">SearchAsync ✓ · R02/R03 исправлены</text>
+  <text x="1478" y="315" class="body"><tspan class="id">D02</tspan> PortfolioCashProvider</text>
+  <text x="1478" y="355" class="body"><tspan class="id">D03</tspan> MoneyMarketFundsProvider</text>
+  <text x="1478" y="395" class="body"><tspan class="id">D04</tspan> PortfolioTradesProvider</text>
+  <text x="1478" y="435" class="body"><tspan class="id">D05</tspan> PortfolioCashFlowsProvider</text>
+  <text x="1478" y="475" class="body"><tspan class="id">D06</tspan> PortfolioValuationsProvider</text>
+  <text x="1478" y="515" class="body"><tspan class="id">D07</tspan> PortfolioPositionsProvider</text>
+  <text x="1478" y="555" class="body"><tspan class="id">D08</tspan> PortfolioCouponProvider</text>
+  <text x="1478" y="595" class="body"><tspan class="id">D09</tspan> HistoryProvider</text>
+  <text x="1478" y="635" class="body"><tspan class="id">D10</tspan> DailyVolumeStatisticsStore</text>
+  <text x="1478" y="718" class="small muted">Interfaces in Core · implementations in Storage</text>
+
+  <rect x="1818" y="184" width="344" height="574" rx="6" class="card dependency"/>
+  <text x="1832" y="208" class="card-title">D11–D21 · Storage / infrastructure</text>
+  <text x="1832" y="235" class="body"><tspan class="id">D11</tspan> InvestmentStrategySettingsStore</text>
+  <text x="1832" y="275" class="body"><tspan class="id">D12</tspan> RatingsProvider</text>
+  <text x="1832" y="315" class="body"><tspan class="id">D13</tspan> CashFlowProvider</text>
+  <text x="1832" y="355" class="body"><tspan class="id">D14</tspan> PositionRecommendationStore</text>
+  <text x="1832" y="395" class="body"><tspan class="id">D15</tspan> ClosedPositionSessionsProvider</text>
+  <text x="1832" y="435" class="body"><tspan class="id">D16</tspan> InitializationStateStore</text>
+  <text x="1832" y="475" class="body"><tspan class="id">D17</tspan> BondBenchmarkHistoryProvider</text>
+  <text x="1832" y="515" class="body"><tspan class="id">D18</tspan> MoexIndexHistoryStore</text>
+  <text x="1832" y="555" class="body"><tspan class="id">D19</tspan> direct FX query via DbContext</text>
+  <text x="1832" y="595" class="body"><tspan class="id">D20</tspan> Hangfire client / JobStorage</text>
+  <text x="1832" y="635" class="body"><tspan class="id">D21</tspan> ClosedPositionSessionSourceProvider</text>
+  <text x="1832" y="697" class="small muted">D16 is shared with API and background jobs</text>
+
+  <rect x="1464" y="770" width="344" height="300" rx="6" class="card calc"/>
+  <text x="1478" y="794" class="card-title">K01–K09 · Core rules</text>
+  <text x="1478" y="822" class="body"><tspan class="id">K01</tspan> Cash calculator</text>
+  <text x="1478" y="852" class="body"><tspan class="id">K02</tspan> Open-position calculators</text>
+  <text x="1478" y="882" class="body"><tspan class="id">K03</tspan> Trade / lot validation</text>
+  <text x="1478" y="912" class="body"><tspan class="id">K04</tspan> Position recommendations</text>
+  <text x="1478" y="942" class="body"><tspan class="id">K05</tspan> Portfolio TWR</text>
+  <text x="1478" y="972" class="body"><tspan class="id">K06</tspan> Benchmark series</text>
+  <text x="1478" y="1002" class="body"><tspan class="id">K07</tspan> Bond YTM / cash flows</text>
+  <text x="1478" y="1032" class="body"><tspan class="id">K08</tspan> Closed-position calculators</text>
+  <text x="1478" y="1054" class="small muted"><tspan class="id">K09</tspan> Shared rules: time, coupon type</text>
+
+  <rect x="1818" y="770" width="344" height="300" rx="6" class="card dependency"/>
+  <text x="1832" y="794" class="card-title">H01–H03 · Клиенты и транспорт</text>
+  <text x="1832" y="824" class="body"><tspan class="id">H01</tspan> MoexHttpClient</text>
+  <text x="1832" y="852" class="small muted">S07, S10–S12 and MOEX jobs</text>
+  <text x="1832" y="890" class="body"><tspan class="id">H02</tspan> CBondClient / CbrHttpClient</text>
+  <text x="1832" y="918" class="small muted">Used by background jobs</text>
+  <text x="1832" y="964" class="body"><tspan class="id">H03</tspan> ISS mapping / date serialization</text>
+  <text x="1832" y="988" class="small muted">Method checklist is in application-review-map.md</text>
+
+  <rect x="1464" y="1082" width="698" height="256" rx="6" class="card job"/>
+  <text x="1478" y="1106" class="card-title">J01–J04 · Фоновые производители состояния и данных</text>
+  <text x="1478" y="1134" class="body"><tspan class="id">J01</tspan> Initial bootstrap + recurring scheduler</text>
+  <text x="1478" y="1160" class="body"><tspan class="id">J02</tspan> 9 MOEX / CBond / CBR synchronization jobs</text>
+  <text x="1478" y="1186" class="body"><tspan class="id">J03</tspan> PositionRecommendationJob → K04 → D14 → C07</text>
+  <text x="1478" y="1212" class="body"><tspan class="id">J04</tspan> ClosedPositionSessionsJob → D21 → K08 → D15 → C04</text>
+  <text x="1478" y="1250" class="small muted">Проверять producer один раз; на HTTP-ветке проверять только чтение/контракт.</text>
+  <text x="1478" y="1276" class="small muted">Фоновые записи важны, потому что контроллеры читают их снимки и справочники.</text>
+
+  <rect x="1464" y="1350" width="698" height="112" rx="6" class="card"/>
+  <text x="1478" y="1374" class="card-title">G01 · Общий HTTP-контур</text>
+  <text x="1478" y="1400" class="body">FluentValidationActionFilter · request validators · ApiExceptionHandler · DI registrations</text>
+  <text x="1478" y="1424" class="body">Выполнять одно ревью на все C01–C08; проверять route-specific binding на ветке контроллера.</text>
+  <text x="1478" y="1448" class="small muted">Подробный список методов и перекрёстных ссылок находится в Markdown-файле.</text>
+</svg>

@@ -77,9 +77,9 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
             .Select(x => new BondSearchResult(
                 x.SecId,
                 x.BoardId,
-                x.CurrencyId ?? string.Empty,
+                x.CurrencyId,
                 x.ShortName,
-                x.AccruedInt ?? 0,
+                x.AccruedInt,
                 x.FaceValue))
             .ToListAsync(cancellationToken);
     }

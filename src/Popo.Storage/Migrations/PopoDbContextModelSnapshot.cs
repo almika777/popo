@@ -573,6 +573,7 @@ namespace Popo.Storage.Migrations
                         .HasColumnType("double precision");
 
                     b.Property<string>("CurrencyId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("DateYieldFromIssuer")

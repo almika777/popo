@@ -26,7 +26,7 @@ Popo.Api регистрирует Core, HTTP-клиенты, Storage и вали
 
 ## API
 
-- GET /api/bonds/search?q={query} — поиск облигаций.
+- GET /api/bonds/search?q={query} — поиск облигаций по SecId, краткому или полному наименованию; минимум 3 символа. В ответе `accruedInterest` равен `null`, если НКД отсутствует в справочнике.
 - GET /api/bonds/currencies — список валют торгов, найденных в сохранённых данных.
 - GET /api/bonds/face-units — список валют номинала, найденных в сохранённых данных.
 - GET/POST/PUT/DELETE `/api/trades` — ручной журнал сделок.
