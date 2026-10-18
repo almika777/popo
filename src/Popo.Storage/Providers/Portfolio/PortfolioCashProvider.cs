@@ -7,6 +7,7 @@ namespace Popo.Storage.Providers.Portfolio;
 public sealed class PortfolioCashProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IPortfolioCashProvider
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<CashSnapshotRecord>> GetCashSnapshotsAsync(CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);

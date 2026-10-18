@@ -18,6 +18,9 @@ public sealed record CashSnapshotRecord(
 
 public interface IPortfolioCashProvider
 {
+    /// <summary>Возвращает историю снимков кеша по валютам; она используется страницей и расчётом остатков.</summary>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Снимки кеша, отсортированные реализацией по дате и валюте.</returns>
     Task<IReadOnlyList<CashSnapshotRecord>> GetCashSnapshotsAsync(CancellationToken cancellationToken);
     Task<CashSnapshotRecord?> GetCashSnapshotAsync(Guid id, CancellationToken cancellationToken);
     Task<CashSnapshotRecord> AddCashSnapshotAsync(CashSnapshot snapshot, string comment, CancellationToken cancellationToken);

@@ -8,6 +8,7 @@ namespace Popo.Storage.Providers.Portfolio;
 
 public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextFactory) : IPortfolioTradesProvider
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<PortfolioTradeRecord>> GetTradesAsync(CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -95,6 +96,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
         Commission = trade.CommissionAmount
     };
 
+    // Переносит сохранённую сделку в контракт и восстанавливает процент комиссии и сумму расчёта.
     private static PortfolioTradeRecord ToRecord(PortfolioTradeEntity entity) =>
         new(entity.Id, entity.SecId, entity.BoardId, entity.CurrencyId, entity.TradeDate, entity.Side,
             entity.Quantity, entity.Price, entity.FaceValue, entity.AccruedInterest, entity.Commission,
@@ -103,9 +105,11 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
                 ? GetGrossAmount(entity) + entity.Commission
                 : GetGrossAmount(entity) - entity.Commission);
     
+    // Рассчитывает сумму сделки до комиссии с учётом НКД.
     private static double GetGrossAmount(PortfolioTradeEntity entity) =>
         entity.Quantity * (entity.Price + entity.AccruedInterest);
 
+    // Восстанавливает процент комиссии из её сохранённой суммы и суммы сделки.
     private static double GetCommissionPercent(PortfolioTradeEntity entity)
     {
         var grossAmount = GetGrossAmount(entity);

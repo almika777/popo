@@ -7,6 +7,13 @@ public sealed record TradeSettlement(
 
 public static class TradeSettlementCalculator
 {
+    /// <summary>Рассчитывает сумму сделки до комиссии, комиссию и итоговую сумму расчёта.</summary>
+    /// <param name="side">Направление сделки: покупка или продажа.</param>
+    /// <param name="quantity">Количество бумаг.</param>
+    /// <param name="price">Цена одной бумаги.</param>
+    /// <param name="accruedInterest">НКД на одну бумагу.</param>
+    /// <param name="commissionPercent">Комиссия в процентах от суммы с НКД.</param>
+    /// <returns>Суммы сделки; комиссия прибавляется к покупке и вычитается из продажи.</returns>
     public static TradeSettlement Calculate(
         TradeSide side,
         double quantity,

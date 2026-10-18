@@ -28,6 +28,7 @@ public sealed class PortfolioMoneyMarketFundsProvider(IDbContextFactory<PopoDbCo
         }).ToArray();
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(
         CancellationToken cancellationToken)
     {

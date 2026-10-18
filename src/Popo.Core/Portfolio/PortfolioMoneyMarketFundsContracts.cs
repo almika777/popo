@@ -42,6 +42,9 @@ public interface IPortfolioMoneyMarketFundsProvider
     Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken);
     Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken);
     Task<bool> DeleteMoneyMarketFundAsync(Guid id, CancellationToken cancellationToken);
+    /// <summary>Возвращает операции покупки и продажи фондов, которые корректируют рублёвый остаток.</summary>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Операции фондов денежного рынка.</returns>
     Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(CancellationToken cancellationToken);
     Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(
         MoneyMarketFundOperation operation,

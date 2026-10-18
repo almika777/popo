@@ -12,6 +12,10 @@ public sealed class CashController(
     CashPageService cashPageService,
     MoneyMarketFundsPageService fundsPageService) : ControllerBase
 {
+    /// <summary>Возвращает снимки, рассчитанные остатки и доступные валюты для страницы кеша.</summary>
+    /// <param name="asOf">Дата, на которую рассчитываются остатки.</param>
+    /// <param name="cancellationToken">Токен отмены запроса.</param>
+    /// <returns>Данные страницы кеша.</returns>
     [HttpGet("page")]
     public async Task<ActionResult<CashPageResponse>> GetPage(
         [FromQuery] DateOnly asOf,

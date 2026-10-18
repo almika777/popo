@@ -10,6 +10,10 @@ public sealed class CashPageService(
     IPortfolioService portfolioService,
     IBondsService bondsService)
 {
+    /// <summary>Параллельно загружает снимки, остатки на указанную дату и доступные торговые валюты.</summary>
+    /// <param name="asOf">Дата, на которую рассчитываются остатки.</param>
+    /// <param name="cancellationToken">Токен отмены запроса.</param>
+    /// <returns>Совокупные данные страницы кеша.</returns>
     public async Task<CashPageResponse> GetAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
         var snapshotsTask = cashProvider.GetCashSnapshotsAsync(cancellationToken);

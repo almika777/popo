@@ -6,6 +6,10 @@ namespace Popo.Api.Services;
 
 public interface IPortfolioService
 {
+    /// <summary>Рассчитывает остаток каждой валюты от последнего снимка до указанной даты.</summary>
+    /// <param name="asOf">Последняя дата, включаемая в расчёт.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Остатки с учётом сделок, операций фондов денежного рынка и денежных потоков.</returns>
     Task<IReadOnlyList<CashBalance>> GetCashBalancesAsync(DateOnly asOf, CancellationToken cancellationToken);
 }
 
@@ -15,6 +19,7 @@ public sealed class PortfolioService(
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
     IPortfolioCashFlowsProvider cashFlowsProvider) : IPortfolioService
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<CashBalance>> GetCashBalancesAsync(
         DateOnly asOf,
         CancellationToken cancellationToken)

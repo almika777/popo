@@ -7,6 +7,7 @@ namespace Popo.Storage.Providers.PortfolioReturns;
 public sealed class PortfolioCashFlowsProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IPortfolioCashFlowsProvider
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<PortfolioCashFlowRecord>> GetCashFlowsAsync(
         CancellationToken cancellationToken)
     {

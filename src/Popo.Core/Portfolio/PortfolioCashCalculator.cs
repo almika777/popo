@@ -4,6 +4,13 @@ namespace Popo.Core.Portfolio;
 
 public static class PortfolioCashCalculator
 {
+    /// <summary>Восстанавливает остаток каждой валюты от последнего снимка до <paramref name="asOf"/>.</summary>
+    /// <param name="snapshots">Снимки остатков по валютам.</param>
+    /// <param name="trades">Сделки портфеля; учитываются сделки после снимка и не позднее <paramref name="asOf"/>.</param>
+    /// <param name="asOf">Последняя дата, включаемая в расчёт.</param>
+    /// <param name="fundOperations">Операции фондов денежного рынка; учитываются для RUB.</param>
+    /// <param name="cashFlows">Денежные потоки; учитываются для RUB.</param>
+    /// <returns>Рассчитанный остаток каждой валюты.</returns>
     public static IReadOnlyList<CashBalance> Calculate(
         IReadOnlyCollection<CashSnapshot> snapshots,
         IReadOnlyCollection<PortfolioTrade> trades,
@@ -57,6 +64,8 @@ public static class PortfolioCashCalculator
             .ToArray();
     }
 
+    /// <summary>Проверяет числовые параметры сделок, используемые при расчёте денежных остатков.</summary>
+    /// <param name="trades">Сделки для проверки.</param>
     private static void ValidateTrades(IEnumerable<PortfolioTrade> trades)
     {
         foreach (var trade in trades)

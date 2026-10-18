@@ -5,6 +5,7 @@ namespace Popo.Storage.Providers.Bonds;
 
 public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFactory) : IBondsProvider
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);

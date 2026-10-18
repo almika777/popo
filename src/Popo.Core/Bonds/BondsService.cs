@@ -12,6 +12,7 @@ public sealed class BondsService(IBondsProvider bondsProvider) : IBondsService
         CancellationToken cancellationToken)
         => bondsProvider.GetHistoricalFaceValuesAsync(requests, cancellationToken);
 
+    /// <inheritdoc />
     public Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken)
         => bondsProvider.GetTradingCurrenciesAsync(cancellationToken);
 
