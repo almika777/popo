@@ -49,7 +49,9 @@ public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId,
 public sealed record CashPageResponse(
     IReadOnlyList<CashSnapshotRecord> Snapshots,
     IReadOnlyList<CashBalance> Balances,
-    IReadOnlyList<string> Currencies,
+    IReadOnlyList<string> Currencies);
+
+public sealed record MoneyMarketFundsPageResponse(
     IReadOnlyList<MoneyMarketFundRecord> MoneyMarketFunds,
     IReadOnlyList<MoneyMarketFundOptionResponse> MoneyMarketFundOptions,
     IReadOnlyList<MoneyMarketFundOperationRecord> MoneyMarketFundOperations);

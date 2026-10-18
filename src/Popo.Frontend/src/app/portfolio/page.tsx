@@ -843,7 +843,6 @@ export default function PortfolioPage() {
                             {summary ? money.format(summary.totalValueRub) : "—"}
                             {summary && <div className="portfolio-total-breakdown">
                               <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
-                              <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
                               <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
                             </div>}
                           </MetricCard>

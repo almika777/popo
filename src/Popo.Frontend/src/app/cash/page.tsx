@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dayjs, { type Dayjs } from "dayjs";
 import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Table, Tabs, Tooltip, Typography } from "antd";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
@@ -22,24 +22,72 @@ export default function CashPage() {
   const [fundOptions, setFundOptions] = useState<MoneyMarketFundOption[]>([]);
   const [fundOperationForm] = Form.useForm<FundOperationForm>();
   const [fundOperations, setFundOperations] = useState<MoneyMarketFundOperation[]>([]);
+  const [cashLoading, setCashLoading] = useState(true);
+  const [fundsLoading, setFundsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("cash");
+  const [cashLoaded, setCashLoaded] = useState(false);
+  const [fundsLoaded, setFundsLoaded] = useState(false);
+  const cashRequestVersion = useRef(0);
+  const fundsRequestVersion = useRef(0);
+  const cashRequest = useRef<{ version: number; promise: Promise<void> } | undefined>(undefined);
+  const fundsRequest = useRef<{ version: number; promise: Promise<void> } | undefined>(undefined);
   const [editingFundId, setEditingFundId] = useState<string>();
   const [editingId, setEditingId] = useState<string>();
-  const [loading, setLoading] = useState(true);
   const { message } = AntdApp.useApp();
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const page = await portfolioLedgerApi.getCashPage(dayjs().format("YYYY-MM-DD"));
-      setRows(page.snapshots); setBalances(page.balances); setCurrencies(page.currencies); setFunds(page.moneyMarketFunds); setFundOptions(page.moneyMarketFundOptions); setFundOperations(page.moneyMarketFundOperations);
-    } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось загрузить кеш"); }
-    finally { setLoading(false); }
+  const loadCash = (forceRefresh = false): Promise<void> => {
+    if (!forceRefresh && cashRequest.current) return cashRequest.current.promise;
+    if (forceRefresh) setCashLoaded(false);
+    const requestVersion = ++cashRequestVersion.current;
+    setCashLoading(true);
+    const promise = (async () => {
+      try {
+        const page = await portfolioLedgerApi.getCashPage(dayjs().format("YYYY-MM-DD"));
+        if (requestVersion !== cashRequestVersion.current) return;
+        setRows(page.snapshots); setBalances(page.balances); setCurrencies(page.currencies); setCashLoaded(true);
+      } catch (error) {
+        if (requestVersion !== cashRequestVersion.current) return;
+        setCashLoaded(false); message.error(error instanceof Error ? error.message : "Не удалось загрузить кеш");
+      } finally {
+        if (requestVersion === cashRequestVersion.current) {
+          setCashLoading(false);
+          if (cashRequest.current?.version === requestVersion) cashRequest.current = undefined;
+        }
+      }
+    })();
+    cashRequest.current = { version: requestVersion, promise };
+    return promise;
+  };
+
+  const loadFunds = (forceRefresh = false): Promise<void> => {
+    if (!forceRefresh && fundsRequest.current) return fundsRequest.current.promise;
+    if (forceRefresh) setFundsLoaded(false);
+    const requestVersion = ++fundsRequestVersion.current;
+    setFundsLoading(true);
+    const promise = (async () => {
+      try {
+        const page = await portfolioLedgerApi.getMoneyMarketFundsPage();
+        if (requestVersion !== fundsRequestVersion.current) return;
+        setFunds(page.moneyMarketFunds); setFundOptions(page.moneyMarketFundOptions); setFundOperations(page.moneyMarketFundOperations); setFundsLoaded(true);
+      } catch (error) {
+        if (requestVersion !== fundsRequestVersion.current) return;
+        setFundsLoaded(false); message.error(error instanceof Error ? error.message : "Не удалось загрузить фонды");
+      } finally {
+        if (requestVersion === fundsRequestVersion.current) {
+          setFundsLoading(false);
+          if (fundsRequest.current?.version === requestVersion) fundsRequest.current = undefined;
+        }
+      }
+    })();
+    fundsRequest.current = { version: requestVersion, promise };
+    return promise;
   };
   const saveFundOperation = async (values: FundOperationForm) => {
     try {
       await portfolioLedgerApi.addMoneyMarketFundOperation({ ...values, date: values.date.format("YYYY-MM-DD") });
       message.success(values.side === "Buy" ? "Покупка фонда учтена" : "Продажа фонда учтена");
-      fundOperationForm.resetFields(); fundOperationForm.setFieldsValue({ date: dayjs(), side: "Buy", commission: 0 }); await load();
+      fundOperationForm.resetFields(); fundOperationForm.setFieldsValue({ date: dayjs(), side: "Buy", commission: 0 });
+      await Promise.all([loadFunds(true), loadCash(true)]);
     } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось сохранить операцию фонда"); }
   };
 
@@ -50,14 +98,20 @@ export default function CashPage() {
         : await portfolioLedgerApi.addMoneyMarketFund(values);
       if (editingFundId) setFunds(current => current.map(row => row.id === editingFundId ? { ...row, ...updated } : row));
       message.success(editingFundId ? "Фонд обновлён" : "Фонд добавлен");
-      fundForm.resetFields(); setEditingFundId(undefined); await load();
+      fundForm.resetFields(); setEditingFundId(undefined); await loadFunds(true);
     } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось сохранить фонд"); }
   };
   useEffect(() => {
     form.setFieldsValue({ snapshotDate: dayjs() });
     fundOperationForm.setFieldsValue({ date: dayjs() });
-    void load();
+    void loadCash();
   }, []);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    if (key === "cash" && !cashLoaded) void loadCash();
+    if (key === "funds" && !fundsLoaded) void loadFunds();
+  };
 
   const save = async (values: CashForm) => {
     try {
@@ -66,7 +120,7 @@ export default function CashPage() {
         ? await portfolioLedgerApi.updateCashSnapshot(editingId, payload)
         : await portfolioLedgerApi.addCashSnapshot(payload);
       if (editingId) setRows(current => current.map(row => row.id === editingId ? updated : row));
-      message.success(editingId ? "Снимок обновлён" : "Снимок сохранён"); form.resetFields(); setEditingId(undefined); await load();
+      message.success(editingId ? "Снимок обновлён" : "Снимок сохранён"); form.resetFields(); setEditingId(undefined); await loadCash(true);
     } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось сохранить снимок"); }
   };
 
@@ -77,7 +131,7 @@ export default function CashPage() {
       <Tooltip title="Изменить">
         <Button type="text" size="small" aria-label={`Изменить снимок ${row.snapshotDate}`} icon={<EditOutlined />} onClick={() => { setEditingId(row.id); form.setFieldsValue({ currencyId: row.currencyId, snapshotDate: dayjs(row.snapshotDate), amount: row.amount, comment: row.comment }); }} />
       </Tooltip>
-      <Popconfirm title="Удалить снимок?" okText="Удалить" cancelText="Отмена" onConfirm={() => void portfolioLedgerApi.deleteCashSnapshot(row.id).then(load)}>
+      <Popconfirm title="Удалить снимок?" okText="Удалить" cancelText="Отмена" onConfirm={() => void portfolioLedgerApi.deleteCashSnapshot(row.id).then(() => loadCash(true))}>
         <Tooltip title="Удалить">
           <Button type="text" danger size="small" aria-label={`Удалить снимок ${row.snapshotDate}`} icon={<DeleteOutlined />} />
         </Tooltip>
@@ -96,7 +150,7 @@ export default function CashPage() {
       <Tooltip title="Изменить">
         <Button type="text" size="small" aria-label={`Изменить фонд ${row.secId}`} icon={<EditOutlined />} onClick={() => { setEditingFundId(row.id); fundForm.setFieldsValue({ secId: row.secId, quantity: row.quantity, averagePrice: row.averagePrice }); }} />
       </Tooltip>
-      <Popconfirm title="Удалить фонд?" okText="Удалить" cancelText="Отмена" onConfirm={() => void portfolioLedgerApi.deleteMoneyMarketFund(row.id).then(load)}>
+      <Popconfirm title="Удалить фонд?" okText="Удалить" cancelText="Отмена" onConfirm={() => void portfolioLedgerApi.deleteMoneyMarketFund(row.id).then(() => loadFunds(true))}>
         <Tooltip title="Удалить">
           <Button type="text" danger size="small" aria-label={`Удалить фонд ${row.secId}`} icon={<DeleteOutlined />} />
         </Tooltip>
@@ -117,7 +171,7 @@ export default function CashPage() {
   return <main className="app-content">
     <Typography.Title level={1}>Ликвидность</Typography.Title>
     <Typography.Paragraph type="secondary">Кеш и фонды денежного рынка учитываются отдельно. Снимки задают фактический остаток, а сделки и операции фондов автоматически пересчитывают баланс.</Typography.Paragraph>
-    <Tabs items={[{
+    <Tabs activeKey={activeTab} onChange={handleTabChange} items={[{
       key: "cash",
       label: "Кеш",
       forceRender: true,
@@ -140,7 +194,7 @@ export default function CashPage() {
               <Col span={24}><Space><Button type="primary" htmlType="submit">{editingId ? "Сохранить изменения" : "Сохранить снимок"}</Button>{editingId && <Button onClick={() => { setEditingId(undefined); form.resetFields(); }}>Отмена</Button>}</Space></Col>
             </Row>
           </Form>
-          <Table rowKey="id" loading={loading} columns={columns} dataSource={rows} pagination={{ pageSize: 20 }} style={{ marginTop: 16 }} />
+          <Table rowKey="id" loading={cashLoading} columns={columns} dataSource={rows} pagination={{ pageSize: 20 }} style={{ marginTop: 16 }} />
         </Card>
       </Space>
     }, {
@@ -157,7 +211,7 @@ export default function CashPage() {
             <Col xs={24} sm={12} md={6}><Form.Item label=" "><Space><Button type="primary" htmlType="submit">{editingFundId ? "Сохранить изменения" : "Добавить фонд"}</Button>{editingFundId && <Button onClick={() => { setEditingFundId(undefined); fundForm.resetFields(); }}>Отмена</Button>}</Space></Form.Item></Col>
           </Row>
         </Form>
-        <Table rowKey="id" loading={loading} columns={fundColumns} dataSource={funds} pagination={false} />
+        <Table rowKey="id" loading={fundsLoading} columns={fundColumns} dataSource={funds} pagination={false} />
         <Typography.Title level={4} style={{ marginTop: 28 }}>Операции фондов</Typography.Title>
         <Form form={fundOperationForm} layout="vertical" onFinish={saveFundOperation} initialValues={{ side: "Buy", commission: 0.04 }}>
           <Row gutter={[16, 0]}>
@@ -170,7 +224,7 @@ export default function CashPage() {
             <Col span={24}><Button type="primary" htmlType="submit">Добавить операцию</Button></Col>
           </Row>
         </Form>
-        <Table rowKey="id" loading={loading} columns={fundOperationColumns} dataSource={fundOperations} pagination={{ pageSize: 10 }} style={{ marginTop: 16 }} />
+        <Table rowKey="id" loading={fundsLoading} columns={fundOperationColumns} dataSource={fundOperations} pagination={{ pageSize: 10 }} style={{ marginTop: 16 }} />
       </Card>
     }]} />
   </main>;

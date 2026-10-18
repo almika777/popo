@@ -8,15 +8,25 @@ namespace Popo.Tests;
 public sealed class PageApiContractTests
 {
     [Test]
-    public void CashPageResponse_ContainsAllInitialTabData()
+    public void CashPageResponse_ContainsOnlyCashTabData()
     {
-        var response = new CashPageResponse([], [], ["RUB"], [], [], []);
+        var response = new CashPageResponse([], [], ["RUB"]);
 
         Assert.Multiple(() =>
         {
             Assert.That(response.Currencies, Is.EqualTo(new[] { "RUB" }));
             Assert.That(response.Snapshots, Is.Empty);
             Assert.That(response.Balances, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void MoneyMarketFundsPageResponse_ContainsOnlyFundsTabData()
+    {
+        var response = new MoneyMarketFundsPageResponse([], [], []);
+
+        Assert.Multiple(() =>
+        {
             Assert.That(response.MoneyMarketFunds, Is.Empty);
             Assert.That(response.MoneyMarketFundOptions, Is.Empty);
             Assert.That(response.MoneyMarketFundOperations, Is.Empty);

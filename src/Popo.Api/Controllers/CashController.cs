@@ -9,13 +9,19 @@ namespace Popo.Api.Controllers;
 [Route("api/cash")]
 public sealed class CashController(
     CashManagementService managementService,
-    CashPageService pageService) : ControllerBase
+    CashPageService cashPageService,
+    MoneyMarketFundsPageService fundsPageService) : ControllerBase
 {
     [HttpGet("page")]
     public async Task<ActionResult<CashPageResponse>> GetPage(
         [FromQuery] DateOnly asOf,
         CancellationToken cancellationToken) =>
-        Ok(await pageService.GetAsync(asOf, cancellationToken));
+        Ok(await cashPageService.GetAsync(asOf, cancellationToken));
+
+    [HttpGet("money-market-funds/page")]
+    public async Task<ActionResult<MoneyMarketFundsPageResponse>> GetMoneyMarketFundsPage(
+        CancellationToken cancellationToken) =>
+        Ok(await fundsPageService.GetAsync(cancellationToken));
 
     [HttpPost("snapshots")]
     public async Task<ActionResult<CashSnapshotRecord>> AddCashSnapshot(

@@ -15,7 +15,8 @@ export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTo
 export type MoneyMarketFundOption = { secId: string; boardId: string; name: string };
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
 export type MoneyMarketFundOperation = { id: string; secId: string; date: string; side: TradeSide; quantity: number; price: number; commission: number; amount: number };
-export type CashPage = { snapshots: CashSnapshot[]; balances: CashBalance[]; currencies: string[]; moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[]; moneyMarketFundOperations: MoneyMarketFundOperation[] };
+export type CashPage = { snapshots: CashSnapshot[]; balances: CashBalance[]; currencies: string[] };
+export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[]; moneyMarketFundOperations: MoneyMarketFundOperation[] };
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
 type CashSnapshotPayload = Omit<CashSnapshot, "id">;
 
@@ -50,6 +51,7 @@ export const portfolioLedgerApi = {
   getPositionsPage: () => request<PositionsPage>("/positions"),
   getPositions: async () => (await request<PositionsPage>("/positions")).positions,
   getCashPage: (asOf: string) => request<CashPage>(`/cash/page?asOf=${asOf}`),
+  getMoneyMarketFundsPage: () => request<MoneyMarketFundsPage>("/cash/money-market-funds/page"),
   addCashSnapshot: (payload: CashSnapshotPayload) => request<CashSnapshot>("/cash/snapshots", { method: "POST", body: JSON.stringify(payload) }),
   updateCashSnapshot: (id: string, payload: CashSnapshotPayload) => request<CashSnapshot>(`/cash/snapshots/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteCashSnapshot: (id: string) => request<void>(`/cash/snapshots/${id}`, { method: "DELETE" }),

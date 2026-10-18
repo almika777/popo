@@ -67,6 +67,7 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<PortfolioTradesService>();
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<CashPageService>();
+        services.AddScoped<MoneyMarketFundsPageService>();
         services.AddScoped<CashManagementService>();
         services.AddScoped<PortfolioPageService>();
         services.AddScoped<PortfolioBenchmarkService>();
