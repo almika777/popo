@@ -21,17 +21,11 @@ public sealed class PortfolioMoneyMarketFundsProviderTests
     public ValueTask OneTimeTearDown() => _database.DisposeAsync();
 
     [Test]
-    public async Task GetMoneyMarketFunds_ReplaysPurchasesAndSalesAgainstBasePosition()
+    public async Task GetMoneyMarketFunds_ReturnsTheSavedCurrentPosition()
     {
         var secId = $"F{Guid.NewGuid():N}";
         await _provider.AddMoneyMarketFundAsync(
-            new MoneyMarketFund(secId, "TQBR", 100, 10),
-            CancellationToken.None);
-        await _provider.AddMoneyMarketFundOperationAsync(
-            new MoneyMarketFundOperation(secId, new DateOnly(2026, 1, 2), TradeSide.Buy, 20, 15, 5),
-            CancellationToken.None);
-        await _provider.AddMoneyMarketFundOperationAsync(
-            new MoneyMarketFundOperation(secId, new DateOnly(2026, 1, 3), TradeSide.Sell, 10, 12, 1),
+            new MoneyMarketFund(secId, "TQBR", 110, 10.875),
             CancellationToken.None);
 
         var currentFund = (await _provider.GetMoneyMarketFundsAsync(CancellationToken.None)).Single(x =>
@@ -42,16 +36,27 @@ public sealed class PortfolioMoneyMarketFundsProviderTests
     }
 
     [Test]
-    public async Task AddMoneyMarketFundOperation_RejectsSaleAboveAvailableQuantity()
+    public async Task UpdateAndDeleteMoneyMarketFund_ChangeOnlyTheSavedCurrentPosition()
     {
         var secId = $"F{Guid.NewGuid():N}";
-        await _provider.AddMoneyMarketFundAsync(
+        var added = await _provider.AddMoneyMarketFundAsync(
             new MoneyMarketFund(secId, "TQBR", 5, 10),
             CancellationToken.None);
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _provider.AddMoneyMarketFundOperationAsync(
-                new MoneyMarketFundOperation(secId, new DateOnly(2026, 1, 2), TradeSide.Sell, 6, 10, 0),
-                CancellationToken.None));
+        var updated = await _provider.UpdateMoneyMarketFundAsync(
+            added.Id,
+            new MoneyMarketFund(secId, "TQBR", 12, 11.25),
+            CancellationToken.None);
+        var current = (await _provider.GetMoneyMarketFundsAsync(CancellationToken.None)).Single(x => x.Id == added.Id);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(updated!.Quantity, Is.EqualTo(12));
+            Assert.That(updated.AveragePrice, Is.EqualTo(11.25));
+            Assert.That(current.Quantity, Is.EqualTo(12));
+            Assert.That(current.AveragePrice, Is.EqualTo(11.25));
+        });
+        Assert.That(await _provider.DeleteMoneyMarketFundAsync(added.Id, CancellationToken.None), Is.True);
+        Assert.That((await _provider.GetMoneyMarketFundsAsync(CancellationToken.None)).Any(x => x.Id == added.Id), Is.False);
     }
 }

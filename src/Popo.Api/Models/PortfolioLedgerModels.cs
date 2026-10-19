@@ -19,14 +19,6 @@ public sealed record UpsertMoneyMarketFundRequest(
     double Quantity,
     double AveragePrice);
 
-public sealed record AddMoneyMarketFundOperationRequest(
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission);
-
 public sealed record PositionsPageResponse(
     IReadOnlyList<PortfolioPositionRecord> Positions,
     PositionTotalsResponse Totals,
@@ -42,5 +34,4 @@ public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId,
 
 public sealed record MoneyMarketFundsPageResponse(
     IReadOnlyList<MoneyMarketFundRecord> MoneyMarketFunds,
-    IReadOnlyList<MoneyMarketFundOptionResponse> MoneyMarketFundOptions,
-    IReadOnlyList<MoneyMarketFundOperationRecord> MoneyMarketFundOperations);
+    IReadOnlyList<MoneyMarketFundOptionResponse> MoneyMarketFundOptions);

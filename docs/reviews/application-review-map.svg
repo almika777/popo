@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1570" viewBox="0 0 2200 1570" role="img" aria-labelledby="title desc">
   <title id="title">Карта ревью контроллеров и методов приложения</title>
-  <desc id="desc">Актуальная карта 8 API-контроллеров и 35 HTTP-методов с уникальными application-сервисами, providers, калькуляторами и фоновыми задачами. Общие узлы имеют единый ID для ревью один раз.</desc>
+  <desc id="desc">Актуальная карта 8 API-контроллеров и 34 HTTP-методов с уникальными application-сервисами, providers, калькуляторами и фоновыми задачами. Общие узлы имеют единый ID для ревью один раз.</desc>
   <defs>
     <style>
       text { font-family: Segoe UI, Arial, sans-serif; fill: #17212b; }
@@ -33,8 +33,8 @@
   </defs>
   <rect width="2200" height="1570" fill="#f2f5f8"/>
   <text x="34" y="46" class="title">Ревью контроллеров и методов приложения</text>
-  <text x="35" y="75" class="subtitle muted">Срез 19.10.2026 · 8 контроллеров · 35 HTTP-методов · C01 ✓ · S01.SearchAsync ✓ · D01.SearchAsync ✓ · R01–R03 исправлены · этап 2</text>
-  <text x="35" y="99" class="small muted">Кеш удалён из «Ликвидности»; фонды и cash-рекомендации сохранены. Общий S/D/K/J-узел проверяется один раз.</text>
+  <text x="35" y="75" class="subtitle muted">Срез 19.10.2026 · 8 контроллеров · 34 HTTP-метода · C01 ✓ · S01.SearchAsync ✓ · D01.SearchAsync ✓ · R01–R03 исправлены · этап 2</text>
+  <text x="35" y="99" class="small muted">Кеш и журнал операций фондов удалены; ликвидность хранит текущие позиции. Общий S/D/K/J-узел проверяется один раз.</text>
 
   <rect x="24" y="115" width="690" height="1425" rx="8" class="panel"/>
   <text x="44" y="145" class="section">Контроллеры и HTTP-методы → application services</text>
@@ -46,13 +46,11 @@
   <text x="52" y="208" class="body reviewed-text">GET /search → S01</text>
   <text x="52" y="226" class="small muted">R01–R03 исправлены · 1 action</text>
 
-  <rect x="38" y="346" width="662" height="176" rx="6" class="card controller"/>
+  <rect x="38" y="346" width="662" height="158" rx="6" class="card controller"/>
   <text x="52" y="369" class="card-title"><tspan class="id">C02</tspan> LiquidityController · /api/liquidity</text>
   <text x="52" y="392" class="body">GET /money-market-funds/page → S02</text>
-  <text x="52" y="410" class="body"></text>
   <text x="52" y="428" class="body">POST, PUT, DELETE /money-market-funds[/{id}] → S03</text>
-  <text x="52" y="446" class="body">POST /money-market-fund-operations → S03</text>
-  <text x="52" y="466" class="small muted">5 actions · S02–S03 and D03</text>
+  <text x="52" y="456" class="small muted">4 actions · S02–S03 and D03</text>
 
   <rect x="38" y="530" width="662" height="202" rx="6" class="card controller"/>
   <text x="52" y="553" class="card-title"><tspan class="id">C03</tspan> CashRecommendationsController · /api/recommendations</text>
@@ -97,7 +95,7 @@
   <rect x="38" y="1300" width="662" height="74" rx="6" class="card"/>
   <text x="52" y="1324" class="card-title">Вне контроллеров</text>
   <text x="52" y="1348" class="body">GET /health → Program.cs · OpenAPI/Scalar → общий HTTP-контур</text>
-  <text x="52" y="1366" class="small muted">Отдельно от 35 action-методов контроллеров</text>
+  <text x="52" y="1366" class="small muted">Отдельно от 34 action-методов контроллеров</text>
 
   <rect x="728" y="115" width="708" height="1425" rx="8" class="panel"/>
   <text x="748" y="145" class="section">Уникальные application/Core-узлы (Sxx)</text>
@@ -114,8 +112,8 @@
   <text x="756" y="387" class="small muted">Uses S11 and D03</text>
 
   <rect x="742" y="412" width="680" height="76" rx="6" class="card service"/>
-  <text x="756" y="435" class="card-title"><tspan class="id">S03</tspan> MoneyMarketFundManagementService · 4 methods</text>
-  <text x="756" y="460" class="body">Funds CRUD · AddMoneyMarketFundOperationAsync</text>
+  <text x="756" y="435" class="card-title"><tspan class="id">S03</tspan> MoneyMarketFundManagementService · 3 methods</text>
+  <text x="756" y="460" class="body">Funds CRUD · direct current quantity and average price</text>
   <text x="756" y="478" class="small muted">Uses D03; review all public methods once</text>
 
   <rect x="742" y="570" width="680" height="58" rx="6" class="card service"/>

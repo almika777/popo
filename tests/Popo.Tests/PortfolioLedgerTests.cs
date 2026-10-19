@@ -312,22 +312,4 @@ public sealed class PortfolioLedgerTests
           Assert.That(result.TotalPnl, Is.EqualTo(-39).Within(0.001));
       }
 
-    [Test]
-    public void MoneyMarketFundOperations_UpdateQuantityAndAverageCostWithoutCashBalance()
-    {
-        var fund = new MoneyMarketFund("LQDT", "TQBR", 100, 10);
-        var operations = new[]
-        {
-            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 2), TradeSide.Buy, 50, 12, 10),
-            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 3), TradeSide.Sell, 30, 15, 5)
-        };
-
-        var position = MoneyMarketFundOperationCalculator.CalculatePosition(fund, operations);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(position.Quantity, Is.EqualTo(120));
-            Assert.That(position.AveragePrice, Is.EqualTo((1_000 + 600 + 10) / 150d).Within(0.001));
-        });
-    }
 }

@@ -13,13 +13,14 @@ public sealed class PageApiContractTests
     [Test]
     public void MoneyMarketFundsPageResponse_ContainsOnlyFundsTabData()
     {
-        var response = new MoneyMarketFundsPageResponse([], [], []);
+        var response = new MoneyMarketFundsPageResponse([], []);
 
         Assert.Multiple(() =>
         {
             Assert.That(response.MoneyMarketFunds, Is.Empty);
             Assert.That(response.MoneyMarketFundOptions, Is.Empty);
-            Assert.That(response.MoneyMarketFundOperations, Is.Empty);
+            Assert.That(typeof(MoneyMarketFundsPageResponse).GetProperties()
+                .Select(property => property.Name), Does.Not.Contain("MoneyMarketFundOperations"));
         });
     }
 
@@ -60,8 +61,7 @@ public sealed class PageApiContractTests
             "GET money-market-funds/page",
             "POST money-market-funds",
             "PUT money-market-funds/{id:guid}",
-            "DELETE money-market-funds/{id:guid}",
-            "POST money-market-fund-operations"
+            "DELETE money-market-funds/{id:guid}"
         }));
     }
 }

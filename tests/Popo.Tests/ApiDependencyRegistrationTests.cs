@@ -63,7 +63,6 @@ public sealed class ApiDependencyRegistrationTests
             typeof(BondSearchRequest),
             typeof(UpsertPortfolioTradeRequest),
             typeof(UpsertMoneyMarketFundRequest),
-            typeof(AddMoneyMarketFundOperationRequest),
             typeof(UpsertPortfolioValuationRequest),
             typeof(UpsertPortfolioCashFlowRequest),
             typeof(PortfolioReturnQuery),

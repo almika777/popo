@@ -954,41 +954,6 @@ namespace Popo.Storage.Migrations
                     b.ToTable("MoneyMarketFunds");
                 });
 
-            modelBuilder.Entity("Popo.Storage.Entities.MoneyMarketFundOperationEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("Commission")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<double>("Price")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Quantity")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("SecId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Side")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Date", "SecId");
-
-                    b.ToTable("MoneyMarketFundOperations");
-                });
-
             modelBuilder.Entity("Popo.Storage.Entities.PortfolioCashFlowEntity", b =>
                 {
                     b.Property<Guid>("Id")

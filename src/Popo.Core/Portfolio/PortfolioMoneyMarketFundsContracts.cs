@@ -6,24 +6,6 @@ public sealed record MoneyMarketFund(
     double Quantity,
     double AveragePrice);
 
-public sealed record MoneyMarketFundOperation(
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission);
-
-public sealed record MoneyMarketFundOperationRecord(
-    Guid Id,
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission,
-    double Amount);
-
 public sealed record MoneyMarketFundRecord(
     Guid Id,
     string SecId,
@@ -38,18 +20,11 @@ public sealed record MoneyMarketFundRecord(
 
 public interface IPortfolioMoneyMarketFundsProvider
 {
-    /// <summary>Возвращает сохранённые позиции фондов с количеством и средней себестоимостью после применения операций.</summary>
+    /// <summary>Возвращает сохранённые текущие позиции фондов с количеством и средней ценой.</summary>
     /// <param name="cancellationToken">Токен отмены запроса.</param>
     /// <returns>Список позиций фондов денежного рынка.</returns>
     Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
     Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken);
     Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken);
     Task<bool> DeleteMoneyMarketFundAsync(Guid id, CancellationToken cancellationToken);
-    /// <summary>Возвращает операции покупки и продажи, из которых рассчитываются количество и себестоимость фондов.</summary>
-    /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Операции фондов денежного рынка.</returns>
-    Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(CancellationToken cancellationToken);
-    Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(
-        MoneyMarketFundOperation operation,
-        CancellationToken cancellationToken);
 }

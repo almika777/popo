@@ -29,23 +29,21 @@ namespace Popo.HttpClients
 
         /// <summary>Возвращает значение из кеша или единожды загружает и кеширует его под блокировкой ключа.</summary>
         private async Task<T> GetOrCreateWithLockAsync<T>(
-            string cacheKey, Func<Task<T>> factory, CancellationToken ct,
+            string cacheKey, 
+            Func<Task<T>> factory, 
+            CancellationToken ct,
             TimeSpan? cacheDuration = null) where T : class
         {
             if (_cache.TryGetValue<T>(cacheKey, out var existing) && existing is not null)
-            {
                 return existing;
-            }
-
+            
             var semaphore = CacheLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
             await semaphore.WaitAsync(ct);
             try
             {
                 if (_cache.TryGetValue<T>(cacheKey, out var recheck) && recheck is not null)
-                {
                     return recheck;
-                }
-
+                
                 var created = await _cache.GetOrCreateAsync(cacheKey, async entry =>
                 {
                     entry.AbsoluteExpirationRelativeToNow = cacheDuration ?? CacheDuration;

@@ -11,7 +11,7 @@ public sealed class LiquidityController(
     MoneyMarketFundManagementService managementService,
     MoneyMarketFundsPageService fundsPageService) : ControllerBase
 {
-    /// <summary>Возвращает позиции фондов денежного рынка, доступные фонды для выбора и историю операций.</summary>
+    /// <summary>Возвращает текущие позиции фондов денежного рынка и доступные фонды для выбора.</summary>
     /// <param name="cancellationToken">Токен отмены запроса.</param>
     /// <returns>Данные страницы фондов денежного рынка.</returns>
     [HttpGet("money-market-funds/page")]
@@ -40,14 +40,5 @@ public sealed class LiquidityController(
     {
         await managementService.DeleteMoneyMarketFundAsync(id, cancellationToken);
         return NoContent();
-    }
-
-    [HttpPost("money-market-fund-operations")]
-    public async Task<ActionResult<MoneyMarketFundOperationRecord>> AddMoneyMarketFundOperation(
-        [FromBody] AddMoneyMarketFundOperationRequest request,
-        CancellationToken cancellationToken)
-    {
-        var record = await managementService.AddMoneyMarketFundOperationAsync(request, cancellationToken);
-        return Created($"/api/liquidity/money-market-fund-operations/{record.Id}", record);
     }
 }

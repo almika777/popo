@@ -48,20 +48,4 @@ public sealed class MoneyMarketFundManagementService(
         if (!await moneyMarketFundsProvider.DeleteMoneyMarketFundAsync(id, cancellationToken))
             throw new ApplicationResourceNotFoundException();
     }
-
-    public async Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(
-        AddMoneyMarketFundOperationRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await moneyMarketFundsProvider.AddMoneyMarketFundOperationAsync(
-                new MoneyMarketFundOperation(request.SecId!.Trim(), request.Date, request.Side,
-                    request.Quantity, request.Price, request.Commission), cancellationToken);
-        }
-        catch (InvalidOperationException exception)
-        {
-            throw new ApplicationConflictException(exception.Message);
-        }
-    }
 }

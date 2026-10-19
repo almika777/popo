@@ -37,29 +37,28 @@ test("requests bond search at the three-character boundary after trimming", asyn
   }
 });
 
-test("loads and records money-market funds through liquidity routes", async () => {
+test("loads and edits current money-market fund positions through liquidity routes", async () => {
   const originalFetch = globalThis.fetch;
   const requests: Array<{ url: string; method: string }> = [];
   globalThis.fetch = async (input, init) => {
     requests.push({ url: String(input), method: init?.method ?? "GET" });
-    return new Response("{}", { status: 200 });
+    return new Response(init?.method === "DELETE" ? null : "{}", { status: init?.method === "DELETE" ? 204 : 200 });
   };
 
   try {
     await portfolioLedgerApi.getMoneyMarketFundsPage();
-    await portfolioLedgerApi.addMoneyMarketFundOperation({
-      secId: "LQDT",
-      date: "2026-10-18",
-      side: "Buy",
-      quantity: 1,
-      price: 100,
-      commission: 0
-    });
+    const payload = { secId: "LQDT", quantity: 100, averagePrice: 2.15 };
+    await portfolioLedgerApi.addMoneyMarketFund(payload);
+    await portfolioLedgerApi.updateMoneyMarketFund("fund-id", payload);
+    await portfolioLedgerApi.deleteMoneyMarketFund("fund-id");
 
     assert.deepEqual(requests, [
       { url: "http://localhost:5109/api/liquidity/money-market-funds/page", method: "GET" },
-      { url: "http://localhost:5109/api/liquidity/money-market-fund-operations", method: "POST" }
+      { url: "http://localhost:5109/api/liquidity/money-market-funds", method: "POST" },
+      { url: "http://localhost:5109/api/liquidity/money-market-funds/fund-id", method: "PUT" },
+      { url: "http://localhost:5109/api/liquidity/money-market-funds/fund-id", method: "DELETE" }
     ]);
+    assert.equal("addMoneyMarketFundOperation" in portfolioLedgerApi, false);
   } finally {
     globalThis.fetch = originalFetch;
   }

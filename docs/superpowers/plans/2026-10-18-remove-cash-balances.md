@@ -1,5 +1,7 @@
 # Remove cash balance tracking Implementation Plan
 
+> Исторический план сохранения журнала операций фондов superseded [планом ручного учёта текущих позиций](2026-10-19-manual-money-market-fund-positions.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove cash snapshot and balance tracking while retaining money-market funds and their operations.
@@ -12,7 +14,7 @@
 
 ## Global Constraints
 
-- Keep `MoneyMarketFunds` and `MoneyMarketFundOperations` behavior and persisted data.
+- The original plan kept `MoneyMarketFunds` and `MoneyMarketFundOperations`; its fund scope is superseded by the 2026-10-19 manual-position plan above.
 - Keep `PortfolioCashFlows` behavior used by TWR and benchmark calculations.
 - Keep cash recommendation behavior; it does not depend on cash balances.
 - Change the EF Core schema only through a migration, per ADR-0002.

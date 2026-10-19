@@ -23,24 +23,3 @@ public sealed class UpsertMoneyMarketFundRequestValidator : AbstractValidator<Up
             .WithMessage("Средняя цена должна быть положительной.");
     }
 }
-
-public sealed class AddMoneyMarketFundOperationRequestValidator : AbstractValidator<AddMoneyMarketFundOperationRequest>
-{
-    public AddMoneyMarketFundOperationRequestValidator()
-    {
-        RuleFor(request => request)
-            .Must(IsValid)
-            .WithMessage("Проверьте фонд, тип операции, количество, цену и комиссию.");
-    }
-
-    private static bool IsValid(AddMoneyMarketFundOperationRequest request) =>
-        RelationHelper.MoneyMarketFunds.ContainsKey(request.SecId?.Trim() ?? string.Empty)
-        && Enum.IsDefined(request.Side)
-        && double.IsFinite(request.Quantity)
-        && request.Quantity > 0
-        && request.Quantity == Math.Truncate(request.Quantity)
-        && double.IsFinite(request.Price)
-        && request.Price > 0
-        && double.IsFinite(request.Commission)
-        && request.Commission >= 0;
-}

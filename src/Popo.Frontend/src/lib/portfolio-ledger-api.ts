@@ -12,8 +12,7 @@ export type PositionTotals = { marketValueRub: number; investedAmountRub: number
 export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTotals; recommendation: PositionRecommendationState };
 export type MoneyMarketFundOption = { secId: string; boardId: string; name: string };
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
-export type MoneyMarketFundOperation = { id: string; secId: string; date: string; side: TradeSide; quantity: number; price: number; commission: number; amount: number };
-export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[]; moneyMarketFundOperations: MoneyMarketFundOperation[] };
+export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[] };
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -50,5 +49,4 @@ export const portfolioLedgerApi = {
   addMoneyMarketFund: (payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>("/liquidity/money-market-funds", { method: "POST", body: JSON.stringify(payload) }),
   updateMoneyMarketFund: (id: string, payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>(`/liquidity/money-market-funds/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteMoneyMarketFund: (id: string) => request<void>(`/liquidity/money-market-funds/${id}`, { method: "DELETE" }),
-  addMoneyMarketFundOperation: (payload: Omit<MoneyMarketFundOperation, "id" | "amount">) => request<MoneyMarketFundOperation>("/liquidity/money-market-fund-operations", { method: "POST", body: JSON.stringify(payload) }),
 };

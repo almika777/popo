@@ -24,7 +24,6 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
     public DbSet<PortfolioCashFlowEntity> PortfolioCashFlows => Set<PortfolioCashFlowEntity>();
     public DbSet<PortfolioTradeEntity> PortfolioTrades => Set<PortfolioTradeEntity>();
     public DbSet<MoneyMarketFundEntity> MoneyMarketFunds => Set<MoneyMarketFundEntity>();
-    public DbSet<MoneyMarketFundOperationEntity> MoneyMarketFundOperations => Set<MoneyMarketFundOperationEntity>();
     public DbSet<InvestmentStrategySettingsEntity> InvestmentStrategySettings => Set<InvestmentStrategySettingsEntity>();
     public DbSet<PositionRecommendationStateEntity> PositionRecommendationStates => Set<PositionRecommendationStateEntity>();
     public DbSet<InitializationJobStateEntity> InitializationJobStates => Set<InitializationJobStateEntity>();
@@ -94,14 +93,6 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
         {
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.SecId, x.BoardId }).IsUnique();
-        });
-        modelBuilder.Entity<MoneyMarketFundOperationEntity>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.Date, x.SecId });
-            entity.Property(x => x.Quantity).HasPrecision(20, 6);
-            entity.Property(x => x.Price).HasPrecision(20, 6);
-            entity.Property(x => x.Commission).HasPrecision(20, 6);
         });
         modelBuilder.Entity<InvestmentStrategySettingsEntity>(entity =>
         {

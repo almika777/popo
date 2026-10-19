@@ -21,7 +21,7 @@ public sealed class PortfolioPositionsServiceTests
         const string boardId = "TQCB";
         var asOf = MoscowTime.Today;
         var position = new PortfolioPositionRecord(secId, boardId, "RUB", 1, 1, 0, 900, 900, 0, 900);
-        var fund = new MoneyMarketFundRecord(Guid.NewGuid(), "LQDT", "TQBR", 10, 99);
+        var fund = new MoneyMarketFundRecord(Guid.NewGuid(), "LQDT", "TQBR", 110, 10.875);
         var moex = new FakeMoexHttpClient(
             new MoexBond
             {
@@ -37,7 +37,7 @@ public sealed class PortfolioPositionsServiceTests
             {
                 SecId = secId,
                 BoardId = boardId,
-                LCurrentPrice = 99,
+                LCurrentPrice = 11.25,
                 SysTime = asOf.ToDateTime(TimeOnly.MinValue)
             });
         var service = new PortfolioPositionsService(
@@ -50,11 +50,16 @@ public sealed class PortfolioPositionsServiceTests
             new FakeCouponProvider(),
             null!);
 
+        var valuedFunds = await service.GetMoneyMarketFundsAsync(CancellationToken.None);
         var overview = await service.GetOverviewAsync(asOf, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
-            Assert.That(overview.Summary.MoneyMarketFundsValueRub, Is.EqualTo(990).Within(0.001));
+            Assert.That(valuedFunds.Single().CurrentPrice, Is.EqualTo(11.25));
+            Assert.That(valuedFunds.Single().CurrentValue, Is.EqualTo(1237.5).Within(0.001));
+            Assert.That(valuedFunds.Single().Pnl, Is.EqualTo(41.25).Within(0.001));
+            Assert.That(valuedFunds.Single().PnlPercent, Is.EqualTo(41.25 / 1196.25 * 100).Within(0.001));
+            Assert.That(overview.Summary.MoneyMarketFundsValueRub, Is.EqualTo(1237.5).Within(0.001));
             Assert.That(overview.Summary.TotalValueRub,
                 Is.EqualTo(overview.Summary.PositionsValueRub + overview.Summary.MoneyMarketFundsValueRub).Within(0.001));
         });
@@ -411,8 +416,6 @@ public sealed class PortfolioPositionsServiceTests
         public Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> DeleteMoneyMarketFundAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(MoneyMarketFundOperation operation, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeTradesProvider(IReadOnlyList<PortfolioTradeRecord> trades) : IPortfolioTradesProvider
@@ -438,7 +441,13 @@ public sealed class PortfolioPositionsServiceTests
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
-            Task.FromResult(quote);
+            Task.FromResult(new MoexMarketdata
+            {
+                SecId = secId,
+                BoardId = boardId,
+                LCurrentPrice = quote.LCurrentPrice,
+                SysTime = quote.SysTime
+            });
 
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotSupportedException();

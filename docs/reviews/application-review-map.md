@@ -1,17 +1,17 @@
 # Карта ревью контроллеров и методов приложения
 
-Срез актуализирован по структуре рабочей копии на 19.10.2026 после удаления кеша со страницы «Ликвидность» и изменения сводки портфеля. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
+Срез актуализирован по структуре рабочей копии на 19.10.2026 после удаления кеша со страницы «Ликвидность» и перехода фондов на хранение текущего количества паёв и средней цены вместо журнала операций. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
 Включены публичные production-методы достижимых от HTTP-входов и связанных фоновых producer-ов классов; DTO/record-конструкторы и сгенерированный EF-код не являются отдельными пунктами ревью.
 
 ## Этапы и состояние
 
-- [x] **Этап 1. Инвентаризация и карта зависимостей** — актуализирован 19.10.2026: 8 контроллеров и 35 HTTP-методов; учтены текущие application/Core/Storage/HttpClients-узлы и фоновые производители данных.
+- [x] **Этап 1. Инвентаризация и карта зависимостей** — актуализирован 19.10.2026: 8 контроллеров и 34 HTTP-метода; учтены текущие application/Core/Storage/HttpClients-узлы и фоновые производители данных.
 - [ ] **Этап 2. Ревью HTTP-методов контроллеров** — начат 17.10.2026; C01 и связанные методы проверены, R01–R03 исправлены.
 - [ ] **Этап 3. Ревью уникальных application- и Core-методов** — после этапа 2.
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; `BondsController.Search`, `BondsService.SearchAsync` и `BondsProvider.SearchAsync` проверены и выделены в схеме. R01–R03 исправлены; запуск Storage-интеграционных тестов ожидает доступа к Docker API. Денежные остатки и снимки кеша удалены; фонды, cash-рекомендации и денежные потоки портфеля остаются отдельными действующими ветками.
+**Текущий статус:** этап 2; `BondsController.Search`, `BondsService.SearchAsync` и `BondsProvider.SearchAsync` проверены и выделены в схеме. R01–R03 исправлены; тесты проходят: .NET — 406, Storage — 37, Frontend — 43. Денежные остатки/снимки кеша и журнал операций фондов удалены; страница ликвидности хранит текущие позиции фондов, а cash-рекомендации и денежные потоки портфеля остаются отдельными действующими ветками.
 
 ## Как пользоваться картой
 
@@ -32,8 +32,7 @@ Popo.Api
 │   ├── GET    /money-market-funds/page       → S02
 │   ├── POST   /money-market-funds            → S03
 │   ├── PUT    /money-market-funds/{id}       → S03
-│   ├── DELETE /money-market-funds/{id}       → S03
-│   └── POST   /money-market-fund-operations  → S03
+│   └── DELETE /money-market-funds/{id}       → S03
 ├── C03 CashRecommendationsController (/api/recommendations)
 │   ├── GET    /cash/page                     → S05
 │   ├── GET    /cash                          → S07
@@ -92,7 +91,6 @@ Popo.Api
 - [ ] `POST /api/liquidity/money-market-funds` — `AddMoneyMarketFund` → `S03.AddMoneyMarketFundAsync`.
 - [ ] `PUT /api/liquidity/money-market-funds/{id}` — `UpdateMoneyMarketFund` → `S03.UpdateMoneyMarketFundAsync`.
 - [ ] `DELETE /api/liquidity/money-market-funds/{id}` — `DeleteMoneyMarketFund` → `S03.DeleteMoneyMarketFundAsync`.
-- [ ] `POST /api/liquidity/money-market-fund-operations` — `AddMoneyMarketFundOperation` → `S03.AddMoneyMarketFundOperationAsync`.
 
 ### C03 — `CashRecommendationsController`
 
@@ -156,7 +154,7 @@ Popo.Api
 ### Общий HTTP-контур — один раз для всех Cxx
 
 - [ ] `FluentValidationActionFilter.OnActionExecutionAsync` — [`FluentValidationActionFilter.cs`](../../src/Popo.Api/Filters/FluentValidationActionFilter.cs).
-- [ ] Валидаторы `BondSearchRequest`, strategy settings/preset, fund/operation, valuation/cash-flow/return query и trade — папка [`Validators`](../../src/Popo.Api/Validators/); проверить правила в их `AbstractValidator`-конструкторах.
+- [ ] Валидаторы `BondSearchRequest`, strategy settings/preset, fund, valuation/cash-flow/return query и trade — папка [`Validators`](../../src/Popo.Api/Validators/); проверить правила в их `AbstractValidator`-конструкторах.
 - [ ] `ApiExceptionHandler.TryHandleAsync`, типизированные ошибки Core и соответствие статусов ADR-0004 — [`ApiExceptionHandler.cs`](../../src/Popo.Api/ApiExceptionHandler.cs), [`ADR-0004`](../adr/0004-обработка-ошибок-api-вне-контроллеров.md).
 - [ ] `Program.cs`: регистрацию, миграции, CORS, `MapControllers`, OpenAPI/Scalar и `GET /health` — [`Program.cs`](../../src/Popo.Api/Program.cs).
 - [ ] `ApiServiceCollectionExtensions.AddPopoApiServices` — [`ApiServiceCollectionExtensions.cs`](../../src/Popo.Api/ApiServiceCollectionExtensions.cs).
@@ -188,16 +186,15 @@ Popo.Api
 
 Файл: [`MoneyMarketFundsPageService.cs`](../../src/Popo.Api/Services/MoneyMarketFundsPageService.cs). Связи: D03, S11.
 
-- [ ] `GetAsync`; проверить параллельную загрузку и согласованность всех частей ответа.
+- [ ] `GetAsync`; проверить загрузку текущих позиций и согласованность частей ответа.
 
-### S03 — изменение позиций и операций фондов, `MoneyMarketFundManagementService`
+### S03 — изменение текущих позиций фондов, `MoneyMarketFundManagementService`
 
 Файл: [`MoneyMarketFundManagementService.cs`](../../src/Popo.Api/Services/MoneyMarketFundManagementService.cs). Связи: D03.
 
 - [ ] `AddMoneyMarketFundAsync`.
 - [ ] `UpdateMoneyMarketFundAsync`.
 - [ ] `DeleteMoneyMarketFundAsync`.
-- [ ] `AddMoneyMarketFundOperationAsync`.
 
 ### S05 — данные страницы рекомендаций, `CashRecommendationsPageService`
 
@@ -297,8 +294,6 @@ Popo.Api
   - [ ] `GetSecurities`.
 - **D03 `PortfolioMoneyMarketFundsProvider`** (`IPortfolioMoneyMarketFundsProvider`) — S02, S03, S11.
   - [ ] `GetMoneyMarketFundsAsync`.
-  - [ ] `GetMoneyMarketFundOperationsAsync`.
-  - [ ] `AddMoneyMarketFundOperationAsync`.
   - [ ] `AddMoneyMarketFundAsync`.
   - [ ] `UpdateMoneyMarketFundAsync`.
   - [ ] `DeleteMoneyMarketFundAsync`.
@@ -442,8 +437,6 @@ Popo.Api
   - [ ] `PortfolioPositionsValidate.ValidateTradeSequence`.
   - [ ] `PortfolioPositionsValidate.ValidateTrade`.
   - [ ] `TradeSettlementCalculator.Calculate`.
-  - [ ] `MoneyMarketFundOperationCalculator.CalculatePosition`.
-  - [ ] `MoneyMarketFundOperationCalculator.Amount`.
 - **K04 Рекомендации по открытым позициям**, результат читает C07, производит J03.
   - [ ] `PositionRecommendationService.CalculateAsync`.
   - [ ] `PositionRecommendationPolicy.Evaluate`.
@@ -526,7 +519,7 @@ Popo.Api
 |---|---|---|
 | S01 / D01 `BondsService` / `BondsProvider` | C01, S05, S07, S12 | Ревью сервиса и provider один раз; call sites проверять в своих endpoint-ветках. |
 | S11 `PortfolioPositionsService` | C07, S02, S08 | Публичные методы сервиса проверять один раз; ветки используют нужный метод и свой контракт ответа. |
-| D03 `PortfolioMoneyMarketFundsProvider` | S02, S03, S11 | Один provider; сценарии чтения/CRUD/операций остаются в сервисах. |
+| D03 `PortfolioMoneyMarketFundsProvider` | S02, S03, S11 | Один provider; чтение и CRUD текущих позиций проверяются в своих сервисных ветках. |
 | D04 `PortfolioTradesProvider` | S11, S12 | Один provider; сценарии позиций и сделок не дублируют его ревью. |
 | D05 `PortfolioCashFlowsProvider` | S08–S10 | Один provider; проверить разные потребители по их S-узлам. |
 | D06 `PortfolioValuationsProvider` | S08–S10 | Один provider для страницы, CRUD, TWR и benchmark. |
@@ -550,5 +543,5 @@ Popo.Api
 | ID | Замечание | Решение/статус |
 |---|---|---|
 | R01 | **Клиент и API расходились по минимальной длине.** [`trades/page.tsx`](../../src/Popo.Frontend/src/app/trades/page.tsx) отправлял поиск от 2 символов, а `BondSearchRequestValidator` принимает от 3. | **Исправлено:** общий порог 3 символа; короткий ввод очищает варианты и не отправляется в API. Frontend-тесты прошли. |
-| R02 | **Неизвестный НКД превращался в ноль.** Provider отображал `AccruedInt == null` в `0`, и клиент терял различие между нулём и отсутствующими данными. | **Исправлено:** Core/API возвращают nullable `accruedInterest`, Storage сохраняет null, форма требует ручной ввод при неизвестном НКД. Добавлен Storage-тест; запуск заблокирован отказом Docker API. |
-| R03 | **Покрытие поиска было частичным.** Не было успешного теста действия контроллера, поиска по `ShortName`, пустого результата, null НКД и изоляции тестовых наборов. Тест валюты не проверял fallback. | **Исправлено в тестовом наборе:** добавлены тесты controller и provider; Storage-тесты используют отдельную схему и уникальные SECID на тест; тест валюты переименован и проверяет прямое значение. Frontend: 42 теста пройдены; .NET/Storage-тесты не подтверждены из-за отказа доступа к Docker API и сбоя запуска `dotnet test`. |
+| R02 | **Неизвестный НКД превращался в ноль.** Provider отображал `AccruedInt == null` в `0`, и клиент терял различие между нулём и отсутствующими данными. | **Исправлено:** Core/API возвращают nullable `accruedInterest`, Storage сохраняет null, форма требует ручной ввод при неизвестном НКД. Storage-тест добавлен и прошёл. |
+| R03 | **Покрытие поиска было частичным.** Не было успешного теста действия контроллера, поиска по `ShortName`, пустого результата, null НКД и изоляции тестовых наборов. Тест валюты не проверял fallback. | **Исправлено и проверено:** добавлены тесты controller и provider; Storage-тесты используют отдельную схему и уникальные SECID на тест; тест валюты проверяет прямое значение. Успешно прошли .NET (406), Storage (37) и Frontend (43) теста; `dotnet ef migrations has-pending-model-changes` подтвердил отсутствие несозданной миграции. |

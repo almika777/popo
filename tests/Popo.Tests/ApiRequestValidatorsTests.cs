@@ -49,15 +49,11 @@ public sealed class ApiRequestValidatorsTests
     {
         var fund = await new UpsertMoneyMarketFundRequestValidator().ValidateAsync(
             new UpsertMoneyMarketFundRequest("OTHER", 1.5, 0));
-        var fundOperation = await new AddMoneyMarketFundOperationRequestValidator().ValidateAsync(
-            new AddMoneyMarketFundOperationRequest("LQDT", new DateOnly(2026, 1, 1), TradeSide.Buy, 1.5, 10, 0));
         var trade = await new UpsertPortfolioTradeRequestValidator().ValidateAsync(
             new UpsertPortfolioTradeRequest("SBER", "TQBR", "RUB", new DateOnly(2026, 1, 1),
                 TradeSide.Buy, 1, 10, 1000, 0, 0));
 
         Assert.That(fund.Errors.Select(error => error.ErrorMessage), Does.Contain("Поддерживаются только LQDT и TMON."));
-        Assert.That(fundOperation.Errors.Select(error => error.ErrorMessage),
-            Does.Contain("Проверьте фонд, тип операции, количество, цену и комиссию."));
         Assert.That(trade.IsValid, Is.True);
     }
 
