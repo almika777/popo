@@ -50,35 +50,6 @@ namespace Popo.Storage.Migrations
                     b.ToTable("BondRatings");
                 });
 
-            modelBuilder.Entity("Popo.Storage.Entities.CashSnapshotEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("Amount")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Comment")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CurrencyId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly>("SnapshotDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CurrencyId", "SnapshotDate")
-                        .IsUnique();
-
-                    b.ToTable("CashSnapshots");
-                });
-
             modelBuilder.Entity("Popo.Storage.Entities.ClosedPositionSessionEntity", b =>
                 {
                     b.Property<Guid>("Id")

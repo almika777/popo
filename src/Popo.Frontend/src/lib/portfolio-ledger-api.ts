@@ -7,18 +7,14 @@ export const MIN_BOND_SEARCH_LENGTH = 3;
 export type BondSearchResult = { secId: string; boardId: string; currency: string; shortName: string; accruedInterest: number | null; faceValue: number };
 export type PortfolioTrade = { id: string; secId: string; boardId: string; currencyId: string; tradeDate: string; side: TradeSide; quantity: number; price: number; faceValue: number; accruedInterest: number; commission: number; commissionPercent: number; amount: number; shortName: string };
 export type PortfolioPosition = { secId: string; boardId: string; currencyId: string; quantity: number; boughtQuantity: number; soldQuantity: number; boughtAmount: number; soldAmount: number; averageBuyPrice: number | null; averageBuyPriceAtCurrentFaceValue: number | null; averageBuyPricePercent: number | null; currentFaceValue: number | null; faceUnit: string | null; marketPricePercent: number | null; marketPrice: number | null; marketValue: number | null; unrealizedPnl: number | null; unrealizedPnlPercent: number | null; approximateCouponIncome: number | null; approximateTotalPnl: number | null; approximateTotalPnlPercent: number | null; approximateAnnualizedTotalPnlPercent: number | null; shortName: string; averageDailyVolume: number | null; medianDailyVolume: number | null; isNominalIndexed: boolean };
-export type CashSnapshot = { id: string; currencyId: string; snapshotDate: string; amount: number; comment: string };
-export type CashBalance = { currencyId: string; amount: number };
-export type PortfolioSummary = { asOf: string; totalValueRub: number; positionsValueRub: number; cashValueRub: number; moneyMarketFundsValueRub: number; unrealizedPnlRub: number | null };
+export type PortfolioSummary = { asOf: string; totalValueRub: number; positionsValueRub: number; moneyMarketFundsValueRub: number };
 export type PositionTotals = { marketValueRub: number; investedAmountRub: number | null; unrealizedPnlRub: number | null; unrealizedPnlPercent: number | null };
 export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTotals; recommendation: PositionRecommendationState };
 export type MoneyMarketFundOption = { secId: string; boardId: string; name: string };
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
 export type MoneyMarketFundOperation = { id: string; secId: string; date: string; side: TradeSide; quantity: number; price: number; commission: number; amount: number };
-export type CashPage = { snapshots: CashSnapshot[]; balances: CashBalance[]; currencies: string[] };
 export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[]; moneyMarketFundOperations: MoneyMarketFundOperation[] };
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
-type CashSnapshotPayload = Omit<CashSnapshot, "id">;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -50,13 +46,9 @@ export const portfolioLedgerApi = {
   deleteTrade: (id: string) => request<void>(`/trades/${id}`, { method: "DELETE" }),
   getPositionsPage: () => request<PositionsPage>("/positions"),
   getPositions: async () => (await request<PositionsPage>("/positions")).positions,
-  getCashPage: (asOf: string) => request<CashPage>(`/cash/page?asOf=${asOf}`),
-  getMoneyMarketFundsPage: () => request<MoneyMarketFundsPage>("/cash/money-market-funds/page"),
-  addCashSnapshot: (payload: CashSnapshotPayload) => request<CashSnapshot>("/cash/snapshots", { method: "POST", body: JSON.stringify(payload) }),
-  updateCashSnapshot: (id: string, payload: CashSnapshotPayload) => request<CashSnapshot>(`/cash/snapshots/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
-  deleteCashSnapshot: (id: string) => request<void>(`/cash/snapshots/${id}`, { method: "DELETE" }),
-  addMoneyMarketFund: (payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>("/cash/money-market-funds", { method: "POST", body: JSON.stringify(payload) }),
-  updateMoneyMarketFund: (id: string, payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>(`/cash/money-market-funds/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
-  deleteMoneyMarketFund: (id: string) => request<void>(`/cash/money-market-funds/${id}`, { method: "DELETE" }),
-  addMoneyMarketFundOperation: (payload: Omit<MoneyMarketFundOperation, "id" | "amount">) => request<MoneyMarketFundOperation>("/cash/money-market-fund-operations", { method: "POST", body: JSON.stringify(payload) }),
+  getMoneyMarketFundsPage: () => request<MoneyMarketFundsPage>("/liquidity/money-market-funds/page"),
+  addMoneyMarketFund: (payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>("/liquidity/money-market-funds", { method: "POST", body: JSON.stringify(payload) }),
+  updateMoneyMarketFund: (id: string, payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>(`/liquidity/money-market-funds/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteMoneyMarketFund: (id: string) => request<void>(`/liquidity/money-market-funds/${id}`, { method: "DELETE" }),
+  addMoneyMarketFundOperation: (payload: Omit<MoneyMarketFundOperation, "id" | "amount">) => request<MoneyMarketFundOperation>("/liquidity/money-market-fund-operations", { method: "POST", body: JSON.stringify(payload) }),
 };

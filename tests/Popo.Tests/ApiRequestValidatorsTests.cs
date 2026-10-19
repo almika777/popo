@@ -45,10 +45,8 @@ public sealed class ApiRequestValidatorsTests
     }
 
     [Test]
-    public async Task Ledger_request_validators_reject_invalid_cash_fund_and_trade_inputs()
+    public async Task Ledger_request_validators_reject_invalid_fund_and_trade_inputs()
     {
-        var snapshot = await new UpsertCashSnapshotRequestValidator().ValidateAsync(
-            new UpsertCashSnapshotRequest(" ", new DateOnly(2026, 1, 1), -1, null));
         var fund = await new UpsertMoneyMarketFundRequestValidator().ValidateAsync(
             new UpsertMoneyMarketFundRequest("OTHER", 1.5, 0));
         var fundOperation = await new AddMoneyMarketFundOperationRequestValidator().ValidateAsync(
@@ -57,7 +55,6 @@ public sealed class ApiRequestValidatorsTests
             new UpsertPortfolioTradeRequest("SBER", "TQBR", "RUB", new DateOnly(2026, 1, 1),
                 TradeSide.Buy, 1, 10, 1000, 0, 0));
 
-        Assert.That(snapshot.Errors.Select(error => error.ErrorMessage), Does.Contain("Укажите валюту."));
         Assert.That(fund.Errors.Select(error => error.ErrorMessage), Does.Contain("Поддерживаются только LQDT и TMON."));
         Assert.That(fundOperation.Errors.Select(error => error.ErrorMessage),
             Does.Contain("Проверьте фонд, тип операции, количество, цену и комиссию."));

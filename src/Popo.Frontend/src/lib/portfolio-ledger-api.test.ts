@@ -36,3 +36,31 @@ test("requests bond search at the three-character boundary after trimming", asyn
     globalThis.fetch = originalFetch;
   }
 });
+
+test("loads and records money-market funds through liquidity routes", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ url: string; method: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ url: String(input), method: init?.method ?? "GET" });
+    return new Response("{}", { status: 200 });
+  };
+
+  try {
+    await portfolioLedgerApi.getMoneyMarketFundsPage();
+    await portfolioLedgerApi.addMoneyMarketFundOperation({
+      secId: "LQDT",
+      date: "2026-10-18",
+      side: "Buy",
+      quantity: 1,
+      price: 100,
+      commission: 0
+    });
+
+    assert.deepEqual(requests, [
+      { url: "http://localhost:5109/api/liquidity/money-market-funds/page", method: "GET" },
+      { url: "http://localhost:5109/api/liquidity/money-market-fund-operations", method: "POST" }
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

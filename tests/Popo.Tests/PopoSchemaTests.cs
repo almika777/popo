@@ -16,12 +16,23 @@ public sealed class PopoSchemaTests
         {
             "ActiveSecEntities", "MoexBonds", "MoexBondSecurities", "MoexHistoryYieldsEntities",
             "MoexCouponsEntities", "MoexAmortsEntities", "MoexEmitents", "BondRatings",
-            "CurrencyRates", "PortfolioValuations", "PortfolioCashFlows", "PortfolioTrades", "CashSnapshots",
+            "CurrencyRates", "PortfolioValuations", "PortfolioCashFlows", "PortfolioTrades",
             "MoneyMarketFunds", "MoneyMarketFundOperations", "InvestmentStrategySettings",
             "PositionRecommendationStates", "DailyVolumeStatistics", "InitializationJobStates",
             "ClosedPositionSessions",
             "MoexIndexHistories"
         }));
+    }
+
+    [Test]
+    public void Model_does_not_contain_cash_snapshot_table()
+    {
+        using var context = CreateContext();
+        var tables = context.Model.GetEntityTypes().Select(x => x.GetTableName()).ToHashSet(StringComparer.Ordinal);
+
+        Assert.That(tables, Does.Not.Contain("CashSnapshots"));
+        Assert.That(tables, Does.Contain("MoneyMarketFunds"));
+        Assert.That(tables, Does.Contain("MoneyMarketFundOperations"));
     }
 
     [Test]

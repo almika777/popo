@@ -20,7 +20,6 @@ public interface IPortfolioPositionsService
 }
 
 public sealed class PortfolioPositionsService(
-    IPortfolioService portfolioService,
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
     IPortfolioTradesProvider tradesProvider,
     IPortfolioPositionsProvider positionsProvider,
@@ -71,36 +70,51 @@ public sealed class PortfolioPositionsService(
 
     public async Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
-        var valuedPositions = await LoadPositionsAsync(cancellationToken);
-        var cashBalances = await portfolioService.GetCashBalancesAsync(asOf, cancellationToken);
-        var cashCurrencies = cashBalances
-            .Select(x => x.CurrencyId)
-            .Where(x => !IsRubleCurrency(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var cashRates = cashCurrencies.Length == 0
-            ? []
-            : await LoadCurrencyRatesAsync(cashCurrencies, cancellationToken);
-
-        var cashValueRub = cashBalances.Sum(balance =>
-            balance.Amount * (GetCurrencyRate(cashRates, balance.CurrencyId, asOf) ?? 0));
-        var positionsValueRub = valuedPositions.Sum(x =>
-            x.Position.MarketValue.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
-        var unrealizedPnlRub = valuedPositions.All(x => x.Position.UnrealizedPnl.HasValue)
-            ? valuedPositions.Sum(x => x.Position.UnrealizedPnl!.Value
-                                       * x.TradingCurrencyRateToRub.GetValueOrDefault())
-            : (double?)null;
-        var funds = await GetMoneyMarketFundsAsync(cancellationToken);
+        var positionsTask = LoadPositionMarketValuesAsync(asOf, cancellationToken);
+        var fundsTask = GetMoneyMarketFundsAsync(cancellationToken);
+        await Task.WhenAll(positionsTask, fundsTask);
+        var positionValues = await positionsTask;
+        var positionsValueRub = positionValues.Sum(value => value.GetValueOrDefault());
+        var funds = await fundsTask;
         var fundsValueRub = funds.Sum(x => x.CurrentValue.GetValueOrDefault());
 
         var summary = new PortfolioSummaryRecord(
             asOf,
-            positionsValueRub + cashValueRub + fundsValueRub,
+            positionsValueRub + fundsValueRub,
             positionsValueRub,
-            cashValueRub,
-            fundsValueRub,
-            unrealizedPnlRub);
-        return new PortfolioOverview(cashBalances, summary);
+            fundsValueRub);
+        return new PortfolioOverview(summary);
+    }
+
+    /// <summary>Оценивает текущие позиции по котировкам и курсам без загрузки сделок, купонов и статистики оборотов для расчёта P&amp;L.</summary>
+    private async Task<IReadOnlyList<double?>> LoadPositionMarketValuesAsync(
+        DateOnly asOf,
+        CancellationToken cancellationToken)
+    {
+        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
+        if (positions.Count == 0)
+            return [];
+
+        var marketdataTask = moexHttpClient.GetActiveBondsMarketdataAsync(cancellationToken);
+        var securitiesTask = moexHttpClient.GetActiveBondsSecuritiesAsync(cancellationToken);
+        await Task.WhenAll(marketdataTask, securitiesTask);
+        var data = ResolvePositionData(new PositionSourceData(
+            positions,
+            [],
+            (await marketdataTask).SelectMany(item => item.Value).ToArray(),
+            (await securitiesTask).SelectMany(item => item.Value).ToArray(),
+            new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
+        var currencies = data
+            .SelectMany(item => new[] { item.Position.CurrencyId, item.Security?.FaceUnit ?? item.Position.CurrencyId })
+            .Where(currency => !IsRubleCurrency(currency))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var rates = currencies.Length == 0 ? [] : await LoadCurrencyRatesAsync(currencies, cancellationToken);
+        return data.Select(item =>
+        {
+            var pricing = CalculateMarketPrice(item, rates, asOf);
+            return pricing.MarketPrice * item.Position.Quantity * pricing.TradingCurrencyRateToRub;
+        }).ToArray();
     }
 
     public async Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(
@@ -610,6 +624,4 @@ public sealed class PortfolioPositionsService(
         double? PurchasePriceAtCurrentFaceValue);
 }
 
-public sealed record PortfolioOverview(
-    IReadOnlyList<CashBalance> Balances,
-    PortfolioSummaryRecord Summary);
+public sealed record PortfolioOverview(PortfolioSummaryRecord Summary);

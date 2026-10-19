@@ -76,20 +76,6 @@ public sealed class PortfolioLedgerTests
     }
 
     [Test]
-    public void Cash_UsesAccruedInterestAndCommissionAmount()
-    {
-        var balances = PortfolioCashCalculator.Calculate(
-            [new CashSnapshot("RUB", new DateOnly(2026, 1, 1), 10_000)],
-            [
-                new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 2), TradeSide.Buy, 10, 100, 1_000, 2, 1),
-                new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 3), TradeSide.Sell, 2, 110, 1_000, 3, 1)
-            ],
-            new DateOnly(2026, 1, 3));
-
-        Assert.That(balances.Single().Amount, Is.EqualTo(9_193.54).Within(0.000001));
-    }
-
-    [Test]
       public void Positions_AggregateBuysAndSellsBySecurityBoardAndCurrency()
       {
         var positions = PortfolioPositionCalculator.Calculate(
@@ -327,35 +313,21 @@ public sealed class PortfolioLedgerTests
       }
 
     [Test]
-    public void Cash_UsesLatestCurrencySnapshotAndTradesAfterIt()
+    public void MoneyMarketFundOperations_UpdateQuantityAndAverageCostWithoutCashBalance()
     {
-        var balance = PortfolioCashCalculator.Calculate(
-            [
-                new CashSnapshot("RUB", new DateOnly(2026, 1, 1), 100_000),
-                new CashSnapshot("CNY", new DateOnly(2026, 1, 1), 2_000),
-                new CashSnapshot("RUB", new DateOnly(2026, 1, 10), 80_000)
-            ],
-            [
-                new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 10), TradeSide.Buy, 10, 100),
-                new PortfolioTrade("RU000A", "TQCB", "RUB", new DateOnly(2026, 1, 11), TradeSide.Sell, 2, 150),
-                new PortfolioTrade("CN000A", "TQCB", "CNY", new DateOnly(2026, 1, 11), TradeSide.Buy, 3, 200)
-            ],
-            new DateOnly(2026, 1, 11));
-
-        Assert.That(balance.Single(x => x.CurrencyId == "RUB").Amount, Is.EqualTo(80_300).Within(0.001));
-        Assert.That(balance.Single(x => x.CurrencyId == "CNY").Amount, Is.EqualTo(1_400).Within(0.001));
-    }
-
-    [Test]
-    public void MoneyMarketFundOperations_ChangeRubCashWithCommission()
-    {
+        var fund = new MoneyMarketFund("LQDT", "TQBR", 100, 10);
         var operations = new[]
         {
-            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 2), TradeSide.Sell, 1_000, 1, 40),
-            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 3), TradeSide.Buy, 3_000, 1, 120)
+            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 2), TradeSide.Buy, 50, 12, 10),
+            new MoneyMarketFundOperation("LQDT", new DateOnly(2026, 1, 3), TradeSide.Sell, 30, 15, 5)
         };
 
-        Assert.That(MoneyMarketFundOperationCalculator.CashDelta(operations), Is.EqualTo(-2_160));
-        Assert.That(MoneyMarketFundOperationCalculator.QuantityDelta(operations), Is.EqualTo(2_000));
+        var position = MoneyMarketFundOperationCalculator.CalculatePosition(fund, operations);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(position.Quantity, Is.EqualTo(120));
+            Assert.That(position.AveragePrice, Is.EqualTo((1_000 + 600 + 10) / 150d).Within(0.001));
+        });
     }
 }

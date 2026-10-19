@@ -154,9 +154,6 @@ body {
   flex-wrap: wrap;
 }
 
-.cash-balance-card {
-  min-width: 150px;
-}
 
 .positions-summary {
   display: grid;
@@ -501,21 +498,26 @@ body {
 .portfolio-metrics-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.portfolio-metrics-section + .portfolio-metrics-section {
-  border-left: 1px solid #303030;
-}
-
-.portfolio-metric-card {
-  min-height: 112px;
+  gap: 20px;
   padding: 24px;
 }
 
+.portfolio-metric-card {
+  min-height: 120px;
+  padding: 28px;
+  background: #141414;
+  border: 1px solid #303030;
+  border-radius: 8px;
+}
+
+.portfolio-metric-card > .ant-typography {
+  font-size: 12px;
+}
+
 .portfolio-metric-value {
-  margin-top: 8px;
+  margin-top: 10px;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -530,34 +532,6 @@ body {
   width: 220px;
 }
 
-.portfolio-cash-values {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.portfolio-total-breakdown {
-  display: grid;
-  gap: 5px;
-  margin-top: 12px;
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.portfolio-total-breakdown span {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.portfolio-total-breakdown small {
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.portfolio-total-breakdown strong {
-  font-weight: 500;
-  white-space: nowrap;
-}
 
 .portfolio-return-result {
   margin-top: 24px;
@@ -602,7 +576,12 @@ body {
   }
 
   .portfolio-metric-card {
-    padding: 16px;
+    padding: 22px;
+  }
+
+  .portfolio-metrics-row {
+    gap: 16px;
+    padding: 20px;
   }
 
   .portfolio-benchmark-content {
@@ -614,7 +593,7 @@ body {
   }
 
   .portfolio-metric-value {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 
@@ -622,6 +601,15 @@ body {
   .portfolio-metrics-row,
   .portfolio-return-details {
     grid-template-columns: 1fr;
+  }
+
+  .portfolio-metrics-row {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .portfolio-metric-card {
+    padding: 20px;
   }
 
   .positions-summary,
@@ -650,11 +638,6 @@ body {
 
   .position-detail-metric:first-child {
     border-top: 0;
-  }
-
-  .portfolio-metrics-section + .portfolio-metrics-section {
-    border-top: 1px solid #303030;
-    border-left: 0;
   }
 
   .portfolio-benchmark-metrics .portfolio-metric-card {

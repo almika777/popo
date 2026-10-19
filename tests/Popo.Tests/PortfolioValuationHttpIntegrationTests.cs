@@ -58,10 +58,10 @@ public sealed class PortfolioValuationHttpIntegrationTests
     public async Task PutMoneyMarketFundReturnsThePersistedValuesOverHttp()
     {
         using var client = CreateClient();
-        var rows = await client.GetFromJsonAsync<List<MoneyMarketFundDto>>("cash/money-market-funds");
-        Assert.That(rows, Is.Not.Null.And.Not.Empty);
+        var page = await client.GetFromJsonAsync<MoneyMarketFundsPageDto>("liquidity/money-market-funds/page");
+        Assert.That(page?.MoneyMarketFunds, Is.Not.Null.And.Not.Empty);
 
-        var row = rows![0];
+        var row = page!.MoneyMarketFunds[0];
         var originalQuantity = row.Quantity;
         var originalAveragePrice = row.AveragePrice;
         var updatedQuantity = originalQuantity + 1;
@@ -69,7 +69,7 @@ public sealed class PortfolioValuationHttpIntegrationTests
 
         try
         {
-            using var put = new HttpRequestMessage(HttpMethod.Put, $"cash/money-market-funds/{row.Id}")
+            using var put = new HttpRequestMessage(HttpMethod.Put, $"liquidity/money-market-funds/{row.Id}")
             {
                 Content = JsonContent.Create(new { secId = row.SecId, quantity = updatedQuantity, averagePrice = updatedAveragePrice })
             };
@@ -84,55 +84,11 @@ public sealed class PortfolioValuationHttpIntegrationTests
         }
         finally
         {
-            await client.PutAsJsonAsync($"cash/money-market-funds/{row.Id}", new
+            await client.PutAsJsonAsync($"liquidity/money-market-funds/{row.Id}", new
             {
                 secId = row.SecId,
                 quantity = originalQuantity,
                 averagePrice = originalAveragePrice
-            });
-        }
-    }
-
-    [Test]
-    public async Task PutCashSnapshotReturnsThePersistedValuesOverHttp()
-    {
-        using var client = CreateClient();
-        var rows = await client.GetFromJsonAsync<List<CashSnapshotDto>>("cash/snapshots");
-        Assert.That(rows, Is.Not.Null.And.Not.Empty);
-
-        var row = rows![0];
-        var updatedAmount = row.Amount + 1;
-        var updatedComment = $"{row.Comment} updated";
-
-        try
-        {
-            using var put = new HttpRequestMessage(HttpMethod.Put, $"cash/snapshots/{row.Id}")
-            {
-                Content = JsonContent.Create(new
-                {
-                    currencyId = row.CurrencyId,
-                    snapshotDate = row.SnapshotDate,
-                    amount = updatedAmount,
-                    comment = updatedComment
-                })
-            };
-            var putResponse = await client.SendAsync(put);
-
-            Assert.That(putResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var updatedResponse = await putResponse.Content.ReadFromJsonAsync<CashSnapshotDto>();
-            Assert.That(updatedResponse, Is.Not.Null);
-            Assert.That(updatedResponse!.Id, Is.EqualTo(row.Id));
-            Assert.That(updatedResponse.Amount, Is.EqualTo(updatedAmount));
-            Assert.That(updatedResponse.Comment, Is.EqualTo(updatedComment.Trim()));
-        }
-        finally
-        {
-            await client.PutAsJsonAsync($"cash/snapshots/{row.Id}", new
-            {
-                currencyId = row.CurrencyId,
-                snapshotDate = row.SnapshotDate,
-                amount = row.Amount,
-                comment = row.Comment
             });
         }
     }
@@ -143,6 +99,6 @@ public sealed class PortfolioValuationHttpIntegrationTests
     };
 
     private sealed record ValuationDto(Guid Id, string Date, double TotalValue, string Comment);
+    private sealed record MoneyMarketFundsPageDto(List<MoneyMarketFundDto> MoneyMarketFunds);
     private sealed record MoneyMarketFundDto(Guid Id, string SecId, string BoardId, double Quantity, double AveragePrice);
-    private sealed record CashSnapshotDto(Guid Id, string CurrencyId, string SnapshotDate, double Amount, string Comment);
 }

@@ -4,51 +4,9 @@ using Popo.Core.Portfolio;
 
 namespace Popo.Api.Services;
 
-public sealed class CashManagementService(
-    IPortfolioCashProvider cashProvider,
+public sealed class MoneyMarketFundManagementService(
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider)
 {
-    public async Task<CashSnapshotRecord> AddCashSnapshotAsync(
-        UpsertCashSnapshotRequest request,
-        CancellationToken cancellationToken)
-    {
-        var currencyId = request.CurrencyId.Trim();
-        var snapshots = await cashProvider.GetCashSnapshotsAsync(cancellationToken);
-        if (snapshots.Any(x => x.CurrencyId == currencyId && x.SnapshotDate == request.SnapshotDate))
-            throw new ApplicationConflictException("Снимок кеша для этой валюты и даты уже существует.");
-
-        return await cashProvider.AddCashSnapshotAsync(
-            new CashSnapshot(currencyId, request.SnapshotDate, request.Amount),
-            request.Comment?.Trim() ?? string.Empty,
-            cancellationToken);
-    }
-
-    public async Task<CashSnapshotRecord> UpdateCashSnapshotAsync(
-        Guid id,
-        UpsertCashSnapshotRequest request,
-        CancellationToken cancellationToken)
-    {
-        var currencyId = request.CurrencyId.Trim();
-        var snapshots = await cashProvider.GetCashSnapshotsAsync(cancellationToken);
-        if (snapshots.All(x => x.Id != id))
-            throw new ApplicationResourceNotFoundException();
-        if (snapshots.Any(x => x.Id != id && x.CurrencyId == currencyId && x.SnapshotDate == request.SnapshotDate))
-            throw new ApplicationConflictException("Снимок кеша для этой валюты и даты уже существует.");
-
-        return await cashProvider.UpdateCashSnapshotAsync(
-                   id,
-                   new CashSnapshot(currencyId, request.SnapshotDate, request.Amount),
-                   request.Comment?.Trim() ?? string.Empty,
-                   cancellationToken)
-               ?? throw new ApplicationResourceNotFoundException();
-    }
-
-    public async Task DeleteCashSnapshotAsync(Guid id, CancellationToken cancellationToken)
-    {
-        if (!await cashProvider.DeleteCashSnapshotAsync(id, cancellationToken))
-            throw new ApplicationResourceNotFoundException();
-    }
-
     public async Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(
         UpsertMoneyMarketFundRequest request,
         CancellationToken cancellationToken)

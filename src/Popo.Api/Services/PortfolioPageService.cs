@@ -20,7 +20,6 @@ public sealed class PortfolioPageService(
         return new PortfolioPageResponse(
             await valuationsTask,
             await cashFlowsTask,
-            overview.Balances,
             overview.Summary);
     }
 }

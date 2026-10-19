@@ -24,7 +24,6 @@ public sealed record PortfolioTrade(
     public double CommissionAmount => TradeSettlementCalculator.Calculate(Side, Quantity, Price, AccruedInterest, CommissionPercent).CommissionAmount;
     /// <summary>Сумма расчёта с учётом НКД и комиссии без знака направления; калькулятор меняет знак для покупки.</summary>
     public double Amount => TradeSettlementCalculator.Calculate(Side, Quantity, Price, AccruedInterest, CommissionPercent).NetAmount;
-    public double CashDelta => Side == TradeSide.Buy ? -Amount : Amount;
 }
 
 public sealed record PortfolioTradeRecord(
@@ -82,6 +81,4 @@ public sealed record PortfolioSummaryRecord(
     DateOnly AsOf,
     double TotalValueRub,
     double PositionsValueRub,
-    double CashValueRub,
-    double MoneyMarketFundsValueRub,
-    double? UnrealizedPnlRub);
+    double MoneyMarketFundsValueRub);

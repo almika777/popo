@@ -1,4 +1,4 @@
-import type { CashBalance, PortfolioSummary } from "./portfolio-ledger-api";
+import type { PortfolioSummary } from "./portfolio-ledger-api";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5109/api";
 
@@ -97,7 +97,6 @@ export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): b
 export type PortfolioPage = {
   valuations: PortfolioValuation[];
   cashFlows: PortfolioCashFlow[];
-  balances: CashBalance[];
   summary: PortfolioSummary;
 };
 

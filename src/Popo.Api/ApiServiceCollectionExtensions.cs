@@ -56,7 +56,6 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IValidator<InvestmentStrategySettingsRequest>>(provider =>
             provider.GetRequiredService<InvestmentStrategySettingsRequestValidator>());
         services.AddScoped<IValidator<InvestmentStrategyPresetRequest>, InvestmentStrategyPresetRequestValidator>();
-        services.AddScoped<IValidator<UpsertCashSnapshotRequest>, UpsertCashSnapshotRequestValidator>();
         services.AddScoped<IValidator<UpsertMoneyMarketFundRequest>, UpsertMoneyMarketFundRequestValidator>();
         services.AddScoped<IValidator<AddMoneyMarketFundOperationRequest>, AddMoneyMarketFundOperationRequestValidator>();
         services.AddScoped<IValidator<UpsertPortfolioValuationRequest>, UpsertPortfolioValuationRequestValidator>();
@@ -65,10 +64,8 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IValidator<UpsertPortfolioTradeRequest>, UpsertPortfolioTradeRequestValidator>();
         services.AddScoped<IPortfolioPositionsService, PortfolioPositionsService>();
         services.AddScoped<PortfolioTradesService>();
-        services.AddScoped<IPortfolioService, PortfolioService>();
-        services.AddScoped<CashPageService>();
         services.AddScoped<MoneyMarketFundsPageService>();
-        services.AddScoped<CashManagementService>();
+        services.AddScoped<MoneyMarketFundManagementService>();
         services.AddScoped<PortfolioPageService>();
         services.AddScoped<PortfolioBenchmarkService>();
         services.AddScoped<PortfolioDataService>();

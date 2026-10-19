@@ -1,17 +1,17 @@
 # Карта ревью контроллеров и методов приложения
 
-Срез текущей рабочей копии на 17.10.2026. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
+Срез актуализирован по структуре рабочей копии на 19.10.2026 после удаления кеша со страницы «Ликвидность» и изменения сводки портфеля. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
 Включены публичные production-методы достижимых от HTTP-входов и связанных фоновых producer-ов классов; DTO/record-конструкторы и сгенерированный EF-код не являются отдельными пунктами ревью.
 
 ## Этапы и состояние
 
-- [x] **Этап 1. Инвентаризация и карта зависимостей** — завершён 17.10.2026: 8 контроллеров, 38 HTTP-методов в текущей карте, связанные application/Core/Storage/HttpClients-узлы и фоновые производители данных.
+- [x] **Этап 1. Инвентаризация и карта зависимостей** — актуализирован 19.10.2026: 8 контроллеров и 35 HTTP-методов; учтены текущие application/Core/Storage/HttpClients-узлы и фоновые производители данных.
 - [ ] **Этап 2. Ревью HTTP-методов контроллеров** — начат 17.10.2026; C01 и связанные методы проверены, R01–R03 исправлены.
 - [ ] **Этап 3. Ревью уникальных application- и Core-методов** — после этапа 2.
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; `BondsController.Search`, `BondsService.SearchAsync` и `BondsProvider.SearchAsync` проверены и выделены в схеме. R01–R03 исправлены; запуск Storage-интеграционных тестов ожидает доступа к Docker API.
+**Текущий статус:** этап 2; `BondsController.Search`, `BondsService.SearchAsync` и `BondsProvider.SearchAsync` проверены и выделены в схеме. R01–R03 исправлены; запуск Storage-интеграционных тестов ожидает доступа к Docker API. Денежные остатки и снимки кеша удалены; фонды, cash-рекомендации и денежные потоки портфеля остаются отдельными действующими ветками.
 
 ## Как пользоваться картой
 
@@ -20,6 +20,7 @@
 3. При проверке маршрута не отмечать повторно сервисы и providers. Их чекбоксы находятся в своих разделах.
 4. Лист дерева — публичный метод класса. Для provider-метода проверить контракт Core, реализацию Storage и используемые им запросы/транзакции. Для общего клиента или калькулятора метод проверяется один раз, на остальных ветках остаётся ссылка на его ID.
 5. В конце фиксировать найденное в разделе «Замечания». Непроверенные узлы оставлять пустыми.
+6. Пропуски в ID оставлены намеренно: удалённые узлы не перенумеровываются, чтобы не менять ссылки и историю уже проведённого ревью.
 
 ## Дерево HTTP-входов
 
@@ -27,11 +28,8 @@
 Popo.Api
 ├── C01 BondsController (/api/bonds)
 │   └── GET /search → S01
-├── C02 CashController (/api/cash)
-│   ├── GET    /page                          → S02
-│   ├── POST   /snapshots                     → S03
-│   ├── PUT    /snapshots/{id}                → S03
-│   ├── DELETE /snapshots/{id}                → S03
+├── C02 LiquidityController (/api/liquidity)
+│   ├── GET    /money-market-funds/page       → S02
 │   ├── POST   /money-market-funds            → S03
 │   ├── PUT    /money-market-funds/{id}       → S03
 │   ├── DELETE /money-market-funds/{id}       → S03
@@ -86,18 +84,15 @@ Popo.Api
 
 - [x] `GET /api/bonds/search` — `Search` → `S01.BondsService.SearchAsync`; проверено 17.10.2026, связанные R01–R03 исправлены.
 
-### C02 — `CashController`
+### C02 — `LiquidityController`
 
-Файл: [`CashController.cs`](../../src/Popo.Api/Controllers/CashController.cs)
+Файл: [`LiquidityController.cs`](../../src/Popo.Api/Controllers/LiquidityController.cs)
 
-- [ ] `GET /api/cash/page` — `GetPage` → `S02.CashPageService.GetAsync`.
-- [ ] `POST /api/cash/snapshots` — `AddCashSnapshot` → `S03.CashManagementService.AddCashSnapshotAsync`.
-- [ ] `PUT /api/cash/snapshots/{id}` — `UpdateCashSnapshot` → `S03.UpdateCashSnapshotAsync`.
-- [ ] `DELETE /api/cash/snapshots/{id}` — `DeleteCashSnapshot` → `S03.DeleteCashSnapshotAsync`.
-- [ ] `POST /api/cash/money-market-funds` — `AddMoneyMarketFund` → `S03.AddMoneyMarketFundAsync`.
-- [ ] `PUT /api/cash/money-market-funds/{id}` — `UpdateMoneyMarketFund` → `S03.UpdateMoneyMarketFundAsync`.
-- [ ] `DELETE /api/cash/money-market-funds/{id}` — `DeleteMoneyMarketFund` → `S03.DeleteMoneyMarketFundAsync`.
-- [ ] `POST /api/cash/money-market-fund-operations` — `AddMoneyMarketFundOperation` → `S03.AddMoneyMarketFundOperationAsync`.
+- [ ] `GET /api/liquidity/money-market-funds/page` — `GetMoneyMarketFundsPage` → `S02.MoneyMarketFundsPageService.GetAsync`.
+- [ ] `POST /api/liquidity/money-market-funds` — `AddMoneyMarketFund` → `S03.AddMoneyMarketFundAsync`.
+- [ ] `PUT /api/liquidity/money-market-funds/{id}` — `UpdateMoneyMarketFund` → `S03.UpdateMoneyMarketFundAsync`.
+- [ ] `DELETE /api/liquidity/money-market-funds/{id}` — `DeleteMoneyMarketFund` → `S03.DeleteMoneyMarketFundAsync`.
+- [ ] `POST /api/liquidity/money-market-fund-operations` — `AddMoneyMarketFundOperation` → `S03.AddMoneyMarketFundOperationAsync`.
 
 ### C03 — `CashRecommendationsController`
 
@@ -161,7 +156,7 @@ Popo.Api
 ### Общий HTTP-контур — один раз для всех Cxx
 
 - [ ] `FluentValidationActionFilter.OnActionExecutionAsync` — [`FluentValidationActionFilter.cs`](../../src/Popo.Api/Filters/FluentValidationActionFilter.cs).
-- [ ] Валидаторы `BondSearchRequest`, strategy settings/preset, cash snapshot/fund/operation, valuation/cash-flow/return query и trade — папка [`Validators`](../../src/Popo.Api/Validators/); проверить правила в их `AbstractValidator`-конструкторах.
+- [ ] Валидаторы `BondSearchRequest`, strategy settings/preset, fund/operation, valuation/cash-flow/return query и trade — папка [`Validators`](../../src/Popo.Api/Validators/); проверить правила в их `AbstractValidator`-конструкторах.
 - [ ] `ApiExceptionHandler.TryHandleAsync`, типизированные ошибки Core и соответствие статусов ADR-0004 — [`ApiExceptionHandler.cs`](../../src/Popo.Api/ApiExceptionHandler.cs), [`ADR-0004`](../adr/0004-обработка-ошибок-api-вне-контроллеров.md).
 - [ ] `Program.cs`: регистрацию, миграции, CORS, `MapControllers`, OpenAPI/Scalar и `GET /health` — [`Program.cs`](../../src/Popo.Api/Program.cs).
 - [ ] `ApiServiceCollectionExtensions.AddPopoApiServices` — [`ApiServiceCollectionExtensions.cs`](../../src/Popo.Api/ApiServiceCollectionExtensions.cs).
@@ -182,36 +177,27 @@ Popo.Api
 
 ### S01 — каталог облигаций, Core `BondsService`
 
-Используется C01, S02, S05, S07 и S12. Реализация: [`BondsService.cs`](../../src/Popo.Core/Bonds/BondsService.cs).
+Используется C01, S05, S07 и S12. Реализация: [`BondsService.cs`](../../src/Popo.Core/Bonds/BondsService.cs).
 
 - [x] `SearchAsync` — проверен 17.10.2026; согласован с API-контрактом nullable НКД.
 - [ ] `GetHistoricalFaceValuesAsync`.
 - [ ] `GetTradingCurrenciesAsync`.
 - [ ] `GetFaceUnitsAsync`.
 
-### S02 — страница кеша, `CashPageService`
+### S02 — страница фондов, `MoneyMarketFundsPageService`
 
-Файл: [`CashPageService.cs`](../../src/Popo.Api/Services/CashPageService.cs). Связи: D02, S04, S01, S11, D03.
+Файл: [`MoneyMarketFundsPageService.cs`](../../src/Popo.Api/Services/MoneyMarketFundsPageService.cs). Связи: D03, S11.
 
-- [ ] `GetAsync(asOf)`; проверить параллельную загрузку и согласованность всех частей ответа.
+- [ ] `GetAsync`; проверить параллельную загрузку и согласованность всех частей ответа.
 
-### S03 — изменение кеша и фондов, `CashManagementService`
+### S03 — изменение позиций и операций фондов, `MoneyMarketFundManagementService`
 
-Файл: [`CashManagementService.cs`](../../src/Popo.Api/Services/CashManagementService.cs). Связи: D02, D03.
+Файл: [`MoneyMarketFundManagementService.cs`](../../src/Popo.Api/Services/MoneyMarketFundManagementService.cs). Связи: D03.
 
-- [ ] `AddCashSnapshotAsync`.
-- [ ] `UpdateCashSnapshotAsync`.
-- [ ] `DeleteCashSnapshotAsync`.
 - [ ] `AddMoneyMarketFundAsync`.
 - [ ] `UpdateMoneyMarketFundAsync`.
 - [ ] `DeleteMoneyMarketFundAsync`.
 - [ ] `AddMoneyMarketFundOperationAsync`.
-
-### S04 — общий расчёт валютного кеша, `PortfolioService`
-
-Файл: [`PortfolioService.cs`](../../src/Popo.Api/Services/PortfolioService.cs). Используется S02 и S08 → S11; зависимости D02–D05; расчёт K01.
-
-- [ ] `GetCashBalancesAsync(asOf)`.
 
 ### S05 — данные страницы рекомендаций, `CashRecommendationsPageService`
 
@@ -241,9 +227,9 @@ Popo.Api
 
 ### S08 — сводка страницы портфеля, `PortfolioPageService`
 
-Файл: [`PortfolioPageService.cs`](../../src/Popo.Api/Services/PortfolioPageService.cs). Использует D05, D06 и `S11.GetOverviewAsync`.
+Файл: [`PortfolioPageService.cs`](../../src/Popo.Api/Services/PortfolioPageService.cs). Использует D05, D06 и `S11.GetOverviewAsync` для сборки данных страницы.
 
-- [ ] `GetAsync(asOf)`; проверить параллельное выполнение и состав `PortfolioPageResponse`.
+- [ ] `GetAsync(asOf)`; проверить параллельное выполнение и состав `PortfolioPageResponse`: денежные потоки и оценки для графика, сводные значения позиций/фондов/общего объёма из S11. Автоматическую доходность на странице не рассчитывает.
 
 ### S09 — оценки, денежные потоки, доходность, `PortfolioDataService`
 
@@ -266,12 +252,12 @@ Popo.Api
 
 ### S11 — открытые позиции, `PortfolioPositionsService`
 
-Файл: [`PortfolioPositionsService.cs`](../../src/Popo.Api/Services/Position/PortfolioPositionsService.cs). Использует S04, D03–D04, D07–D09, D14, D19, H01 и K02–K03. Также вызывается S02 и S08.
+Файл: [`PortfolioPositionsService.cs`](../../src/Popo.Api/Services/Position/PortfolioPositionsService.cs). Использует D03–D04, D07–D09, D14, D19, H01 и K02–K03. Также вызывается S02 и S08.
 
 - [ ] `GetPageAsync`.
 - [ ] `GetPositionsAsync` — проверить контракт; прямого production-вызова из контроллеров в текущей карте нет.
 - [ ] `GetOverviewAsync(asOf)` — портфельная сводка.
-- [ ] `GetMoneyMarketFundsAsync` — котировки и оценка фондов для C03.
+- [ ] `GetMoneyMarketFundsAsync` — котировки и оценка фондов для C02.
 - [ ] Загрузка источников, выбор калькулятора, цены, валют, купонов и fallback-пути — проверить внутри соответствующих методов выше.
 
 ### S12 — журнал сделок, `PortfolioTradesService`
@@ -309,26 +295,20 @@ Popo.Api
   - [ ] `GetTradingCurrenciesAsync`.
   - [ ] `GetFaceUnitsAsync`.
   - [ ] `GetSecurities`.
-- **D02 `PortfolioCashProvider`** (`IPortfolioCashProvider`) — S02, S03, S04.
-  - [ ] `GetCashSnapshotsAsync`.
-  - [ ] `GetCashSnapshotAsync`.
-  - [ ] `AddCashSnapshotAsync`.
-  - [ ] `UpdateCashSnapshotAsync`.
-  - [ ] `DeleteCashSnapshotAsync`.
-- **D03 `PortfolioMoneyMarketFundsProvider`** (`IPortfolioMoneyMarketFundsProvider`) — S02–S04, S11.
+- **D03 `PortfolioMoneyMarketFundsProvider`** (`IPortfolioMoneyMarketFundsProvider`) — S02, S03, S11.
   - [ ] `GetMoneyMarketFundsAsync`.
   - [ ] `GetMoneyMarketFundOperationsAsync`.
   - [ ] `AddMoneyMarketFundOperationAsync`.
   - [ ] `AddMoneyMarketFundAsync`.
   - [ ] `UpdateMoneyMarketFundAsync`.
   - [ ] `DeleteMoneyMarketFundAsync`.
-- **D04 `PortfolioTradesProvider`** (`IPortfolioTradesProvider`) — S04, S11, S12; закрытые сессии читают сделки через отдельный source provider.
+- **D04 `PortfolioTradesProvider`** (`IPortfolioTradesProvider`) — S11, S12; закрытые сессии читают сделки через отдельный source provider.
   - [ ] `GetTradesAsync`.
   - [ ] `GetTradeAsync`.
   - [ ] `AddTradeAsync`.
   - [ ] `UpdateTradeAsync`.
   - [ ] `DeleteTradeAsync`.
-- **D05 `PortfolioCashFlowsProvider`** (`IPortfolioCashFlowsProvider`) — S04, S08–S10.
+- **D05 `PortfolioCashFlowsProvider`** (`IPortfolioCashFlowsProvider`) — S08–S10.
   - [ ] `GetCashFlowsAsync`.
   - [ ] `GetCashFlowAsync`.
   - [ ] `AddCashFlowAsync`.
@@ -440,8 +420,6 @@ Popo.Api
 
 ### Kxx — Core-калькуляторы и бизнесовые правила
 
-- **K01 Денежный баланс, используется S04.**
-  - [ ] `PortfolioCashCalculator.Calculate` — снимки, сделки, операции фондов, cash flows и дата отсечения.
 - **K02 Калькуляторы открытой позиции, используются S11.** Проверки открытых лотов и расчёта сделок учтены один раз в K03.
   - [ ] `PositionCalculatorFactory.Create`.
   - [ ] `DefaultPositionCalculator.Calculate`.
@@ -466,8 +444,6 @@ Popo.Api
   - [ ] `TradeSettlementCalculator.Calculate`.
   - [ ] `MoneyMarketFundOperationCalculator.CalculatePosition`.
   - [ ] `MoneyMarketFundOperationCalculator.Amount`.
-  - [ ] `MoneyMarketFundOperationCalculator.CashDelta`.
-  - [ ] `MoneyMarketFundOperationCalculator.QuantityDelta`.
 - **K04 Рекомендации по открытым позициям**, результат читает C07, производит J03.
   - [ ] `PositionRecommendationService.CalculateAsync`.
   - [ ] `PositionRecommendationPolicy.Evaluate`.
@@ -548,14 +524,12 @@ Popo.Api
 
 | Канонический узел | Вызовы/читатели | Правило |
 |---|---|---|
-| S01 / D01 `BondsService` / `BondsProvider` | C01, S02, S05, S07, S12 | Ревью сервиса и provider один раз; call sites проверять в своих endpoint-ветках. |
-| S04 `PortfolioService.GetCashBalancesAsync` | S02, S08 | Общий расчёт остатков кеша; входные данные и формула проверяются через D02–D05/K01. |
+| S01 / D01 `BondsService` / `BondsProvider` | C01, S05, S07, S12 | Ревью сервиса и provider один раз; call sites проверять в своих endpoint-ветках. |
 | S11 `PortfolioPositionsService` | C07, S02, S08 | Публичные методы сервиса проверять один раз; ветки используют нужный метод и свой контракт ответа. |
-| D03 `PortfolioMoneyMarketFundsProvider` | S02–S04, S11 | Один provider; сценарии чтения/CRUD/операций остаются в сервисах. |
-| D04 `PortfolioTradesProvider` | S04, S11, S12 | Один provider; сценарии баланса, позиции и сделок не дублируют его ревью. |
-| D05 `PortfolioCashFlowsProvider` | S04, S08–S10 | Один provider; проверить разные потребители по их S-узлам. |
+| D03 `PortfolioMoneyMarketFundsProvider` | S02, S03, S11 | Один provider; сценарии чтения/CRUD/операций остаются в сервисах. |
+| D04 `PortfolioTradesProvider` | S11, S12 | Один provider; сценарии позиций и сделок не дублируют его ревью. |
+| D05 `PortfolioCashFlowsProvider` | S08–S10 | Один provider; проверить разные потребители по их S-узлам. |
 | D06 `PortfolioValuationsProvider` | S08–S10 | Один provider для страницы, CRUD, TWR и benchmark. |
-| D02 `PortfolioCashProvider` | S02–S04 | Один provider; бизнес-расчёт остатков — S04/K01. |
 | D09 `HistoryProvider` | S07, S11 | Общий источник объёмов; S07 оценивает кандидатов, S11 рассчитывает позиции. |
 | D10 `DailyVolumeStatisticsStore` | D09, J02 | J02 обновляет статистику, D09 читает её; writer и reader сверяются без повторного ревью хранилища. |
 | D11 `InvestmentStrategySettingsStore` | S05–S07 | Store один раз; CRUD и чтение активных настроек проверять на соответствующих S-узлах. |

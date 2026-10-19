@@ -569,7 +569,7 @@ public sealed class PortfolioReturnsApiContractTests
             Task.FromResult(new List<MoexEmitentDescription>());
     }
 
-    private sealed class FakePositionsService : IPortfolioPositionsService
+    private sealed class FakePositionsService(PortfolioOverview? overview = null) : IPortfolioPositionsService
     {
         public Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -578,7 +578,7 @@ public sealed class PortfolioReturnsApiContractTests
             throw new NotSupportedException();
 
         public Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            Task.FromResult(overview ?? throw new NotSupportedException());
 
         public Task<PortfolioSummaryRecord> GetSummaryAsync(DateOnly asOf, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -591,9 +591,10 @@ public sealed class PortfolioReturnsApiContractTests
     {
         public List<PortfolioValuationRecord> Valuations { get; } = [];
         public List<PortfolioCashFlowRecord> CashFlows { get; } = [];
-
-        public Task<IReadOnlyList<PortfolioValuationRecord>> GetValuationsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<PortfolioValuationRecord>>(Valuations);
+        public Task<IReadOnlyList<PortfolioValuationRecord>> GetValuationsAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<PortfolioValuationRecord>>(Valuations);
+        }
 
         public Task<PortfolioValuationRecord?> GetValuationAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(Valuations.SingleOrDefault(x => x.Id == id));
@@ -620,8 +621,10 @@ public sealed class PortfolioReturnsApiContractTests
         public Task<bool> DeleteValuationAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(false);
 
-        public Task<IReadOnlyList<PortfolioCashFlowRecord>> GetCashFlowsAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<PortfolioCashFlowRecord>>(CashFlows);
+        public Task<IReadOnlyList<PortfolioCashFlowRecord>> GetCashFlowsAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<PortfolioCashFlowRecord>>(CashFlows);
+        }
 
         public Task<PortfolioCashFlowRecord?> GetCashFlowAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult(CashFlows.SingleOrDefault(x => x.Id == id));

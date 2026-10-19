@@ -39,16 +39,6 @@ public static class MoneyMarketFundOperationCalculator
     public static double Amount(MoneyMarketFundOperation operation) =>
         operation.Quantity * operation.Price;
 
-    /// <summary>Рассчитывает изменение денежного остатка по операциям фондов с учётом комиссии.</summary>
-    /// <param name="operations">Операции покупки и продажи для суммирования.</param>
-    /// <returns>Суммарное изменение кеша: покупки уменьшают остаток, продажи увеличивают.</returns>
-    public static double CashDelta(IEnumerable<MoneyMarketFundOperation> operations) =>
-        operations.Sum(operation => operation.Side == TradeSide.Buy
-            ? -Amount(operation) - operation.Commission
-            : Amount(operation) - operation.Commission);
-
-    public static double QuantityDelta(IEnumerable<MoneyMarketFundOperation> operations) =>
-        operations.Sum(operation => operation.Side == TradeSide.Buy ? operation.Quantity : -operation.Quantity);
 }
 
 public sealed record MoneyMarketFundPosition(double Quantity, double AveragePrice);

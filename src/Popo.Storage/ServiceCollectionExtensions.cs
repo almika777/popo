@@ -33,7 +33,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPortfolioValuationsProvider, PortfolioValuationsProvider>();
         services.AddScoped<IPortfolioCashFlowsProvider, PortfolioCashFlowsProvider>();
         services.AddScoped<IPortfolioMoneyMarketFundsProvider, PortfolioMoneyMarketFundsProvider>();
-        services.AddScoped<IPortfolioCashProvider, PortfolioCashProvider>();
         services.AddScoped<IPortfolioTradesProvider, PortfolioTradesProvider>();
         services.AddScoped<IPortfolioPositionsProvider, PortfolioPositionsProvider>();
         services.AddScoped<IClosedPositionSessionSourceProvider, ClosedPositionSessionSourceProvider>();

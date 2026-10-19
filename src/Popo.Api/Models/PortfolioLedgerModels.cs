@@ -14,12 +14,6 @@ public sealed record UpsertPortfolioTradeRequest(
     double AccruedInterestTotal,
     double CommissionPercent);
 
-public sealed record UpsertCashSnapshotRequest(
-    string CurrencyId,
-    DateOnly SnapshotDate,
-    double Amount,
-    string? Comment);
-
 public sealed record UpsertMoneyMarketFundRequest(
     string SecId,
     double Quantity,
@@ -45,11 +39,6 @@ public sealed record PositionTotalsResponse(
     double? UnrealizedPnlPercent);
 
 public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId, string Name);
-
-public sealed record CashPageResponse(
-    IReadOnlyList<CashSnapshotRecord> Snapshots,
-    IReadOnlyList<CashBalance> Balances,
-    IReadOnlyList<string> Currencies);
 
 public sealed record MoneyMarketFundsPageResponse(
     IReadOnlyList<MoneyMarketFundRecord> MoneyMarketFunds,
