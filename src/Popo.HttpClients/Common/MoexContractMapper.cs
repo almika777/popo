@@ -154,6 +154,9 @@ internal static class MoexContractMapper
         SeqNum = source.SeqNum,
     };
 
+    /// <summary>Переносит поля рыночной котировки из транспортной модели MOEX в контракт Core.</summary>
+    /// <param name="source">Строка рыночных данных из ответа MOEX ISS.</param>
+    /// <returns>Котировка в контракте, используемом расчётами приложения.</returns>
     public static CoreModels.MoexMarketdata ToContract(this Iss.MoexMarketdata source) => new()
     {
         SecId = source.SecId,

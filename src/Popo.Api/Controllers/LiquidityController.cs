@@ -11,6 +11,9 @@ public sealed class LiquidityController(
     MoneyMarketFundManagementService managementService,
     MoneyMarketFundsPageService fundsPageService) : ControllerBase
 {
+    /// <summary>Возвращает позиции фондов денежного рынка, доступные фонды для выбора и историю операций.</summary>
+    /// <param name="cancellationToken">Токен отмены запроса.</param>
+    /// <returns>Данные страницы фондов денежного рынка.</returns>
     [HttpGet("money-market-funds/page")]
     public async Task<ActionResult<MoneyMarketFundsPageResponse>> GetMoneyMarketFundsPage(
         CancellationToken cancellationToken) =>

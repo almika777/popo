@@ -16,6 +16,10 @@ public interface IPortfolioPositionsService
 {
     Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken);
     Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken);
+
+    /// <summary>Возвращает позиции фондов с доступной рыночной оценкой MOEX и рассчитанным результатом.</summary>
+    /// <param name="cancellationToken">Токен отмены загрузки данных.</param>
+    /// <returns>Позиции фондов; при недоступной котировке сохранённые данные позиции остаются в ответе.</returns>
     Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
 }
 
@@ -117,42 +121,29 @@ public sealed class PortfolioPositionsService(
         }).ToArray();
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(
         CancellationToken cancellationToken)
     {
         var funds = await moneyMarketFundsProvider.GetMoneyMarketFundsAsync(cancellationToken);
-        return await Task.WhenAll(funds.Select(async fund =>
+        var fundsMarketdata = await Task.WhenAll(funds.Select(x => moexHttpClient
+            .GetMoneyMarketFundMarketdataAsync(x.SecId, x.BoardId, cancellationToken)));
+        return funds.Select(fund =>
         {
-            try
+            var quote = fundsMarketdata.First(x => x.SecId == fund.SecId && x.BoardId == fund.BoardId);
+            var currentPrice = quote.CurrentPrice;
+            double? currentValue = currentPrice.HasValue ? fund.Quantity * currentPrice.Value : null;
+            var invested = fund.Quantity * fund.AveragePrice;
+            var pnl = currentValue - invested;
+            return fund with
             {
-                var quote = await moexHttpClient.GetMoneyMarketFundMarketdataAsync(fund.SecId, fund.BoardId,
-                    cancellationToken);
-                var currentPrice = quote.CurrentPrice;
-                double? currentValue = currentPrice.HasValue ? fund.Quantity * currentPrice.Value : null;
-                var invested = fund.Quantity * fund.AveragePrice;
-                var pnl = currentValue - invested;
-                return fund with
-                {
-                    CurrentPrice = currentPrice,
-                    CurrentValue = currentValue,
-                    Pnl = pnl,
-                    PnlPercent = invested == 0 ? null : pnl / invested * 100,
-                    QuoteTime = quote.SysTime
-                };
-            }
-            catch (HttpRequestException)
-            {
-                return fund;
-            }
-            catch (InvalidOperationException)
-            {
-                return fund;
-            }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                return fund;
-            }
-        }));
+                CurrentPrice = currentPrice,
+                CurrentValue = currentValue,
+                Pnl = pnl,
+                PnlPercent = invested == 0 ? null : pnl / invested * 100,
+                QuoteTime = quote.SysTime
+            };
+        }).ToArray();
     }
 
     private async Task<IReadOnlyList<ValuedPosition>> LoadPositionsAsync(CancellationToken cancellationToken)
@@ -210,7 +201,7 @@ public sealed class PortfolioPositionsService(
             var securityKey = marketdata is not null
                 ? InstrumentKey(marketdata.SecId, marketdata.BoardId)
                 : InstrumentKey(position.SecId, position.BoardId);
-            var security =  securitiesByKey.GetValueOrDefault(securityKey);
+            var security = securitiesByKey.GetValueOrDefault(securityKey);
             return new PositionData(
                 position,
                 marketdata,
@@ -270,10 +261,10 @@ public sealed class PortfolioPositionsService(
             .Where(x => x.Trade.Side == TradeSide.Buy)
             .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
         var positionCalculation = calculator is DefaultPositionCalculator
-                                 && (!marketPricing.MarketPrice.HasValue
-                                     || data.Marketdata?.CurrentPrice is null
-                                     || data.Security is null
-                                     || !canNormalizeOpenCost)
+                                  && (!marketPricing.MarketPrice.HasValue
+                                      || data.Marketdata?.CurrentPrice is null
+                                      || data.Security is null
+                                      || !canNormalizeOpenCost)
             ? new PositionCalculationResult(
                 null,
                 PortfolioPositionCalculator.Calculate(data.Position, marketPricing.MarketPrice),
@@ -394,8 +385,8 @@ public sealed class PortfolioPositionsService(
             .Where(x => x.Date <= quoteDate && x.Value.HasValue)
             .OrderByDescending(x => x.Date)
             .FirstOrDefault(x =>
-            string.Equals(x.SecId, data.Security.SecId, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(x.Isin, data.Security.Isin, StringComparison.OrdinalIgnoreCase));
+                string.Equals(x.SecId, data.Security.SecId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.Isin, data.Security.Isin, StringComparison.OrdinalIgnoreCase));
 
         return latestCoupon is not null
             ? ConvertCurrencyAmount(
@@ -569,7 +560,7 @@ public sealed class PortfolioPositionsService(
     {
         if (IsRubleCurrency(currency))
             return 1;
-        
+
         return rates
             .Where(x => string.Equals(x.CurrencyCode, currency, StringComparison.OrdinalIgnoreCase) &&
                         x.RateDate <= date)
@@ -589,7 +580,7 @@ public sealed class PortfolioPositionsService(
         IReadOnlyList<MoexBond> Securities,
         IReadOnlyDictionary<string, DailyVolumeStatistics> VolumeStatistics)
     {
-        public static PositionSourceData Empty => 
+        public static PositionSourceData Empty =>
             new([], [], [], [], new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase));
     };
 

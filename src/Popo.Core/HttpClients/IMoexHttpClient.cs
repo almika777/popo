@@ -16,6 +16,11 @@ public interface IMoexHttpClient
 
     Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct);
     Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct);
+    /// <summary>Получает рыночную котировку фонда по его коду бумаги и режиму торгов.</summary>
+    /// <param name="secId">Код фонда на MOEX.</param>
+    /// <param name="boardId">Режим торгов фонда.</param>
+    /// <param name="ct">Токен отмены запроса.</param>
+    /// <returns>Котировка MOEX в контракте Core.</returns>
     Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct);
     Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct);
     Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct);

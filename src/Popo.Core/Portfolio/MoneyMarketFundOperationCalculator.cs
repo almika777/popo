@@ -2,6 +2,10 @@ namespace Popo.Core.Portfolio;
 
 public static class MoneyMarketFundOperationCalculator
 {
+    /// <summary>Применяет покупки и продажи к начальной позиции и пересчитывает остаток и среднюю себестоимость паёв.</summary>
+    /// <param name="fund">Начальная позиция фонда.</param>
+    /// <param name="operations">Операции фонда, упорядочиваемые по дате перед расчётом.</param>
+    /// <returns>Количество паёв и их средняя себестоимость после всех операций.</returns>
     public static MoneyMarketFundPosition CalculatePosition(
         MoneyMarketFund fund,
         IEnumerable<MoneyMarketFundOperation> operations)
@@ -33,9 +37,9 @@ public static class MoneyMarketFundOperationCalculator
             quantity == 0 ? 0 : cost / quantity);
     }
 
-    /// <summary>Рассчитывает стоимость операции фонда без комиссии.</summary>
+    /// <summary>Рассчитывает сумму сделки по паям без учёта комиссии.</summary>
     /// <param name="operation">Операция покупки или продажи.</param>
-    /// <returns>Количество паёв, умноженное на цену пая.</returns>
+    /// <returns>Количество паёв, умноженное на цену одного пая.</returns>
     public static double Amount(MoneyMarketFundOperation operation) =>
         operation.Quantity * operation.Price;
 

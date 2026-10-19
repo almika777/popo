@@ -7,6 +7,7 @@ namespace Popo.Storage.Providers.Portfolio;
 public sealed class PortfolioMoneyMarketFundsProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IPortfolioMoneyMarketFundsProvider
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(
         CancellationToken cancellationToken)
     {
@@ -114,12 +115,14 @@ public sealed class PortfolioMoneyMarketFundsProvider(IDbContextFactory<PopoDbCo
         return await dbContext.MoneyMarketFunds.Where(x => x.Id == id).ExecuteDeleteAsync(cancellationToken) > 0;
     }
 
+    /// <summary>Загружает операции фондов по дате и идентификатору для последовательного расчёта остатков.</summary>
     private async Task<IReadOnlyList<MoneyMarketFundOperation>> GetMoneyMarketFundOperationInputsAsync(
         CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await dbContext.MoneyMarketFundOperations.AsNoTracking()
-            .OrderBy(x => x.Date).ThenBy(x => x.Id)
+            .OrderBy(x => x.Date)
+            .ThenBy(x => x.Id)
             .Select(x => new MoneyMarketFundOperation(x.SecId, x.Date, x.Side, x.Quantity, x.Price, x.Commission))
             .ToListAsync(cancellationToken);
     }

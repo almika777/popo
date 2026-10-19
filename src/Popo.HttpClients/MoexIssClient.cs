@@ -27,6 +27,7 @@ namespace Popo.HttpClients
             _cache = cache;
         }
 
+        /// <summary>Возвращает значение из кеша или единожды загружает и кеширует его под блокировкой ключа.</summary>
         private async Task<T> GetOrCreateWithLockAsync<T>(
             string cacheKey, Func<Task<T>> factory, CancellationToken ct,
             TimeSpan? cacheDuration = null) where T : class
@@ -115,6 +116,11 @@ namespace Popo.HttpClients
             return ParseMoexResult<MoexHistoryYields>(json, "history");
         }
 
+        /// <summary>Запрашивает котировку фонда для заданных SECID и режима торгов и кэширует ответ на один час.</summary>
+        /// <param name="secId">Код фонда на MOEX.</param>
+        /// <param name="boardId">Режим торгов фонда.</param>
+        /// <param name="ct">Токен отмены HTTP-запроса.</param>
+        /// <returns>Строка рыночных данных фонда.</returns>
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(
             string secId,
             string boardId,
@@ -503,6 +509,7 @@ namespace Popo.HttpClients
             return result.ToDictionary();
         }
 
+        /// <summary>Выполняет GET-запрос к MOEX ISS и разбирает указанный блок строк ответа.</summary>
         private async Task<List<T>> GetCollectionAsync<T>(
             string url,
             string rootElement,
@@ -518,6 +525,7 @@ namespace Popo.HttpClients
             return ParseMoexResult<T>(json, rootElement);
         }
 
+        /// <summary>Преобразует табличный блок MOEX ISS из JSON в типизированные объекты.</summary>
         private List<T> ParseMoexResult<T>(string json, string rootElement) where T : class, new()
         {
             using var jsonDocument = JsonDocument.Parse(json);

@@ -78,9 +78,7 @@ public class MoexMarketdata
     public DateTime? SysTime { get; set; }
 
     
-    /// <summary>
-    /// Текущая цена
-    /// </summary>
+    /// <summary>Возвращает первую доступную цену в порядке LCURRENTPRICE, MARKETPRICE2, MARKETPRICE, LCLOSEPRICE, CLOSEPRICE, LAST.</summary>
     public double? CurrentPrice => LCurrentPrice
                                    ?? MarketPrice2
                                    ?? MarketPrice

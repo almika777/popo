@@ -38,6 +38,9 @@ public sealed record MoneyMarketFundRecord(
 
 public interface IPortfolioMoneyMarketFundsProvider
 {
+    /// <summary>Возвращает сохранённые позиции фондов с количеством и средней себестоимостью после применения операций.</summary>
+    /// <param name="cancellationToken">Токен отмены запроса.</param>
+    /// <returns>Список позиций фондов денежного рынка.</returns>
     Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
     Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken);
     Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken);
