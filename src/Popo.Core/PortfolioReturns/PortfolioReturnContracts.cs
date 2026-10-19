@@ -43,7 +43,7 @@ public sealed record PortfolioReturnResult(
     int PeriodDays);
 
 public sealed class MissingPortfolioValuationsException(IReadOnlyList<DateOnly> requiredDates)
-    : InvalidOperationException("Для каждой даты денежной операции нужна оценка портфеля за предыдущий календарный день.")
+    : InvalidOperationException("Для каждой даты пополнения или вывода нужна оценка портфеля за предыдущий календарный день.")
 {
     public IReadOnlyList<DateOnly> RequiredDates { get; } = requiredDates;
 }

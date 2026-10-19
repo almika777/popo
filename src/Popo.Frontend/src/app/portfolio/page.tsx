@@ -942,6 +942,7 @@ export default function PortfolioPage() {
             {calculationError && <Alert type="error" showIcon title={calculationError} style={{ marginTop: 16 }} />}
             {result && <div className="portfolio-return-result">
               <Typography.Title level={2}>{percent.format(result.periodReturn)} за период</Typography.Title>
+              <Typography.Text type="secondary">После налогов и комиссий</Typography.Text>
               <div className="portfolio-return-details">
                 <span>Годовая доходность <strong>{percent.format(result.annualizedReturn)}</strong></span>
                 <span>Финансовый результат <strong>{money.format(result.absoluteReturn)}</strong></span>

@@ -25,7 +25,10 @@ public sealed class PortfolioReturnCalculator
             .ToArray();
         ValidateFlows(periodFlows.SelectMany(group => group));
 
-        var missingDates = periodFlows
+        var externalFlowDates = periodFlows
+            .Where(group => group.Any(flow => flow.Type is PortfolioCashFlowType.Deposit or PortfolioCashFlowType.Withdrawal))
+            .ToArray();
+        var missingDates = externalFlowDates
             .Where(group => FindPreFlowValuation(group.Key, valuations) is null)
             .Select(group => group.Key.AddDays(-1))
             .ToArray();
@@ -36,7 +39,7 @@ public sealed class PortfolioReturnCalculator
 
         var multiplier = 1d;
         var capitalAfterPreviousFlow = start.TotalValue;
-        foreach (var dateFlows in periodFlows)
+        foreach (var dateFlows in externalFlowDates)
         {
             var beforeFlow = FindPreFlowValuation(dateFlows.Key, valuations)
                 ?? throw new MissingPortfolioValuationsException([dateFlows.Key.AddDays(-1)]);
@@ -45,8 +48,7 @@ public sealed class PortfolioReturnCalculator
             var summary = CashFlowSummary.From(dateFlows);
             capitalAfterPreviousFlow = beforeFlow.TotalValue
                 + summary.Deposits
-                - summary.Withdrawals
-                - summary.Taxes;
+                - summary.Withdrawals;
             ValidateCapital(capitalAfterPreviousFlow);
         }
 
@@ -67,7 +69,7 @@ public sealed class PortfolioReturnCalculator
         var taxes = periodFlows.SelectMany(group => group)
             .Where(flow => flow.Type == PortfolioCashFlowType.Tax)
             .Sum(flow => flow.Amount);
-        var absoluteReturn = end.TotalValue - start.TotalValue - deposits + withdrawals + taxes;
+        var absoluteReturn = end.TotalValue - start.TotalValue - deposits + withdrawals;
         var periodDays = to.DayNumber - from.DayNumber;
         var annualizedReturn = Math.Pow(1 + periodReturn, 365d / periodDays) - 1;
 
@@ -122,6 +124,11 @@ public sealed class PortfolioReturnCalculator
             {
                 throw new ArgumentException("Сумма денежной операции должна быть положительной.", nameof(flows));
             }
+
+            if (flow.Type is not (PortfolioCashFlowType.Deposit or PortfolioCashFlowType.Withdrawal or PortfolioCashFlowType.Tax))
+            {
+                throw new ArgumentOutOfRangeException(nameof(flow));
+            }
         }
     }
 
@@ -145,7 +152,6 @@ public sealed class PortfolioReturnCalculator
     {
         public double Deposits { get; private set; }
         public double Withdrawals { get; private set; }
-        public double Taxes { get; private set; }
 
         public static CashFlowSummary From(IEnumerable<PortfolioCashFlowInput> flows)
         {
@@ -161,7 +167,6 @@ public sealed class PortfolioReturnCalculator
                         summary.Withdrawals += flow.Amount;
                         break;
                     case PortfolioCashFlowType.Tax:
-                        summary.Taxes += flow.Amount;
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(flow));

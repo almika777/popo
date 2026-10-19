@@ -100,17 +100,15 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public async Task CalculateReturn_IncludesTaxesSeparately()
+    public async Task CalculateReturn_ReturnsNetReturnsAndTaxesAsMetadata()
     {
         var provider = new FakeProvider();
         provider.Valuations.Add(new PortfolioValuationRecord(
             Guid.NewGuid(), new DateOnly(2026, 1, 1), 100_000, string.Empty));
         provider.Valuations.Add(new PortfolioValuationRecord(
-            Guid.NewGuid(), new DateOnly(2026, 2, 1), 110_000, string.Empty));
-        provider.Valuations.Add(new PortfolioValuationRecord(
-            Guid.NewGuid(), new DateOnly(2026, 1, 4), 110_000, string.Empty));
+            Guid.NewGuid(), new DateOnly(2026, 2, 1), 109_500, string.Empty));
         provider.CashFlows.Add(new PortfolioCashFlowRecord(
-            Guid.NewGuid(), new DateOnly(2026, 1, 5), PortfolioCashFlowType.Tax, 10_000, "Налог за 2025 год"));
+            Guid.NewGuid(), new DateOnly(2026, 1, 5), PortfolioCashFlowType.Tax, 500, "Налог за 2025 год"));
         var controller = CreateController(provider);
 
         var result = await controller.CalculateReturn(
@@ -120,8 +118,10 @@ public sealed class PortfolioReturnsApiContractTests
         var response = result.Result as OkObjectResult;
         Assert.That(response, Is.Not.Null);
         var returnResult = (PortfolioReturnResult)response!.Value!;
-        Assert.That(returnResult.Taxes, Is.EqualTo(10_000).Within(0.001));
-        Assert.That(returnResult.AbsoluteReturn, Is.EqualTo(20_000).Within(0.001));
+        Assert.That(returnResult.Taxes, Is.EqualTo(500).Within(0.001));
+        Assert.That(returnResult.AbsoluteReturn, Is.EqualTo(9_500).Within(0.001));
+        Assert.That(returnResult.PeriodReturn, Is.EqualTo(0.095).Within(0.000001));
+        Assert.That(returnResult.AnnualizedReturn, Is.EqualTo(Math.Pow(1.095, 365d / 31) - 1).Within(0.000001));
     }
 
     [Test]
