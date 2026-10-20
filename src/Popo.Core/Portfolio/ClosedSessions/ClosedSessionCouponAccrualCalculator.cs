@@ -8,7 +8,7 @@ public sealed class ClosedSessionCouponAccrualCalculator
         IReadOnlyList<ClosedSessionHolding> holdings, bool preferRubValue = false,
         bool carryForwardMissingFloaterCoupon = false)
     {
-        decimal total = 0;
+        double total = 0;
         var periods = instrument.Coupons.Distinct().ToArray();
         foreach (var holding in holdings)
         {

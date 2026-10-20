@@ -79,7 +79,7 @@ public sealed class ClosedPositionSessionCalculator
     /// <returns>Продажи прежнего остатка, покупки и отложенные части продаж в порядке обработки.</returns>
     private static IEnumerable<ClosedSessionTrade> OrderDailyTrades(
         IEnumerable<ClosedSessionTrade> trades,
-        decimal openingQuantity)
+        double openingQuantity)
     {
         var remainingOpeningQuantity = openingQuantity;
         var deferredSales = new List<ClosedSessionTrade>();
@@ -108,7 +108,7 @@ public sealed class ClosedPositionSessionCalculator
     /// <param name="sale">Исходная продажа, цена и остальные реквизиты которой сохраняются.</param>
     /// <param name="quantity">Количество бумаг, относящееся к одной из сессий.</param>
     /// <returns>Часть исходной продажи с соответствующей долей комиссии.</returns>
-    private static ClosedSessionTrade CreateSalePortion(ClosedSessionTrade sale, decimal quantity)
+    private static ClosedSessionTrade CreateSalePortion(ClosedSessionTrade sale, double quantity)
         => sale with
         {
             Quantity = quantity,
@@ -185,19 +185,19 @@ public sealed class ClosedPositionSessionCalculator
         public DateOnly StartDate { get; } = startDate;
 
         /// <summary>Текущий непроданный остаток бумаг.</summary>
-        public decimal Quantity { get; private set; }
+        public double Quantity { get; private set; }
 
         /// <summary>Суммарное количество всех покупок сессии, включая последующие докупки.</summary>
-        public decimal BoughtQuantity { get; private set; }
+        public double BoughtQuantity { get; private set; }
 
         /// <summary>Чистая стоимость всех покупок без НКД и комиссий.</summary>
-        public decimal BoughtCleanAmount { get; private set; }
+        public double BoughtCleanAmount { get; private set; }
 
         /// <summary>Чистая выручка всех продаж без НКД и комиссий.</summary>
-        public decimal SoldCleanAmount { get; private set; }
+        public double SoldCleanAmount { get; private set; }
 
         /// <summary>Сумма комиссий покупок и продаж, относящихся к сессии.</summary>
-        public decimal Commission { get; private set; }
+        public double Commission { get; private set; }
 
         /// <summary>Интервалы владения для расчёта купонов и амортизаций.</summary>
         public IReadOnlyList<ClosedSessionHolding> Holdings => _holdings;

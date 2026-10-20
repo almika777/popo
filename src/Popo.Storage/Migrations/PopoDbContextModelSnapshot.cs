@@ -55,29 +55,29 @@ namespace Popo.Storage.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal?>("AmortizationIncome")
+                    b.Property<double?>("AmortizationIncome")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("AnnualizedPnlPercent")
+                    b.Property<double?>("AnnualizedPnlPercent")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<string>("BoardId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("BodyPnl")
+                    b.Property<double?>("BodyPnl")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal>("BoughtCleanAmount")
+                    b.Property<double>("BoughtCleanAmount")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal>("BoughtQuantity")
+                    b.Property<double>("BoughtQuantity")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<DateTimeOffset>("CalculatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -86,13 +86,13 @@ namespace Popo.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Commission")
+                    b.Property<double>("Commission")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("CouponIncome")
+                    b.Property<double?>("CouponIncome")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<string>("CurrencyId")
                         .IsRequired()
@@ -118,20 +118,20 @@ namespace Popo.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("SoldCleanAmount")
+                    b.Property<double>("SoldCleanAmount")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
-                    b.Property<decimal?>("TotalPnl")
+                    b.Property<double?>("TotalPnl")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("TotalPnlPercent")
+                    b.Property<double?>("TotalPnlPercent")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 

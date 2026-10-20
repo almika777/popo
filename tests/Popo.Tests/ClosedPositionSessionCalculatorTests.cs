@@ -32,7 +32,7 @@ public sealed class ClosedPositionSessionCalculatorTests
                 [FixedCoupon(annualStart, annualEnd, 365)]),
             calculatedAt,
             new ClosedPositionSession(annualBuyId, "RU000A000001", "TQCB", "RUB", "RU000A000001 bond",
-                annualStart, annualEnd, 365, 1, 1000, 1100, 50, 0, 100, 365, 415, 41.5m, 41.5m,
+                annualStart, annualEnd, 365, 1, 1000, 1100, 50, 0, 100, 365, 415, 41.5d, 41.5d,
                 true, null, "Default", calculatedAt))
             .SetName("Complete_session_all_fields_annual_holding");
 
@@ -43,15 +43,15 @@ public sealed class ClosedPositionSessionCalculatorTests
             ScenarioInstrument("RU000A000011",
                 [FixedTrade(partialBuyId, partialStart, TradeSide.Buy, 4, 100, 1),
                  FixedTrade(Guid.Parse("00000000-0000-0000-0000-000000000012"), partialStart.AddDays(2),
-                     TradeSide.Sell, 1, 110, 0.25m),
+                     TradeSide.Sell, 1, 110, 0.25d),
                  FixedTrade(Guid.Parse("00000000-0000-0000-0000-000000000013"), partialStart.AddDays(2),
-                     TradeSide.Buy, 1, 100, 0.75m),
+                     TradeSide.Buy, 1, 100, 0.75d),
                  FixedTrade(Guid.Parse("00000000-0000-0000-0000-000000000014"), partialEnd,
                      TradeSide.Sell, 4, 110, 1)],
                 [FixedCoupon(partialStart, partialEnd, 5)]),
             calculatedAt,
             new ClosedPositionSession(partialBuyId, "RU000A000011", "TQCB", "RUB", "RU000A000011 bond",
-                partialStart, partialEnd, 5, 5, 500, 550, 3, 0, 50, 20, 67, 13.4m, 978.2m,
+                partialStart, partialEnd, 5, 5, 500, 550, 3, 0, 50, 20, 67, 13.4d, 978.2d,
                 true, null, "Default", calculatedAt))
             .SetName("Complete_session_all_fields_partial_sale_and_rebuy");
 
@@ -67,7 +67,7 @@ public sealed class ClosedPositionSessionCalculatorTests
                 [FixedAmortization(amortStart.AddDays(10), 100)], 1000),
             calculatedAt,
             new ClosedPositionSession(amortBuyId, "RU000A000021", "TQCB", "RUB", "RU000A000021 bond",
-                amortStart, amortEnd, 25, 2, 2000, 1800, 0, 200, 0, 50, 50, 2.5m, 36.5m,
+                amortStart, amortEnd, 25, 2, 2000, 1800, 0, 200, 0, 50, 50, 2.5d, 36.5d,
                 true, null, "Default", calculatedAt))
             .SetName("Complete_session_all_fields_partial_amortization");
 
@@ -126,11 +126,11 @@ public sealed class ClosedPositionSessionCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.CouponIncome, Is.EqualTo(380m));
-            Assert.That(result.BodyPnl, Is.EqualTo(100m));
-            Assert.That(result.TotalPnl, Is.EqualTo(476m));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(47.6m));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(347.48m));
+            Assert.That(result.CouponIncome, Is.EqualTo(380d));
+            Assert.That(result.BodyPnl, Is.EqualTo(100d));
+            Assert.That(result.TotalPnl, Is.EqualTo(476d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(47.6d));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(347.48d));
         });
     }
 
@@ -139,7 +139,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     {
         var result = Calculate([Trade(20, TradeSide.Buy, 1), Trade(40, TradeSide.Sell, 1)],
             [Coupon(0, 30, 30), Coupon(30, 60, 60)], bondType: "Флоатер").Single();
-        Assert.That(result.CouponIncome, Is.EqualTo(30m));
+        Assert.That(result.CouponIncome, Is.EqualTo(30d));
         Assert.That(result.CalculatorKind, Is.EqualTo("Floater"));
     }
 
@@ -147,7 +147,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     public void Floater_UsesPreviousCouponAmountForMissingCurrentPeriod()
     {
         var previousPeriod = new ClosedSessionCoupon(
-            new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22m, null, "RUB");
+            new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22d, null, "RUB");
         var currentPeriod = new ClosedSessionCoupon(
             new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, null, "RUB");
 
@@ -156,11 +156,11 @@ public sealed class ClosedPositionSessionCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.CouponIncome, Is.EqualTo(89.22m * 5m / 182m).Within(1e-24m));
-            Assert.That(result.TotalPnl, Is.EqualTo(89.22m * 5m / 182m).Within(1e-24m));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(89.22m * 5m / 182m).Within(1e-24m));
+            Assert.That(result.CouponIncome, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
+            Assert.That(result.TotalPnl, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
             Assert.That(result.AnnualizedPnlPercent,
-                Is.EqualTo(89.22m * 5m / 182m * 365m / 5m).Within(1e-24m));
+                Is.EqualTo(89.22d * 5d / 182d * 365d / 5d).Within(1e-10d));
             Assert.That(result.HoldingDays, Is.EqualTo(5));
             Assert.That(result.CalculatorKind, Is.EqualTo("Floater"));
             Assert.That(result.IsComplete, Is.True);
@@ -176,7 +176,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             new(new DateOnly(2026, 1, 21), new DateOnly(2026, 1, 31), null, null, "RUB")
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo(20m * 9m / 10m + 20m * 4m / 10m));
+        Assert.That(result.CouponIncome, Is.EqualTo(20d * 9d / 10d + 20d * 4d / 10d));
     }
 
     [Test]
@@ -188,18 +188,18 @@ public sealed class ClosedPositionSessionCalculatorTests
             new(new DateOnly(2026, 1, 20), new DateOnly(2026, 1, 30), 50, null, "RUB")
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo(30m * 2m / 10m + 50m * 3m / 10m));
+        Assert.That(result.CouponIncome, Is.EqualTo(30d * 2d / 10d + 50d * 3d / 10d));
     }
 
     [Test]
     public void Floater_UsesApplicableRubleValueBeforePreviousCouponFallback()
     {
         var result = CalculateForDates(new DateOnly(2026, 8, 19), new DateOnly(2026, 8, 24), [
-            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22m, null, "RUB"),
-            new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, 1_000m, "RUB")
+            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22d, null, "RUB"),
+            new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, 1_000d, "RUB")
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo(1_000m * 5m / 182m).Within(1e-24m));
+        Assert.That(result.CouponIncome, Is.EqualTo(1_000d * 5d / 182d).Within(1e-10d));
     }
 
     [Test]
@@ -221,7 +221,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     public void DefaultBond_DoesNotUseFloaterCouponFallback()
     {
         var result = CalculateForDates(new DateOnly(2026, 8, 19), new DateOnly(2026, 8, 24), [
-            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22m, null, "RUB"),
+            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22d, null, "RUB"),
             new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, null, "RUB")
         ], bondType: "");
 
@@ -244,14 +244,14 @@ public sealed class ClosedPositionSessionCalculatorTests
             known, known, missing, missing
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo(10m));
+        Assert.That(result.CouponIncome, Is.EqualTo(10d));
     }
 
     [Test]
     public void Floater_OverlappingPeriodsRemainIncomplete()
     {
         var result = CalculateForDates(new DateOnly(2026, 8, 19), new DateOnly(2026, 8, 24), [
-            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 12, 14), 89.22m, null, "RUB"),
+            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 12, 14), 89.22d, null, "RUB"),
             new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, null, "RUB")
         ]);
 
@@ -266,8 +266,8 @@ public sealed class ClosedPositionSessionCalculatorTests
     public void Floater_KnownCouponWithMissingExchangeRateRemainsIncomplete()
     {
         var result = CalculateForDates(new DateOnly(2026, 8, 19), new DateOnly(2026, 8, 24), [
-            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22m, null, "RUB"),
-            new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), 100m, null, "USD")
+            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 89.22d, null, "RUB"),
+            new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), 100d, null, "USD")
         ]);
 
         Assert.Multiple(() =>
@@ -283,7 +283,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     public void Floater_FallbackCouponUsesHistoricalDailyExchangeRates()
     {
         var result = CalculateForDates(new DateOnly(2026, 8, 19), new DateOnly(2026, 8, 24), [
-            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 30m, null, "USD"),
+            new(new DateOnly(2025, 12, 15), new DateOnly(2026, 6, 15), 30d, null, "USD"),
             new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, null, "USD")
         ], currencyId: "EUR", currencyRates: [
             new(new DateOnly(2026, 8, 19), "USD", 90),
@@ -291,7 +291,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             new(new DateOnly(2026, 8, 19), "EUR", 1)
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo((3m * 30m * 90m + 2m * 30m * 100m) / 182m));
+        Assert.That(result.CouponIncome, Is.EqualTo((3d * 30d * 90d + 2d * 30d * 100d) / 182d));
     }
 
     [Test]
@@ -303,7 +303,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             Trade(21, TradeSide.Buy, 3)
         ], [Coupon(0, 30, 30)]);
         Assert.That(result, Has.Count.EqualTo(2));
-        Assert.That(result.Select(x => x.CouponIncome), Is.EqualTo(new decimal?[] { 100, 50 }));
+        Assert.That(result.Select(x => x.CouponIncome), Is.EqualTo(new double?[] { 100, 50 }));
         Assert.That(result[1].StartDate, Is.EqualTo(Start.AddDays(10)));
     }
 
@@ -315,7 +315,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.IsComplete, Is.False);
-            Assert.That(result.BodyPnl, Is.EqualTo(10m));
+            Assert.That(result.BodyPnl, Is.EqualTo(10d));
             Assert.That(result.CouponIncome, Is.Null);
             Assert.That(result.TotalPnl, Is.Null);
             Assert.That(result.IncompleteReason, Is.Not.Empty);
@@ -327,8 +327,8 @@ public sealed class ClosedPositionSessionCalculatorTests
     {
         var result = Calculate([Trade(0, TradeSide.Buy, 1, 1000), Trade(30, TradeSide.Sell, 1, 820)],
             [Coupon(0, 40, 40)], [Amort(10, 200), Amort(20, 800)], initialFaceValue: 1000).Single();
-        Assert.That(result.AmortizationIncome, Is.EqualTo(200m));
-        Assert.That(result.BodyPnl, Is.EqualTo(20m));
+        Assert.That(result.AmortizationIncome, Is.EqualTo(200d));
+        Assert.That(result.BodyPnl, Is.EqualTo(20d));
     }
 
     [Test]
@@ -338,7 +338,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             Trade(0, TradeSide.Buy, 10, 1000), Trade(10, TradeSide.Sell, 4, 1000),
             Trade(10, TradeSide.Buy, 2, 800), Trade(20, TradeSide.Sell, 8, 800)
         ], [Coupon(0, 30, 30)], [Amort(10, 200)], initialFaceValue: 1000).Single();
-        Assert.That(result.AmortizationIncome, Is.EqualTo(1200m));
+        Assert.That(result.AmortizationIncome, Is.EqualTo(1200d));
     }
 
     [Test]
@@ -351,7 +351,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             [new ClosedSessionAmortization(Start.AddDays(10), null, null, 10, 1000, "RUB")],
             initialFaceValue: 1000).Single();
 
-        Assert.That(result.AmortizationIncome, Is.EqualTo(200m));
+        Assert.That(result.AmortizationIncome, Is.EqualTo(200d));
         Assert.That(result.IsComplete, Is.True);
     }
 
@@ -366,7 +366,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             new ClosedSessionAmortization(Start.AddDays(5), 100, null, null, 1000, "RUB")
         ], initialFaceValue: 1000).Single();
 
-        Assert.That(result.AmortizationIncome, Is.EqualTo(0m));
+        Assert.That(result.AmortizationIncome, Is.EqualTo(0d));
     }
 
     [Test]
@@ -378,7 +378,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             Trade(20, TradeSide.Sell, 6, 1000)
         ], [Coupon(0, 30, 30)], [Amort(10, 100)], initialFaceValue: 1000).Single();
 
-        Assert.That(result.AmortizationIncome, Is.EqualTo(600m));
+        Assert.That(result.AmortizationIncome, Is.EqualTo(600d));
     }
 
     [Test]
@@ -406,8 +406,8 @@ public sealed class ClosedPositionSessionCalculatorTests
     public void Calculate_SameDayRoundTripHasNoCouponOrAnnualizedIncome()
     {
         var result = Calculate([Trade(0, TradeSide.Sell, 1, 110), Trade(0, TradeSide.Buy, 1)], []).Single();
-        Assert.That(result.CouponIncome, Is.EqualTo(0m));
-        Assert.That(result.TotalPnl, Is.EqualTo(10m));
+        Assert.That(result.CouponIncome, Is.EqualTo(0d));
+        Assert.That(result.TotalPnl, Is.EqualTo(10d));
         Assert.That(result.AnnualizedPnlPercent, Is.Null);
     }
 
@@ -423,7 +423,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     {
         var result = Calculate([Trade(0, TradeSide.Buy, 1), Trade(10, TradeSide.Sell, 1, 110)], [], frequency: 0).Single();
         Assert.That(result.IsComplete, Is.True);
-        Assert.That(result.TotalPnl, Is.EqualTo(10m));
+        Assert.That(result.TotalPnl, Is.EqualTo(10d));
     }
 
     [Test]
@@ -442,30 +442,30 @@ public sealed class ClosedPositionSessionCalculatorTests
             Trade(0, TradeSide.Buy, 10, 1000), Trade(10, TradeSide.Sell, 5, 1100),
             Trade(20, TradeSide.Buy, 5, 1000), Trade(30, TradeSide.Sell, 10, 1100)
         ], [], frequency: 0).Single();
-        Assert.That(result.BoughtCleanAmount, Is.EqualTo(15000m));
-        Assert.That(result.TotalPnl, Is.EqualTo(1500m));
-        Assert.That(result.TotalPnlPercent, Is.EqualTo(10m));
-        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(10m * 365 / 30));
+        Assert.That(result.BoughtCleanAmount, Is.EqualTo(15000d));
+        Assert.That(result.TotalPnl, Is.EqualTo(1500d));
+        Assert.That(result.TotalPnlPercent, Is.EqualTo(10d));
+        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(10d * 365 / 30));
     }
 
     [Test]
     public void Calculate_LossIncludesBothCommissionsAndPreservesFractionalQuantity()
     {
         var result = Calculate([
-            Trade(0, TradeSide.Buy, 2.5m, 100, 1.25m),
-            Trade(10, TradeSide.Sell, 2.5m, 90, 2.25m)
+            Trade(0, TradeSide.Buy, 2.5d, 100, 1.25d),
+            Trade(10, TradeSide.Sell, 2.5d, 90, 2.25d)
         ], [], frequency: 0).Single();
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.BoughtQuantity, Is.EqualTo(2.5m));
-            Assert.That(result.BoughtCleanAmount, Is.EqualTo(250m));
-            Assert.That(result.SoldCleanAmount, Is.EqualTo(225m));
-            Assert.That(result.Commission, Is.EqualTo(3.5m));
-            Assert.That(result.BodyPnl, Is.EqualTo(-25m));
-            Assert.That(result.TotalPnl, Is.EqualTo(-28.5m));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(-11.4m));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(-416.1m));
+            Assert.That(result.BoughtQuantity, Is.EqualTo(2.5d));
+            Assert.That(result.BoughtCleanAmount, Is.EqualTo(250d));
+            Assert.That(result.SoldCleanAmount, Is.EqualTo(225d));
+            Assert.That(result.Commission, Is.EqualTo(3.5d));
+            Assert.That(result.BodyPnl, Is.EqualTo(-25d));
+            Assert.That(result.TotalPnl, Is.EqualTo(-28.5d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(-11.4d));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(-416.1d));
             Assert.That(result.IsComplete, Is.True);
         });
     }
@@ -483,20 +483,20 @@ public sealed class ClosedPositionSessionCalculatorTests
         Assert.That(result, Has.Count.EqualTo(2));
         Assert.Multiple(() =>
         {
-            Assert.That(result[0].BoughtQuantity, Is.EqualTo(2m));
-            Assert.That(result[0].BoughtCleanAmount, Is.EqualTo(200m));
-            Assert.That(result[0].SoldCleanAmount, Is.EqualTo(220m));
-            Assert.That(result[0].Commission, Is.EqualTo(4m));
-            Assert.That(result[0].TotalPnl, Is.EqualTo(16m));
-            Assert.That(result[0].TotalPnlPercent, Is.EqualTo(8m));
+            Assert.That(result[0].BoughtQuantity, Is.EqualTo(2d));
+            Assert.That(result[0].BoughtCleanAmount, Is.EqualTo(200d));
+            Assert.That(result[0].SoldCleanAmount, Is.EqualTo(220d));
+            Assert.That(result[0].Commission, Is.EqualTo(4d));
+            Assert.That(result[0].TotalPnl, Is.EqualTo(16d));
+            Assert.That(result[0].TotalPnlPercent, Is.EqualTo(8d));
 
             Assert.That(result[1].StartDate, Is.EqualTo(Start.AddDays(10)));
-            Assert.That(result[1].BoughtQuantity, Is.EqualTo(2m));
-            Assert.That(result[1].BoughtCleanAmount, Is.EqualTo(200m));
-            Assert.That(result[1].SoldCleanAmount, Is.EqualTo(230m));
-            Assert.That(result[1].Commission, Is.EqualTo(3m));
-            Assert.That(result[1].TotalPnl, Is.EqualTo(27m));
-            Assert.That(result[1].TotalPnlPercent, Is.EqualTo(13.5m));
+            Assert.That(result[1].BoughtQuantity, Is.EqualTo(2d));
+            Assert.That(result[1].BoughtCleanAmount, Is.EqualTo(200d));
+            Assert.That(result[1].SoldCleanAmount, Is.EqualTo(230d));
+            Assert.That(result[1].Commission, Is.EqualTo(3d));
+            Assert.That(result[1].TotalPnl, Is.EqualTo(27d));
+            Assert.That(result[1].TotalPnlPercent, Is.EqualTo(13.5d));
         });
     }
 
@@ -526,7 +526,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             Trade(15, TradeSide.Sell, 1)
         ], [Coupon(0, 10, 20), Coupon(10, 20, 40)]).Single();
 
-        Assert.That(result.CouponIncome, Is.EqualTo(30m));
+        Assert.That(result.CouponIncome, Is.EqualTo(30d));
     }
 
     [Test]
@@ -535,7 +535,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         var period = Coupon(0, 30, 30);
         var result = Calculate([Trade(0, TradeSide.Buy, 1), Trade(20, TradeSide.Sell, 1)],
             [period, period]).Single();
-        Assert.That(result.CouponIncome, Is.EqualTo(20m));
+        Assert.That(result.CouponIncome, Is.EqualTo(20d));
     }
 
     [Test]
@@ -553,7 +553,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         var input = Instrument("USD", "RUB", [new ClosedSessionCoupon(Start, Start.AddDays(30), 3, 300, "USD")], []);
         var result = new ClosedPositionSessionCalculator().Calculate(input, DateTimeOffset.UtcNow).Single();
         Assert.That(result.CalculatorKind, Is.EqualTo("Zo"));
-        Assert.That(result.CouponIncome, Is.EqualTo(200m));
+        Assert.That(result.CouponIncome, Is.EqualTo(200d));
     }
 
     [Test]
@@ -562,7 +562,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         var input = Instrument("USD", "RUB", [new ClosedSessionCoupon(Start, Start.AddDays(30), 30, null, "USD")],
             [new(Start, "USD", 90), new(Start.AddDays(10), "USD", 100), new(Start.AddDays(21), "USD", 1000)]);
         var result = new ClosedPositionSessionCalculator().Calculate(input, DateTimeOffset.UtcNow).Single();
-        Assert.That(result.CouponIncome, Is.EqualTo(1900m));
+        Assert.That(result.CouponIncome, Is.EqualTo(1900d));
     }
 
     [Test]
@@ -570,7 +570,7 @@ public sealed class ClosedPositionSessionCalculatorTests
     {
         var input = Instrument("USD", "RUB", [new ClosedSessionCoupon(Start, Start.AddDays(30), 30, null, "USD")], []);
         var result = new ClosedPositionSessionCalculator().Calculate(input, DateTimeOffset.UtcNow).Single();
-        Assert.That(result.BodyPnl, Is.EqualTo(0m));
+        Assert.That(result.BodyPnl, Is.EqualTo(0d));
         Assert.That(result.CouponIncome, Is.Null);
         Assert.That(result.TotalPnl, Is.Null);
     }
@@ -584,7 +584,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         IReadOnlyList<ClosedSessionTrade> trades,
         IReadOnlyList<ClosedSessionCoupon> coupons,
         IReadOnlyList<ClosedSessionAmortization>? amortizations = null,
-        string bondType = "", decimal initialFaceValue = 1000, int? frequency = 12)
+        string bondType = "", double initialFaceValue = 1000, int? frequency = 12)
         => new ClosedPositionSessionCalculator().Calculate(new ClosedSessionInstrument(
             "TEST", "TQCB", "RUB", "Test bond", "RUB", bondType, "", frequency,
             initialFaceValue, null, trades, coupons, amortizations ?? [], []), DateTimeOffset.UtcNow);
@@ -601,28 +601,28 @@ public sealed class ClosedPositionSessionCalculatorTests
         return new ClosedPositionSessionCalculator().Calculate(instrument, DateTimeOffset.UtcNow).Single();
     }
 
-    private static ClosedSessionTrade Trade(int day, TradeSide side, decimal quantity, decimal price = 100,
-        decimal commission = 0) => new(Guid.NewGuid(), Start.AddDays(day), side, quantity, price, commission);
+    private static ClosedSessionTrade Trade(int day, TradeSide side, double quantity, double price = 100,
+        double commission = 0) => new(Guid.NewGuid(), Start.AddDays(day), side, quantity, price, commission);
 
-    private static ClosedSessionCoupon Coupon(int from, int to, decimal? value) =>
+    private static ClosedSessionCoupon Coupon(int from, int to, double? value) =>
         new(Start.AddDays(from), Start.AddDays(to), value, null, "RUB");
 
-    private static ClosedSessionAmortization Amort(int day, decimal value) =>
+    private static ClosedSessionAmortization Amort(int day, double value) =>
         new(Start.AddDays(day), value, null, null, 1000, "RUB");
 
     private static ClosedSessionInstrument ScenarioInstrument(string secId,
         IReadOnlyList<ClosedSessionTrade> trades, IReadOnlyList<ClosedSessionCoupon> coupons,
-        IReadOnlyList<ClosedSessionAmortization>? amortizations = null, decimal initialFaceValue = 1000)
+        IReadOnlyList<ClosedSessionAmortization>? amortizations = null, double initialFaceValue = 1000)
         => new(secId, "TQCB", "RUB", $"{secId} bond", "RUB", "", "", 12, initialFaceValue, null,
             trades, coupons, amortizations ?? [], []);
 
-    private static ClosedSessionTrade FixedTrade(Guid id, DateOnly date, TradeSide side, decimal quantity,
-        decimal price, decimal commission = 0)
+    private static ClosedSessionTrade FixedTrade(Guid id, DateOnly date, TradeSide side, double quantity,
+        double price, double commission = 0)
         => new(id, date, side, quantity, price, commission);
 
-    private static ClosedSessionCoupon FixedCoupon(DateOnly from, DateOnly to, decimal? value)
+    private static ClosedSessionCoupon FixedCoupon(DateOnly from, DateOnly to, double? value)
         => new(from, to, value, null, "RUB");
 
-    private static ClosedSessionAmortization FixedAmortization(DateOnly date, decimal value)
+    private static ClosedSessionAmortization FixedAmortization(DateOnly date, double value)
         => new(date, value, null, null, 1000, "RUB");
 }

@@ -13,7 +13,7 @@ SVG/PNG — направленный граф тех же вызовов: стр
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. `ClosedPositionSessionsService.RecalculateAsync`, входной provider D21 и provider публикации D15 остаются открытыми. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
+**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15; `ClosedPositionSessionsPageService`, `ClosedPositionSessionsService.RecalculateAsync` и входной provider D21 остаются открытыми. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала; R11 — точность преобразования чисел в миграции D15. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
 
 ## Как пользоваться картой
 
@@ -571,8 +571,8 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
   - [ ] `CompleteAsync`.
   - [ ] `FailAsync`.
 - **D15 `ClosedPositionSessionsProvider`** (`IClosedPositionSessionsProvider`) — S13 читает, J04 атомарно заменяет снимок.
-  - [ ] `GetAsync`.
-  - [ ] `ReplaceAsync`.
+  - [x] `GetAsync` — проверено 20.10.2026: использует отдельный контекст и `AsNoTracking`, проецирует все поля контракта и сортирует по дате закрытия, SECID и ID; Storage-тест проверяет полный round-trip.
+  - [x] `ReplaceAsync` — проверено 20.10.2026: в одной транзакции удаляет старый снимок, добавляет рассчитанные строки и фиксирует замену; тесты проверяют удаление устаревших строк, повторную публикацию без дублей и rollback при ошибке вставки. Параллельные пересчёты сериализует распределённая блокировка `ClosedPositionSessionsJob`.
 - **D16 `InitializationStateStore`** (`IInitializationStateStore`) — S13, S14, J01, J03, J04.
   - [ ] `EnsureCurrentBootstrapAsync`.
   - [ ] `RecoverUnfinishedJobsAsync`.
@@ -791,6 +791,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | R08 | **Корень YTM может не находиться при очень малых денежных суммах.** В `YieldCalculator.TryCalculate` проверка одинакового знака через произведение `lowerNpv * upperNpv` может получить underflow в ноль и пропустить расширение скобки. | **Открыто, P3:** сравнивать знаки без перемножения и добавить тест масштаба, при котором произведение underflow-ится. Пример из ревью: цена `1e-200`, поток `2e-200` через год; ожидаемая доходность 100%. |
 | R09 | **Нулевой далёкий поток может сорвать корректный YTM.** `YieldCalculator.PresentValue` проверяет переполнение экспоненты до умножения на сумму потока; нулевой поток на достаточно далёкой дате может вернуть `+Infinity`. | **Открыто, P3:** пропускать нулевые потоки или учитывать сумму при проверке переполнения и покрыть крайний срок. Пример из ревью: dirty price 3000, поток 1000 через год и нулевой поток через 1000 лет; корень соответствует доходности −66,67%. |
 | R10 | **Имя `CashFlow.ValueInRub` не соответствует валюте данных в K07.** `CashFlowProvider.GetYieldSchedule` конвертирует потоки в `request.SettlementCurrency`, которая может быть не RUB. | **Открыто, P3:** переименовать в `ValueInSettlementCurrency` либо явно документировать инвариант. В текущем пути цена и потоки имеют одну валюту, поэтому это проблема ясности контракта, а не подтверждённая ошибка результата. |
+| R11 | **Изменяется точность хранения закрытых сессий.** Миграция `20261020180243_ClosedPositionSessionFieldsUseDouble` меняет `numeric(28,8)` на `double precision`; при преобразовании возможна потеря десятичной точности. | **Открыто:** до применения в рабочей БД подтвердить приемлемость округления; `ClosedPositionSessions` — производный снимок, его можно пересчитать из исходных данных. Миграция пока не применялась. |
 
 ## Уже просмотрено пользователем
 
@@ -806,5 +807,6 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - [x] **Общий HTTP-контур:** `FluentValidationActionFilter.OnActionExecutionAsync`, `UpsertMoneyMarketFundRequestValidator`, `ApiExceptionHandler.TryHandleAsync`.
 - [x] **K08 `ClosedPositionSessionCalculator` и весь вызываемый им стек:** `Calculate` и внутренние помощники; выбор типа калькулятора, расчёт купонов/амортизации/валют; общий `BondCouponClassifier.IsFloater`. Проверено 20.10.2026; открытое замечание по некорректным сделкам записано как R07.
 - [x] **K07 `BondPriceCalculator`, `YieldCalculator` и нижняя ветка до D13:** оба overload-а dirty price; YTM solver и его helpers; `BondYieldCashFlowBuilder` и helpers; `CashFlowProvider.GetYieldSchedule` и вызываемые им конвертеры валют. Проверено 20.10.2026; численные граничные дефекты и неоднозначное имя контракта оставлены открытыми как R08–R10. Проверка стека не означает, что эти замечания исправлены или что верхняя ветка S07/C03 проверена.
+- [x] **D15 `ClosedPositionSessionsProvider` — `GetAsync` и `ReplaceAsync` до таблицы `ClosedPositionSessions`:** проверены чтение, упорядочивание, полное отображение полей, транзакционная замена и тесты round-trip/rollback. R11 отдельно фиксирует точность преобразования при миграции.
 
 `CashRecommendationsController.GetPage` и его стек теперь явно показаны в C03, но эта ветка остаётся непроверенной: ранее по ней запрашивалось документирование методов, а не отметка ревью.

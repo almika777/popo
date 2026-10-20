@@ -6,7 +6,7 @@ public static class ClosedSessionCurrencyConverter
     public static bool IsRuble(string currency) => Normalize(currency) == "RUB";
 
     /// <summary>Переводит сумму в валюту торгов по опубликованной рублёвой сумме или историческому курсу.</summary>
-    public static decimal? Convert(decimal? value, decimal? valueInRub, string faceUnit,
+    public static double? Convert(double? value, double? valueInRub, string faceUnit,
         string tradingCurrency, DateOnly date, IReadOnlyList<ClosedSessionCurrencyRate> rates)
     {
         if (Normalize(faceUnit) == Normalize(tradingCurrency) && value is >= 0)
@@ -22,10 +22,10 @@ public static class ClosedSessionCurrencyConverter
         return value is >= 0 && faceRate is > 0 ? value * faceRate / tradingRate : null;
     }
 
-    private static decimal? GetRate(string currency, DateOnly date, IReadOnlyList<ClosedSessionCurrencyRate> rates)
+    private static double? GetRate(string currency, DateOnly date, IReadOnlyList<ClosedSessionCurrencyRate> rates)
         => IsRuble(currency) ? 1 : rates
             .Where(x => Normalize(x.Currency) == Normalize(currency) && x.Date <= date && x.UnitRate > 0)
-            .OrderByDescending(x => x.Date).Select(x => (decimal?)x.UnitRate).FirstOrDefault();
+            .OrderByDescending(x => x.Date).Select(x => (double?)x.UnitRate).FirstOrDefault();
 
     private static string Normalize(string value) => value.Trim().ToUpperInvariant() switch
     {
