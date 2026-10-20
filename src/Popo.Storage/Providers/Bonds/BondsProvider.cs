@@ -12,19 +12,20 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
         return await dbContext.MoexBondSecurities
             .AsNoTracking()
             .Where(x => x.CurrencyId != null && x.CurrencyId != string.Empty)
-            .Select(x => x.CurrencyId!)
+            .Select(x => x.CurrencyId)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await dbContext.MoexBondSecurities
             .AsNoTracking()
             .Where(x => x.FaceUnit != null && x.FaceUnit != string.Empty)
-            .Select(x => x.FaceUnit!)
+            .Select(x => x.FaceUnit)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync(cancellationToken);

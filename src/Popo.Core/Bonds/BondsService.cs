@@ -16,6 +16,7 @@ public sealed class BondsService(IBondsProvider bondsProvider) : IBondsService
     public Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken)
         => bondsProvider.GetTradingCurrenciesAsync(cancellationToken);
 
+    /// <inheritdoc />
     public Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken)
         => bondsProvider.GetFaceUnitsAsync(cancellationToken);
 }

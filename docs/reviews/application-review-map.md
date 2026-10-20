@@ -1,17 +1,17 @@
 # Карта ревью контроллеров и методов приложения
 
-Срез актуализирован по структуре рабочей копии на 19.10.2026 после удаления кеша со страницы «Ликвидность» и перехода фондов на хранение текущего количества паёв и средней цены вместо журнала операций. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
+Срез актуализирован по структуре рабочей копии на 20.10.2026 после удаления кеша со страницы «Ликвидность» и перехода фондов на хранение текущего количества паёв и средней цены вместо журнала операций. Карта описывает маршруты вызовов; состояние ревью и замечания фиксируются в этом же файле.
 Включены публичные production-методы достижимых от HTTP-входов и связанных фоновых producer-ов классов; DTO/record-конструкторы и сгенерированный EF-код не являются отдельными пунктами ревью.
 
 ## Этапы и состояние
 
-- [x] **Этап 1. Инвентаризация и карта зависимостей** — актуализирован 19.10.2026: 8 контроллеров и 34 HTTP-метода; учтены текущие application/Core/Storage/HttpClients-узлы и фоновые производители данных.
-- [ ] **Этап 2. Ревью HTTP-методов контроллеров** — начат 17.10.2026; C01 и связанные методы проверены, R01–R03 исправлены.
+- [x] **Этап 1. Инвентаризация и карта зависимостей** — актуализирован 20.10.2026: 8 контроллеров и 34 HTTP-метода; учтены текущие application/Core/Storage/HttpClients-узлы и фоновые производители данных.
+- [ ] **Этап 2. Ревью HTTP-методов контроллеров** — начат 17.10.2026; C01 и все четыре маршрута C02 проверены; все четыре метода S01 и все связанные с ними методы D01 проверены; R01–R03 исправлены, R04 и R05 открыты.
 - [ ] **Этап 3. Ревью уникальных application- и Core-методов** — после этапа 2.
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; `BondsController.Search`, `BondsService.SearchAsync` и `BondsProvider.SearchAsync` проверены и выделены в схеме. R01–R03 исправлены; тесты проходят: .NET — 406, Storage — 37, Frontend — 43. Денежные остатки/снимки кеша и журнал операций фондов удалены; страница ликвидности хранит текущие позиции фондов, а cash-рекомендации и денежные потоки портфеля остаются отдельными действующими ветками.
+**Текущий статус:** этап 2; проверены все методы `BondsService` и соответствующие им методы `BondsProvider`, а также `BondsController.Search` и все маршруты `LiquidityController`. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала. Ранее проходили тесты: .NET — 406, Storage — 37, Frontend — 43. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются отдельными действующими ветками.
 
 ## Как пользоваться картой
 
@@ -87,10 +87,10 @@ Popo.Api
 
 Файл: [`LiquidityController.cs`](../../src/Popo.Api/Controllers/LiquidityController.cs)
 
-- [ ] `GET /api/liquidity/money-market-funds/page` — `GetMoneyMarketFundsPage` → `S02.MoneyMarketFundsPageService.GetAsync`.
-- [ ] `POST /api/liquidity/money-market-funds` — `AddMoneyMarketFund` → `S03.AddMoneyMarketFundAsync`.
-- [ ] `PUT /api/liquidity/money-market-funds/{id}` — `UpdateMoneyMarketFund` → `S03.UpdateMoneyMarketFundAsync`.
-- [ ] `DELETE /api/liquidity/money-market-funds/{id}` — `DeleteMoneyMarketFund` → `S03.DeleteMoneyMarketFundAsync`.
+- [x] `GET /api/liquidity/money-market-funds/page` — `GetMoneyMarketFundsPage` → `S02.MoneyMarketFundsPageService.GetAsync`; проверено 19.10.2026 вместе со стеком чтения позиций фондов.
+- [x] `POST /api/liquidity/money-market-funds` — `AddMoneyMarketFund` → `S03.AddMoneyMarketFundAsync`; стек добавления проверен 20.10.2026, открыто замечание R04.
+- [x] `PUT /api/liquidity/money-market-funds/{id}` — `UpdateMoneyMarketFund` → `S03.UpdateMoneyMarketFundAsync`; проверено 20.10.2026: валидирует запрос, возвращает обновлённую запись с `200 OK`; HTTP-тест проверяет ответ и сохранённые значения.
+- [x] `DELETE /api/liquidity/money-market-funds/{id}` — `DeleteMoneyMarketFund` → `S03.DeleteMoneyMarketFundAsync`; проверено 20.10.2026: при успехе возвращает `204 NoContent`, отсутствующая запись проходит как 404.
 
 ### C03 — `CashRecommendationsController`
 
@@ -153,9 +153,10 @@ Popo.Api
 
 ### Общий HTTP-контур — один раз для всех Cxx
 
-- [ ] `FluentValidationActionFilter.OnActionExecutionAsync` — [`FluentValidationActionFilter.cs`](../../src/Popo.Api/Filters/FluentValidationActionFilter.cs).
-- [ ] Валидаторы `BondSearchRequest`, strategy settings/preset, fund, valuation/cash-flow/return query и trade — папка [`Validators`](../../src/Popo.Api/Validators/); проверить правила в их `AbstractValidator`-конструкторах.
-- [ ] `ApiExceptionHandler.TryHandleAsync`, типизированные ошибки Core и соответствие статусов ADR-0004 — [`ApiExceptionHandler.cs`](../../src/Popo.Api/ApiExceptionHandler.cs), [`ADR-0004`](../adr/0004-обработка-ошибок-api-вне-контроллеров.md).
+- [x] `FluentValidationActionFilter.OnActionExecutionAsync` — проверен 20.10.2026: находит зарегистрированный валидатор аргумента, возвращает 400 при ошибках и не вызывает action; [`FluentValidationActionFilter.cs`](../../src/Popo.Api/Filters/FluentValidationActionFilter.cs).
+- [x] `UpsertMoneyMarketFundRequestValidator` — проверен 20.10.2026 для POST/PUT: разрешает только LQDT/TMON, положительное целое количество и конечную положительную среднюю цену.
+- [ ] Остальные валидаторы (`BondSearchRequest`, strategy settings/preset, valuation/cash-flow/return query и trade) — папка [`Validators`](../../src/Popo.Api/Validators/); проверять правила в их `AbstractValidator`-конструкторах.
+- [x] `ApiExceptionHandler.TryHandleAsync`, типизированные ошибки Core и соответствие статусов ADR-0004 — проверены 20.10.2026; 400/404/409 и общий 500 покрыты тестом [`ApiExceptionHandlerTests.cs`](../../tests/Popo.Tests/ApiExceptionHandlerTests.cs). Необработанная ошибка уникального индекса при гонке POST остаётся R04; [`ApiExceptionHandler.cs`](../../src/Popo.Api/ApiExceptionHandler.cs), [`ADR-0004`](../adr/0004-обработка-ошибок-api-вне-контроллеров.md).
 - [ ] `Program.cs`: регистрацию, миграции, CORS, `MapControllers`, OpenAPI/Scalar и `GET /health` — [`Program.cs`](../../src/Popo.Api/Program.cs).
 - [ ] `ApiServiceCollectionExtensions.AddPopoApiServices` — [`ApiServiceCollectionExtensions.cs`](../../src/Popo.Api/ApiServiceCollectionExtensions.cs).
 - [ ] `Popo.Core.ServiceCollectionExtensions.AddPopoCore` — регистрация Core-сервисов.
@@ -178,23 +179,23 @@ Popo.Api
 Используется C01, S05, S07 и S12. Реализация: [`BondsService.cs`](../../src/Popo.Core/Bonds/BondsService.cs).
 
 - [x] `SearchAsync` — проверен 17.10.2026; согласован с API-контрактом nullable НКД.
-- [ ] `GetHistoricalFaceValuesAsync`.
-- [ ] `GetTradingCurrenciesAsync`.
-- [ ] `GetFaceUnitsAsync`.
+- [x] `GetHistoricalFaceValuesAsync` — проверено 20.10.2026: передаёт пакет запросов в D01; для каждой сделки возвращается последнее положительное значение номинала на дату сделки или раньше, с точным совпадением SECID и доски; без истории значение остаётся null.
+- [x] `GetTradingCurrenciesAsync` — проверено 20.10.2026: делегирует D01 получение уникальных непустых кодов валют торгов, отсортированных по возрастанию; прямого Storage-теста нет (R05).
+- [x] `GetFaceUnitsAsync` — проверено 20.10.2026: делегирует D01 получение уникальных непустых валют номинала, отсортированных по возрастанию; прямого Storage-теста нет (R05).
 
 ### S02 — страница фондов, `MoneyMarketFundsPageService`
 
-Файл: [`MoneyMarketFundsPageService.cs`](../../src/Popo.Api/Services/MoneyMarketFundsPageService.cs). Связи: D03, S11.
+Файл: [`MoneyMarketFundsPageService.cs`](../../src/Popo.Api/Services/MoneyMarketFundsPageService.cs). Вызывает S11; список вариантов формирует из `RelationHelper.MoneyMarketFunds`.
 
-- [ ] `GetAsync`; проверить загрузку текущих позиций и согласованность частей ответа.
+- [x] `GetAsync` — проверено 19.10.2026: загружает оценённые позиции через S11 и добавляет варианты фондов из общего справочника.
 
 ### S03 — изменение текущих позиций фондов, `MoneyMarketFundManagementService`
 
-Файл: [`MoneyMarketFundManagementService.cs`](../../src/Popo.Api/Services/MoneyMarketFundManagementService.cs). Связи: D03.
+Файл: [`MoneyMarketFundManagementService.cs`](../../src/Popo.Api/Services/MoneyMarketFundManagementService.cs). Для Add используются `RelationHelper.MoneyMarketFunds`, `D03.GetMoneyMarketFundsAsync` и `D03.AddMoneyMarketFundAsync`.
 
-- [ ] `AddMoneyMarketFundAsync`.
-- [ ] `UpdateMoneyMarketFundAsync`.
-- [ ] `DeleteMoneyMarketFundAsync`.
+- [x] `AddMoneyMarketFundAsync` — проверено 20.10.2026: нормализует SECID, разрешает только фонды из справочника, проверяет существующую позицию и передаёт количество/среднюю цену в D03. Гонка между проверкой и INSERT — R04.
+- [x] `UpdateMoneyMarketFundAsync` — проверено 20.10.2026: проверяет поддерживаемый фонд и дубликат (с исключением текущего `id`), передаёт канонический `BoardId`, количество и среднюю цену в D03; отсутствие записи превращает в 404. Проверка дубликата использует уже проверенный D03.Get.
+- [x] `DeleteMoneyMarketFundAsync` — проверено 20.10.2026: вызывает D03.Delete и преобразует результат `false` в 404.
 
 ### S05 — данные страницы рекомендаций, `CashRecommendationsPageService`
 
@@ -249,12 +250,12 @@ Popo.Api
 
 ### S11 — открытые позиции, `PortfolioPositionsService`
 
-Файл: [`PortfolioPositionsService.cs`](../../src/Popo.Api/Services/Position/PortfolioPositionsService.cs). Использует D03–D04, D07–D09, D14, D19, H01 и K02–K03. Также вызывается S02 и S08.
+Файл: [`PortfolioPositionsService.cs`](../../src/Popo.Api/Services/Position/PortfolioPositionsService.cs). Общие зависимости класса: D03–D04, D07–D09, D14, D19, H01 и K02–K03. S02 вызывает только `GetMoneyMarketFundsAsync`, S08 — `GetOverviewAsync`.
 
 - [ ] `GetPageAsync`.
 - [ ] `GetPositionsAsync` — проверить контракт; прямого production-вызова из контроллеров в текущей карте нет.
 - [ ] `GetOverviewAsync(asOf)` — портфельная сводка.
-- [ ] `GetMoneyMarketFundsAsync` — котировки и оценка фондов для C02.
+- [x] `GetMoneyMarketFundsAsync` — проверено 19.10.2026 для C02: читает сохранённые позиции через D03, запрашивает котировку MOEX через H01 и рассчитывает текущую стоимость/результат; сделки, купоны и валютные курсы этому пути не нужны.
 - [ ] Загрузка источников, выбор калькулятора, цены, валют, купонов и fallback-пути — проверить внутри соответствующих методов выше.
 
 ### S12 — журнал сделок, `PortfolioTradesService`
@@ -288,15 +289,15 @@ Popo.Api
 
 - **D01 `BondsProvider`** (`IBondsProvider`) — S01, S07, S12 через S01; справочники и исторические номиналы.
   - [x] `SearchAsync` — проверен 17.10.2026; НКД сохраняет null, тесты расширены.
-  - [ ] `GetHistoricalFaceValuesAsync`.
-  - [ ] `GetTradingCurrenciesAsync`.
-  - [ ] `GetFaceUnitsAsync`.
+  - [x] `GetHistoricalFaceValuesAsync` — проверено 20.10.2026: одна выборка истории по SECID и максимальной дате; для каждого входного ключа возвращает последнее конечное положительное значение на дату или раньше, совпадая также по доске; сохраняет порядок запросов и null при отсутствии истории. Storage-тест проверяет даты, доски и нормализацию SECID.
+  - [x] `GetTradingCurrenciesAsync` — проверено 20.10.2026: no-tracking выборка непустых `CurrencyId`, уникальная и отсортированная; прямого Storage-теста нет (R05).
+  - [x] `GetFaceUnitsAsync` — проверено 20.10.2026: no-tracking выборка непустых `FaceUnit`, уникальная и отсортированная; прямого Storage-теста нет (R05).
   - [ ] `GetSecurities`.
-- **D03 `PortfolioMoneyMarketFundsProvider`** (`IPortfolioMoneyMarketFundsProvider`) — S02, S03, S11.
-  - [ ] `GetMoneyMarketFundsAsync`.
-  - [ ] `AddMoneyMarketFundAsync`.
-  - [ ] `UpdateMoneyMarketFundAsync`.
-  - [ ] `DeleteMoneyMarketFundAsync`.
+- **D03 `PortfolioMoneyMarketFundsProvider`** (`IPortfolioMoneyMarketFundsProvider`) — S03, S11; S02 reaches it through S11.
+  - [x] `GetMoneyMarketFundsAsync` — проверено 19.10.2026: no-tracking чтение с сортировкой по `SecId` и проекцией сохранённого количества/средней цены; также используется S03 для проверки дубликата перед добавлением.
+  - [x] `AddMoneyMarketFundAsync` — проверено 20.10.2026: валидирует данные, нормализует SECID, вставляет позицию и сохраняет её; уникальный индекс защищает бизнес-ключ, но конфликт гонки не преобразуется в 409 (R04).
+  - [x] `UpdateMoneyMarketFundAsync` — проверено 20.10.2026: валидирует поля, загружает запись по `id`, сохраняет новые значения по шаблону `Attach`/`Modified` из ADR-0003 и возвращает сохранённую запись; Storage-тест перечитывает и проверяет обновлённые данные.
+  - [x] `DeleteMoneyMarketFundAsync` — проверено 20.10.2026: удаляет позицию по `id` через `ExecuteDeleteAsync`, результат показывает, найдена ли запись; Storage-тест подтверждает отсутствие строки после удаления.
 - **D04 `PortfolioTradesProvider`** (`IPortfolioTradesProvider`) — S11, S12; закрытые сессии читают сделки через отдельный source provider.
   - [ ] `GetTradesAsync`.
   - [ ] `GetTradeAsync`.
@@ -362,7 +363,7 @@ Popo.Api
 - **D18 `MoexIndexHistoryStore`** (`IMoexIndexHistoryStore`) — S10 обновляет кэш LQDT; также используется J02.
   - [ ] `UpsertAsync`.
   - [ ] `GetHistoryAsync`.
-- **D19 Прямой запрос валютных курсов через `IDbContextFactory<PopoDbContext>`** — часть `S11.GetMoneyMarketFundsAsync`; отдельного Storage provider нет.
+- **D19 Прямой запрос валютных курсов через `IDbContextFactory<PopoDbContext>`** — используется расчётами валют облигационных позиций в S11; в цепочке оценки фондов C02 не участвует.
 - **D20 Hangfire `IBackgroundJobClient` / `JobStorage`** — внешние методы постановки/чтения статуса в S13; J04 исполняет задачу.
 - **D21 `ClosedPositionSessionSourceProvider`** — J04 читает здесь сделки, купоны, амортизации и валютные курсы для K08.
   - [ ] `GetAsync`.
@@ -376,7 +377,7 @@ Popo.Api
   - [ ] `GetActiveBondsMarketdataAsync`.
   - [ ] `GetFutureAmortsAndCoupons`.
   - [ ] `GetBondHistoryPageAsync`.
-  - [ ] `GetMoneyMarketFundMarketdataAsync`.
+  - [x] `GetMoneyMarketFundMarketdataAsync` — проверено 19.10.2026: контракт, адаптер и транспорт запрашивают котировку по `SecId + BoardId`; ответ кэшируется на час, отсутствие строки приводит к явной ошибке.
   - [ ] `GetLqdtIndexHistoryAsync`.
   - [ ] `GetLqdtPriceHistoryAsync`.
   - [ ] `GetBondTradesAsync`.
@@ -395,7 +396,7 @@ Popo.Api
   - [ ] `MoexContractMapper.ToContract` — `MoexHistoryYields`.
   - [ ] `MoexContractMapper.ToContract` — `MoexIndexHistory`.
   - [ ] `MoexContractMapper.ToContract` — `MoexMarketdataYields`.
-  - [ ] `MoexContractMapper.ToContract` — `MoexMarketdata`.
+  - [x] `MoexContractMapper.ToContract` — `MoexMarketdata`; проверено 19.10.2026 для передачи котировки фонда из ISS-модели в Core.
   - [ ] `MoexContractMapper.ToContract` — `MoexTrade`.
   - [ ] `MoexContractMapper.ToContract` — `SecDescription`.
   - [ ] `MoexContractMapper.ToContract` — `MoexBondDescription`.
@@ -519,7 +520,7 @@ Popo.Api
 |---|---|---|
 | S01 / D01 `BondsService` / `BondsProvider` | C01, S05, S07, S12 | Ревью сервиса и provider один раз; call sites проверять в своих endpoint-ветках. |
 | S11 `PortfolioPositionsService` | C07, S02, S08 | Публичные методы сервиса проверять один раз; ветки используют нужный метод и свой контракт ответа. |
-| D03 `PortfolioMoneyMarketFundsProvider` | S02, S03, S11 | Один provider; чтение и CRUD текущих позиций проверяются в своих сервисных ветках. |
+| D03 `PortfolioMoneyMarketFundsProvider` | S03, S11 (S02 транзитивно) | Один provider; чтение и CRUD текущих позиций проверяются в своих сервисных ветках. |
 | D04 `PortfolioTradesProvider` | S11, S12 | Один provider; сценарии позиций и сделок не дублируют его ревью. |
 | D05 `PortfolioCashFlowsProvider` | S08–S10 | Один provider; проверить разные потребители по их S-узлам. |
 | D06 `PortfolioValuationsProvider` | S08–S10 | Один provider для страницы, CRUD, TWR и benchmark. |
@@ -538,10 +539,12 @@ Popo.Api
 
 ## Замечания
 
-Записи ниже относятся к первому проверенному endpoint и его провайдеру. Галочки показывают проведённое ревью; открытые замечания требуют отдельного решения или исправления.
+Записи ниже относятся к проверенным endpoint-ам и общим узлам. Галочки показывают проведённое ревью; открытые замечания требуют отдельного решения или исправления.
 
 | ID | Замечание | Решение/статус |
 |---|---|---|
 | R01 | **Клиент и API расходились по минимальной длине.** [`trades/page.tsx`](../../src/Popo.Frontend/src/app/trades/page.tsx) отправлял поиск от 2 символов, а `BondSearchRequestValidator` принимает от 3. | **Исправлено:** общий порог 3 символа; короткий ввод очищает варианты и не отправляется в API. Frontend-тесты прошли. |
 | R02 | **Неизвестный НКД превращался в ноль.** Provider отображал `AccruedInt == null` в `0`, и клиент терял различие между нулём и отсутствующими данными. | **Исправлено:** Core/API возвращают nullable `accruedInterest`, Storage сохраняет null, форма требует ручной ввод при неизвестном НКД. Storage-тест добавлен и прошёл. |
 | R03 | **Покрытие поиска было частичным.** Не было успешного теста действия контроллера, поиска по `ShortName`, пустого результата, null НКД и изоляции тестовых наборов. Тест валюты не проверял fallback. | **Исправлено и проверено:** добавлены тесты controller и provider; Storage-тесты используют отдельную схему и уникальные SECID на тест; тест валюты проверяет прямое значение. Успешно прошли .NET (406), Storage (37) и Frontend (43) теста; `dotnet ef migrations has-pending-model-changes` подтвердил отсутствие несозданной миграции. |
+| R04 | **Гонка при добавлении или изменении фонда.** `MoneyMarketFundManagementService.AddMoneyMarketFundAsync` и `UpdateMoneyMarketFundAsync` сначала читают список и проверяют дубликат, затем выполняют INSERT/UPDATE. Параллельные запросы Add/Add или Add/Update могут пройти pre-check; уникальный индекс `SecId` отклонит вторую запись как `DbUpdateException`. | **Открыто:** `ApiExceptionHandler` не распознаёт нарушение уникальности БД и вернёт 500 вместо 409. HTTP-тест PUT проверяет успешное сохранение; интеграционного теста успешного POST/повторного POST и теста конкурентного Add/Update нет. Рассмотреть перевод конкретного конфликта в `ApplicationConflictException` и покрытие конкурирующих запросов. |
+| R05 | **Не проверены Storage-запросы справочников валют.** `BondsProvider.GetTradingCurrenciesAsync` и `GetFaceUnitsAsync` фильтруют пустые значения, удаляют дубликаты и сортируют результат, но прямых Storage-тестов этих запросов нет. | **Открыто:** добавить изолированные тесты провайдера для null/пустых значений, дубликатов и порядка выдачи; текущий контракт страницы проверяет только ответный DTO, не EF-запросы. |

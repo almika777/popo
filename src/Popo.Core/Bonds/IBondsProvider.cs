@@ -15,6 +15,9 @@ public interface IBondsProvider
     /// <returns>Коды валют, указанные в данных облигаций.</returns>
     Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken);
 
+    /// <summary>Читает уникальные валюты номинала из сохранённых данных облигаций MOEX.</summary>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Коды валют номинала, указанные в данных облигаций.</returns>
     Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<BondSecurityDto>> GetSecurities(CancellationToken cancellationToken);

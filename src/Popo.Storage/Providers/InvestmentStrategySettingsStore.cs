@@ -16,6 +16,7 @@ public sealed class InvestmentStrategySettingsStore(IDbContextFactory<PopoDbCont
         return entity is null ? InvestmentStrategySettings.Defaults : ToDomain(entity);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<InvestmentStrategyPreset>> GetPresetsAsync(CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);

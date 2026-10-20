@@ -88,7 +88,14 @@ public sealed record CashRecommendationResponse(
 
 public static class CashInvestmentRecommendationApiMapper
 {
+    /// <summary>Преобразует сохранённый пресет стратегии в API-ответ.</summary>
+    /// <param name="preset">Пресет с настройками и признаком активности.</param>
+    /// <returns>Пресет в формате ответа API.</returns>
     public static InvestmentStrategyPresetResponse ToResponse(InvestmentStrategyPreset preset) => new(preset.Id, preset.Name, ToResponse(preset.Settings), preset.IsActive);
+
+    /// <summary>Преобразует настройки инвестиционной стратегии в API-ответ.</summary>
+    /// <param name="settings">Настройки стратегии.</param>
+    /// <returns>Настройки в формате ответа API.</returns>
     public static InvestmentStrategySettingsResponse ToResponse(InvestmentStrategySettings settings) => new(
         settings.MinimumRating,
         settings.MinimumMaturityDays,

@@ -10,10 +10,13 @@ public interface IBondsService
         IReadOnlyList<BondFaceValueRequest> requests,
         CancellationToken cancellationToken);
 
-    /// <summary>Возвращает валюты, доступные для торговли облигациями, для списка выбора на странице кеша.</summary>
+    /// <summary>Возвращает валюты торгов облигациями, используемые для фильтрации рекомендаций.</summary>
     /// <param name="cancellationToken">Токен отмены операции.</param>
-    /// <returns>Уникальные коды валют.</returns>
+    /// <returns>Уникальные коды валют торгов.</returns>
     Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken);
 
+    /// <summary>Возвращает валюты номинала.</summary>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Уникальные коды валют номинала.</returns>
     Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken);
 }
