@@ -130,8 +130,11 @@ POST /cash/recalculate ─ Recalculate ─┘
       ├─ D12 RatingsProvider.GetBondRatingsAsync
       ├─ D09 HistoryProvider.GetDailyVolumeStatistics
       ├─ H01 IMoexHttpClient.GetActiveBondsMarketdataAsync
-      ├─ D13 CashFlowProvider.GetYieldSchedule
-      └─ K07 запрос и расчёт YTM: BondYieldCashFlowBuilder.TryBuild → BondPriceCalculator.CalculateDirtyPrice → YieldCalculator.TryCalculate
+      └─ [x] K07 расчёт YTM
+         ├─ [x] D13 CashFlowProvider.GetYieldSchedule
+         │  └─ [x] BondYieldCashFlowBuilder.TryBuild
+         ├─ [x] BondPriceCalculator.CalculateDirtyPrice
+         └─ [x] YieldCalculator.TryCalculate
 
 GET /cash/settings ── GetSettings → S06 CashRecommendationSettingsService.GetSettingsAsync
    └─ D11 InvestmentStrategySettingsStore.GetSettingsAsync [общий с S07 и J03]
@@ -561,7 +564,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - **D12 `RatingsProvider`** (`IRatingsProvider`) — S07.
   - [ ] `GetBondRatingsAsync`.
 - **D13 `CashFlowProvider`** (`ICashFlowProvider`) — S07; расписание для YTM.
-  - [ ] `GetYieldSchedule`.
+  - [x] `GetYieldSchedule` — проверен 20.10.2026 в составе K07; загружает историю купонов/амортизаций, переводит суммы в валюту расчётов и строит график потоков. Используемые для этого `TryGetCurrencyConversionFactor`, `TryGetRubRate` и `NormalizeCurrency` также просмотрены.
 - **D14 `PositionRecommendationStore`** (`IPositionRecommendationStore`) — S11 читает снимок, J03 пишет.
   - [ ] `GetAsync`.
   - [ ] `StartAsync`.
@@ -681,10 +684,10 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
   - [ ] `Ru000A10F504BenchmarkSeriesCalculator.Calculate`.
 - **K07 Доходность облигации/YTM, вызывается S07.**
   - `BondAssessmentService.GetAssessmentsAsync` отмечается один раз в S07; здесь проверяются только расчётные методы.
-  - [ ] `BondYieldCashFlowBuilder.TryBuild`.
-  - [ ] `BondPriceCalculator.CalculateDirtyPrice` — overload с `accruedInterest`.
-  - [ ] `BondPriceCalculator.CalculateDirtyPrice` — overload с `faceUnit` и `currencyId`.
-  - [ ] `YieldCalculator.TryCalculate`.
+  - [x] `BondYieldCashFlowBuilder.TryBuild` и приватные `IsValidRequest`, `ResolvePrincipalAmount`, `FaceBeforeDate`, `ResolveAnnualRate`.
+  - [x] `BondPriceCalculator.CalculateDirtyPrice` — оба overload-а; приватные `CurrenciesMatch` и `NormalizeCurrency`.
+  - [x] `YieldCalculator.TryCalculate` — локальные `PresentValue` и `Npv`, приватный `Expm1`.
+  - [x] `CashFlow.ValueInRub` — просмотрено как часть контракта K07; фактическое значение может быть в валюте расчётов, см. R10.
 - **K08 Закрытые сессии**, вызывается J04; не смешивать с K02/K03.
   - [ ] `ClosedPositionSessionsService.RecalculateAsync`.
   - [x] `ClosedPositionSessionCalculator.Calculate` — проверены внутренние `BuildClosedSessions`, `OrderDailyTrades`, `CreateSalePortion`, `CalculateSessionResult` и методы вложенного `Session`: `AddPurchase`, `AddSale`, `RecordHoldingUntil`.
@@ -785,6 +788,9 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | R05 | **Не проверены Storage-запросы справочников валют.** `BondsProvider.GetTradingCurrenciesAsync` и `GetFaceUnitsAsync` фильтруют пустые значения, удаляют дубликаты и сортируют результат, но прямых Storage-тестов этих запросов нет. | **Открыто:** добавить изолированные тесты провайдера для null/пустых значений, дубликатов и порядка выдачи; текущий контракт страницы проверяет только ответный DTO, не EF-запросы. |
 | R06 | **Документация API перечисляет несуществующие маршруты.** `docs/modules/api.md` заявляет `/api/bonds/currencies`, `/api/bonds/face-units` и `/api/positions/recommendation`, но актуальные контроллеры их не объявляют. | **Открыто:** актуализировать список маршрутов в документации API. |
 | R07 | **Некорректные сделки могут быть молча пропущены при расчёте закрытой сессии.** `ClosedPositionSessionCalculator.OrderDailyTrades` не создаёт порции для неизвестного `TradeSide` и некорректного отрицательного количества продажи. | **Открыто, P3:** обычный API-путь валидирует сделки, но повреждённые/напрямую добавленные данные могут дать неполный результат без ошибки; решить, нужно ли явно отклонять такие строки и покрыть этот путь тестом. |
+| R08 | **Корень YTM может не находиться при очень малых денежных суммах.** В `YieldCalculator.TryCalculate` проверка одинакового знака через произведение `lowerNpv * upperNpv` может получить underflow в ноль и пропустить расширение скобки. | **Открыто, P3:** сравнивать знаки без перемножения и добавить тест масштаба, при котором произведение underflow-ится. Пример из ревью: цена `1e-200`, поток `2e-200` через год; ожидаемая доходность 100%. |
+| R09 | **Нулевой далёкий поток может сорвать корректный YTM.** `YieldCalculator.PresentValue` проверяет переполнение экспоненты до умножения на сумму потока; нулевой поток на достаточно далёкой дате может вернуть `+Infinity`. | **Открыто, P3:** пропускать нулевые потоки или учитывать сумму при проверке переполнения и покрыть крайний срок. Пример из ревью: dirty price 3000, поток 1000 через год и нулевой поток через 1000 лет; корень соответствует доходности −66,67%. |
+| R10 | **Имя `CashFlow.ValueInRub` не соответствует валюте данных в K07.** `CashFlowProvider.GetYieldSchedule` конвертирует потоки в `request.SettlementCurrency`, которая может быть не RUB. | **Открыто, P3:** переименовать в `ValueInSettlementCurrency` либо явно документировать инвариант. В текущем пути цена и потоки имеют одну валюту, поэтому это проблема ясности контракта, а не подтверждённая ошибка результата. |
 
 ## Уже просмотрено пользователем
 
@@ -799,5 +805,6 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - [x] **H01 `GetMoneyMarketFundMarketdataAsync` и H03 `MoexContractMapper.ToContract(MoexMarketdata)`.**
 - [x] **Общий HTTP-контур:** `FluentValidationActionFilter.OnActionExecutionAsync`, `UpsertMoneyMarketFundRequestValidator`, `ApiExceptionHandler.TryHandleAsync`.
 - [x] **K08 `ClosedPositionSessionCalculator` и весь вызываемый им стек:** `Calculate` и внутренние помощники; выбор типа калькулятора, расчёт купонов/амортизации/валют; общий `BondCouponClassifier.IsFloater`. Проверено 20.10.2026; открытое замечание по некорректным сделкам записано как R07.
+- [x] **K07 `BondPriceCalculator`, `YieldCalculator` и нижняя ветка до D13:** оба overload-а dirty price; YTM solver и его helpers; `BondYieldCashFlowBuilder` и helpers; `CashFlowProvider.GetYieldSchedule` и вызываемые им конвертеры валют. Проверено 20.10.2026; численные граничные дефекты и неоднозначное имя контракта оставлены открытыми как R08–R10. Проверка стека не означает, что эти замечания исправлены или что верхняя ветка S07/C03 проверена.
 
 `CashRecommendationsController.GetPage` и его стек теперь явно показаны в C03, но эта ветка остаётся непроверенной: ранее по ней запрашивалось документирование методов, а не отметка ревью.
