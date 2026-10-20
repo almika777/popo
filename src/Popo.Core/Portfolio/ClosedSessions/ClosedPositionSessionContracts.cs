@@ -13,10 +13,19 @@ public sealed record ClosedSessionAmortization(
 public sealed record ClosedSessionCurrencyRate(DateOnly Date, string Currency, decimal UnitRate);
 
 public sealed record ClosedSessionInstrument(
-    string SecId, string BoardId, string CurrencyId, string ShortName, string FaceUnit,
-    string BondType, string BondSubType, int? CouponFrequency, decimal InitialFaceValue,
-    DateOnly? MaturityDate, IReadOnlyList<ClosedSessionTrade> Trades,
-    IReadOnlyList<ClosedSessionCoupon> Coupons, IReadOnlyList<ClosedSessionAmortization> Amortizations,
+    string SecId, 
+    string BoardId, 
+    string CurrencyId, 
+    string ShortName, 
+    string FaceUnit,
+    string BondType, 
+    string BondSubType, 
+    int? CouponFrequency, 
+    decimal InitialFaceValue,
+    DateOnly? MaturityDate, 
+    IReadOnlyList<ClosedSessionTrade> Trades,
+    IReadOnlyList<ClosedSessionCoupon> Coupons, 
+    IReadOnlyList<ClosedSessionAmortization> Amortizations,
     IReadOnlyList<ClosedSessionCurrencyRate> CurrencyRates);
 
 /// <summary>Остаток действует с From включительно до To исключительно.</summary>

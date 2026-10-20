@@ -20,6 +20,7 @@ public sealed class ClosedPositionSessionsProvider(IDbContextFactory<PopoDbConte
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>Атомарно заменяет сохранённый снимок закрытых сессий новым рассчитанным набором.</summary>
     public async Task ReplaceAsync(IReadOnlyList<ClosedPositionSession> sessions, CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);

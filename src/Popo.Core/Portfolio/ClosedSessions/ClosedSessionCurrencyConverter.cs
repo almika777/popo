@@ -2,8 +2,10 @@ namespace Popo.Core.Portfolio.ClosedSessions;
 
 public static class ClosedSessionCurrencyConverter
 {
+    /// <summary>Распознаёт RUB, включая исторические обозначения SUR и RUR.</summary>
     public static bool IsRuble(string currency) => Normalize(currency) == "RUB";
 
+    /// <summary>Переводит сумму в валюту торгов по опубликованной рублёвой сумме или историческому курсу.</summary>
     public static decimal? Convert(decimal? value, decimal? valueInRub, string faceUnit,
         string tradingCurrency, DateOnly date, IReadOnlyList<ClosedSessionCurrencyRate> rates)
     {

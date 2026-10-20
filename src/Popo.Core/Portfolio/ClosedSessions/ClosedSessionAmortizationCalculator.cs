@@ -2,6 +2,7 @@ namespace Popo.Core.Portfolio.ClosedSessions;
 
 public sealed class ClosedSessionAmortizationCalculator
 {
+    /// <summary>Рассчитывает частичные амортизации, полученные во время владения, и сообщает, если данных недостаточно.</summary>
     public ClosedSessionIncome Calculate(ClosedSessionInstrument instrument,
         IReadOnlyList<ClosedSessionHolding> holdings)
     {

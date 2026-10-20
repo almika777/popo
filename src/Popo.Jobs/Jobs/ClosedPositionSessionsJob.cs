@@ -10,6 +10,7 @@ public sealed class ClosedPositionSessionsJob(
     JobStorage jobStorage,
     ILogger<ClosedPositionSessionsJob> logger) : IClosedPositionSessionsJob
 {
+    /// <summary>Проверяет готовность данных, блокирует параллельный запуск и пересчитывает закрытые сессии.</summary>
     public async Task UpdateAsync(CancellationToken cancellationToken = default)
     {
         if (!await initializationStateStore.IsCompleteAsync(cancellationToken))

@@ -79,6 +79,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             result);
     }
 
+    /// <summary>Возвращает признак того, что все обязательные задачи первичной загрузки завершены.</summary>
     public async Task<bool> IsCompleteAsync(CancellationToken cancellationToken)
     {
         var status = await GetStatusAsync(cancellationToken);

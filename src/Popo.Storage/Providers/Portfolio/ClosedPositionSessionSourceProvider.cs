@@ -7,12 +7,17 @@ namespace Popo.Storage.Providers.Portfolio;
 public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IClosedPositionSessionSourceProvider
 {
+    /// <summary>Читает согласованные сделки и связанные данные для расчёта сессий на указанную дату.</summary>
     public async Task<IReadOnlyList<ClosedSessionInstrument>> GetAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
-        var trades = await db.PortfolioTrades.AsNoTracking().Where(x => x.TradeDate <= asOf)
-            .OrderBy(x => x.TradeDate).ThenBy(x => x.Id).ToListAsync(cancellationToken);
+        var trades = await db.PortfolioTrades
+            .AsNoTracking()
+            .Where(x => x.TradeDate <= asOf)
+            .OrderBy(x => x.TradeDate)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
         if (trades.Count == 0)
             return [];
 
