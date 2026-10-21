@@ -13,16 +13,17 @@ SVG/PNG — направленный граф тех же вызовов: стр
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15. 21.10.2026 проверены D21 `ClosedPositionSessionSourceProvider.GetAsync` и его helpers до запросов EF к исходным таблицам; S13 и `ClosedPositionSessionsService.RecalculateAsync` остаются открытыми. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала; R11 — точность преобразования чисел в миграции D15. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
+**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15. 21.10.2026 проверены D21 и весь вызываемый им стек; вслед за этим проверены `ClosedPositionSessionsService.RecalculateAsync`, `ClosedPositionSessionsPageService.GetAsync`, HTTP-метод C04.Get и используемая дата `MoscowTime.Today` с конвертацией в московскую зону. `S13.RecalculateAsync`, `S13.GetStatus`, остальные маршруты C04 и J04 остаются открытыми из-за непроверенных D16/D20 и собственной логики постановки/выполнения задачи. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала; R11 — точность преобразования чисел в миграции D15. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
 
 ## Как пользоваться картой
 
 1. Начинать с маршрутов в дереве контроллеров. Отмечать endpoint после проверки binding, request/response, валидации, статусов и поведения ошибок. Галочка означает, что ревью проведено; открытые замечания фиксируются отдельно и не снимают галочку.
 2. Обозначения `Cxx`, `Sxx`, `Dxx`, `Kxx`, `Hxx` и `Jxx` — канонические узлы. Один и тот же публичный метод указан один раз в реестре; маршрут может ссылаться на его ID из нескольких мест.
 3. При проверке маршрута не отмечать повторно сервисы и providers. Их чекбоксы находятся в своих разделах.
-4. Лист дерева — публичный метод класса. Для provider-метода проверить контракт Core, реализацию Storage и используемые им запросы/транзакции. Для общего клиента или калькулятора метод проверяется один раз, на остальных ветках остаётся ссылка на его ID.
-5. В конце фиксировать найденное в разделе «Замечания». Непроверенные узлы оставлять пустыми.
-6. Пропуски в ID оставлены намеренно: удалённые узлы не перенумеровываются, чтобы не менять ссылки и историю уже проведённого ревью.
+4. После проверки стека проследить вызовы вверх. Отмечать родительский метод, только если он делегирует работу проверенным нижним компонентам; класс целиком отмечать, только когда проверены все его публичные методы.
+5. Лист дерева — публичный метод класса. Для provider-метода проверить контракт Core, реализацию Storage и используемые им запросы/транзакции. Для общего клиента или калькулятора метод проверяется один раз, на остальных ветках остаётся ссылка на его ID.
+6. В конце фиксировать найденное в разделе «Замечания». Непроверенные узлы оставлять пустыми.
+7. Пропуски в ID оставлены намеренно: удалённые узлы не перенумеровываются, чтобы не менять ссылки и историю уже проведённого ревью.
 
 ## Дерево HTTP-входов
 
@@ -161,6 +162,7 @@ POST /recalculate ── Recalculate → S13.RecalculateAsync
    └─ D20 Hangfire IBackgroundJobClient.Create → J04 ClosedPositionSessionsJob.UpdateAsync
       ├─ D16.IsCompleteAsync
       └─ K08 ClosedPositionSessionsService.RecalculateAsync
+         ├─ K09.MoscowTime.Today → ToMoscow(DateTimeOffset) → Zone
          ├─ D21 ClosedPositionSessionSourceProvider.GetAsync
          ├─ K08 ClosedPositionSessionCalculator.Calculate → K08 типовые калькуляторы
          └─ D15 ClosedPositionSessionsProvider.ReplaceAsync
@@ -286,6 +288,7 @@ J03 PositionRecommendationJob.UpdateAsync
 J04 ClosedPositionSessionsJob.UpdateAsync
 ├─ D16.InitializationStateStore.IsCompleteAsync [общий с C04/C05/J01/J03]
 └─ K08 ClosedPositionSessionsService.RecalculateAsync
+   ├─ K09.MoscowTime.Today → ToMoscow(DateTimeOffset) → Zone
    ├─ D21.ClosedPositionSessionSourceProvider.GetAsync
    ├─ K08 ClosedPositionSessionCalculator.Calculate → типовые калькуляторы
    └─ D15.ClosedPositionSessionsProvider.ReplaceAsync [C04 читает D15.GetAsync]
@@ -338,7 +341,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 
 Файл: [`ClosedPositionSessionsController.cs`](../../src/Popo.Api/Controllers/ClosedPositionSessionsController.cs)
 
-- [ ] `GET /api/closed-position-sessions` — `Get` → `S13.GetAsync`.
+- [x] `GET /api/closed-position-sessions` — `Get` → `S13.GetAsync`; метод контроллера и метод сервиса только передают вызов проверенному нижнему стеку.
 - [ ] `POST /api/closed-position-sessions/recalculate` — `Recalculate` → `S13.RecalculateAsync` → `J04`.
 - [ ] `GET /api/closed-position-sessions/recalculation/{jobId}` — `GetStatus` → `S13.GetStatus`.
 
@@ -499,7 +502,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 
 Файл: [`ClosedPositionSessionsPageService.cs`](../../src/Popo.Api/Services/ClosedPositions/ClosedPositionSessionsPageService.cs). Чтение D15, проверка состояния D16, постановка/статус Hangfire-задачи через D20, пересчёт J04.
 
-- [ ] `GetAsync`.
+- [x] `GetAsync` — напрямую возвращает `D15.ClosedPositionSessionsProvider.GetAsync`; метод и его endpoint проверены по нижнему стеку.
 - [ ] `RecalculateAsync`.
 - [ ] `GetStatus(jobId)`.
 
@@ -689,7 +692,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
   - [x] `YieldCalculator.TryCalculate` — локальные `PresentValue` и `Npv`, приватный `Expm1`.
   - [x] `CashFlow.ValueInRub` — просмотрено как часть контракта K07; фактическое значение может быть в валюте расчётов, см. R10.
 - **K08 Закрытые сессии**, вызывается J04; не смешивать с K02/K03.
-  - [ ] `ClosedPositionSessionsService.RecalculateAsync`.
+  - [x] `ClosedPositionSessionsService.RecalculateAsync` — оркестрирует чтение D21, расчёт K08 и атомарную публикацию D15; все три зависимости проверены. Дата передаётся как `MoscowTime.Today`; замечание R07 о некорректных сделках остаётся открытым в калькуляторе.
   - [x] `ClosedPositionSessionCalculator.Calculate` — проверены внутренние `BuildClosedSessions`, `OrderDailyTrades`, `CreateSalePortion`, `CalculateSessionResult` и методы вложенного `Session`: `AddPurchase`, `AddSale`, `RecordHoldingUntil`.
   - [x] `ClosedSessionBondCalculatorFactory.Create`.
   - [x] `DefaultClosedSessionBondCalculator.CalculateCouponIncome`.
@@ -706,12 +709,13 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
   - [ ] `MoscowTime.AddTimeToToday`.
   - [ ] `MoscowTime.ToUtc(DateTime)`.
   - [ ] `MoscowTime.ToUtc(DateTimeOffset)`.
-  - [ ] `MoscowTime.ToMoscow(DateTimeOffset)`.
+  - [x] `MoscowTime.ToMoscow(DateTimeOffset)` — использует `TimeZoneInfo.ConvertTime` и `Zone`; проверено в стеке `ClosedPositionSessionsService`.
   - [ ] `MoscowTime.ToMoscow(DateTime)`.
   - [ ] `MoscowTime.MoscowMidnightToUtc`.
   - [ ] `MoscowTime.AtMoscowDateTime(DateOnly, TimeSpan)`.
   - [ ] `MoscowTime.AtMoscowDateTime(DateOnly, DateTime)`.
-  - [ ] Свойства `MoscowTime.Zone`, `Now`, `Today` — общие источники времени.
+  - [x] `MoscowTime.Zone` и `MoscowTime.Today` — проверены в стеке `ClosedPositionSessionsService`.
+  - [ ] `MoscowTime.Now`.
 
 ### Jxx — фоновые производители данных, связанных с ответами API
 
@@ -766,7 +770,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | D10 `DailyVolumeStatisticsStore` | D09, J02 | J02 обновляет статистику, D09 читает её; writer и reader сверяются без повторного ревью хранилища. |
 | D11 `InvestmentStrategySettingsStore` | S05–S07, J03 | Store один раз; `GetPresetsAsync` разделяется S05/S06, `GetSettingsAsync` — S06/S07/J03. |
 | D14 `PositionRecommendationStore` | S11, J03 | J03 публикует снимок, S11 читает его для C07. |
-| D15 `ClosedPositionSessionsProvider` | S13, J04 | S13 читает опубликованный снимок, J04 атомарно заменяет его после расчёта. |
+| D15 `ClosedPositionSessionsProvider` | S13, J04 | S13.GetAsync читает опубликованный снимок и проверен; K08 service вызывает проверенный ReplaceAsync. Оркестрация J04 остаётся открытой. |
 | D16 `InitializationStateStore` | S13, S14, J01, J03, J04 | Общие состояния/переходы проверять в одном месте, затем сверить каждого caller. |
 | D18 `MoexIndexHistoryStore` | S10, J02 | S10 обновляет и читает историю LQDT, J02 также синхронизирует её. |
 | D19 чтение `CurrencyRates` | S11.GetPageAsync/GetOverviewAsync, D21.GetAsync | Одну таблицу читают три независимых call sites; проверять каждый фильтр в его вызывающей ветке, не считать это общим методом. |
@@ -774,7 +778,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | D20 Hangfire client/storage | S13, J04 | Enqueue/status проверять отдельно от реализации самого фонового расчёта. |
 | H01 `MoexHttpClient` | S07, S10–S12, J02 | Общий клиент; каждый consumer дополнительно проверяет семантику конкретного запроса.
 | K03 `PortfolioPositionsValidate` | D07 и сделки S12 | Алгоритм один раз; consumers проверять только на корректное использование результата.
-| K09 `MoscowTime` / `BondCouponClassifier` | S07, S11, S14, K02, K08, J01–J04, H03 | Общие календарные и классификационные правила проверять один раз. |
+| K09 `MoscowTime` / `BondCouponClassifier` | S07, S11, S14, K02, K08, J01–J04, H03 | Проверены BondCouponClassifier.IsFloater и используемая D21 дата: MoscowTime.Today → ToMoscow(DateTimeOffset) → Zone; остальные методы времени остаются отдельными. |
 
 ## Замечания
 
@@ -794,9 +798,9 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | R10 | **Имя `CashFlow.ValueInRub` не соответствует валюте данных в K07.** `CashFlowProvider.GetYieldSchedule` конвертирует потоки в `request.SettlementCurrency`, которая может быть не RUB. | **Открыто, P3:** переименовать в `ValueInSettlementCurrency` либо явно документировать инвариант. В текущем пути цена и потоки имеют одну валюту, поэтому это проблема ясности контракта, а не подтверждённая ошибка результата. |
 | R11 | **Изменяется точность хранения закрытых сессий.** Миграция `20261020180243_ClosedPositionSessionFieldsUseDouble` меняет `numeric(28,8)` на `double precision`; при преобразовании возможна потеря десятичной точности. | **Открыто:** до применения в рабочей БД подтвердить приемлемость округления; `ClosedPositionSessions` — производный снимок, его можно пересчитать из исходных данных. Миграция пока не применялась. |
 
-## Уже просмотрено пользователем
+## Проверено
 
-Эти отметки перенесены из проведённых ранее ревью; новая инвентаризация сама по себе не выставляет галочку остальным узлам.
+Галочки отражают завершённое ревью, включая тонкие предки, проверенные после прохода снизу вверх. Проверка одного метода не выставляет отметку всему классу, если у него остаются непроверенные методы.
 
 - [x] **C01 `BondsController.Search`.** HTTP-вход и маршрут проверены.
 - [x] **S01 `BondsService` — все четыре публичных метода:** `SearchAsync`, `GetHistoricalFaceValuesAsync`, `GetTradingCurrenciesAsync`, `GetFaceUnitsAsync`.
@@ -810,5 +814,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - [x] **K07 `BondPriceCalculator`, `YieldCalculator` и нижняя ветка до D13:** оба overload-а dirty price; YTM solver и его helpers; `BondYieldCashFlowBuilder` и helpers; `CashFlowProvider.GetYieldSchedule` и вызываемые им конвертеры валют. Проверено 20.10.2026; численные граничные дефекты и неоднозначное имя контракта оставлены открытыми как R08–R10. Проверка стека не означает, что эти замечания исправлены или что верхняя ветка S07/C03 проверена.
 - [x] **D15 `ClosedPositionSessionsProvider` — `GetAsync` и `ReplaceAsync` до таблицы `ClosedPositionSessions`:** проверены чтение, упорядочивание, полное отображение полей, транзакционная замена и тесты round-trip/rollback. R11 отдельно фиксирует точность преобразования при миграции.
 - [x] **D21 `ClosedPositionSessionSourceProvider.GetAsync` и весь нижний стек:** проверены private helpers, согласованное чтение шести исходных таблиц, фильтры по `asOf`, подбор режима торгов и группировка данных по `SecId`. Будущие купоны сохраняются для расчёта периода, амортизации и курсы ограничены `asOf`; тесты покрывают границу даты, раздельные ключи инструмента и валютную конвертацию. Запросы CurrencyRates в S11 не отмечены: это отдельные call sites D19.
+- [x] **K08 `ClosedPositionSessionsService.RecalculateAsync` и его нижний стек:** проверены передача московской даты, общий `CalculatedAt`, расчёт всех инструментов до публикации и замена D15 только после успешного расчёта; тесты покрывают публикацию всех результатов и отсутствие частичной публикации при ошибке.
+- [x] **Автопроверка предков:** C04 `GET /api/closed-position-sessions` и S13 `ClosedPositionSessionsPageService.GetAsync` — тонкие делегаты проверенного D15.GetAsync. Остальные методы S13, маршруты C04 и J04 не отмечены: у них остаются самостоятельные проверки готовности, валидация статуса, работа с Hangfire и распределённой блокировкой.
 
 `CashRecommendationsController.GetPage` и его стек теперь явно показаны в C03, но эта ветка остаётся непроверенной: ранее по ней запрашивалось документирование методов, а не отметка ревью.
