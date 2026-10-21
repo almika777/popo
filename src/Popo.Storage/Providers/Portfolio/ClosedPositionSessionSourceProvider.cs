@@ -14,9 +14,19 @@ public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDb
         CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        await using var transaction = await db.Database
-            .BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
-        
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.RepeatableRead, cancellationToken);
+
+        var sourceData = await LoadSourceDataAsync(db, asOf, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return BuildInstruments(sourceData);
+    }
+
+    private static async Task<ClosedSessionSourceData> LoadSourceDataAsync(
+        PopoDbContext db,
+        DateOnly asOf,
+        CancellationToken cancellationToken)
+    {
         var trades = await db.PortfolioTrades
             .Where(x => x.TradeDate <= asOf)
             .OrderBy(x => x.TradeDate)
@@ -24,25 +34,25 @@ public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDb
             .ToListAsync(cancellationToken);
 
         if (trades.Count == 0)
-            return [];
+            return new ClosedSessionSourceData([], [], [], [], [], []);
 
-        var tradesId = trades.Select(x => x.SecId).Distinct().ToArray();
+        var secIds = trades.Select(x => x.SecId).Distinct().ToArray();
 
         var bonds = await db.MoexBonds
-            .Where(x => tradesId.Contains(x.SecId))
+            .Where(x => secIds.Contains(x.SecId))
             .ToListAsync(cancellationToken);
 
         var securities = await db.MoexBondSecurities
-            .Where(x => tradesId.Contains(x.SecId))
+            .Where(x => secIds.Contains(x.SecId))
             .ToListAsync(cancellationToken);
 
         // Будущая дата выплаты нужна, если сессия закончилась внутри этого купонного периода.
         var coupons = await db.MoexCouponsEntities
-            .Where(x => tradesId.Contains(x.SecId))
+            .Where(x => secIds.Contains(x.SecId))
             .ToListAsync(cancellationToken);
 
         var amorts = await db.MoexAmortsEntities
-            .Where(x => tradesId.Contains(x.SecId) && x.AmortDate <= asOf)
+            .Where(x => secIds.Contains(x.SecId) && x.AmortDate <= asOf)
             .ToListAsync(cancellationToken);
 
         var currencies = trades
@@ -55,60 +65,67 @@ public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDb
         var rates = await db.CurrencyRates
             .Where(x => currencies.Contains(x.CurrencyCode) && x.RateDate <= asOf)
             .ToListAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
-        var currencyRates = rates
+        return new(trades, bonds, securities, coupons, amorts, rates);
+    }
+
+    private static IReadOnlyList<ClosedSessionInstrument> BuildInstruments(ClosedSessionSourceData sourceData)
+    {
+        var bondsBySecId = sourceData.Bonds.ToDictionary(x => x.SecId);
+        var securitiesBySecId = sourceData.Securities
+            .GroupBy(x => x.SecId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(x => x.BoardId).ToArray());
+        var couponsBySecId = sourceData.Coupons
+            .GroupBy(x => x.SecId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(x => x.CouponDate).ToArray());
+        var amortizationsBySecId = sourceData.Amortizations
+            .GroupBy(x => x.SecId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(x => x.AmortDate).ToArray());
+        var currencyRates = sourceData.Rates
             .Select(x => new ClosedSessionCurrencyRate(x.RateDate, x.CurrencyCode, x.UnitRate))
             .ToArray();
 
         var results = new List<ClosedSessionInstrument>();
-        foreach (var group in trades.GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId)))
+        foreach (var group in sourceData.Trades.GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId)))
         {
-            var bond = bonds.FirstOrDefault(x => x.SecId == group.Key.SecId);
+            var bond = bondsBySecId.GetValueOrDefault(group.Key.SecId);
+            var securities = securitiesBySecId.GetValueOrDefault(group.Key.SecId) ?? [];
+            var security = SelectSecurity(securities, group.Key.BoardId);
+            var schedule = couponsBySecId.GetValueOrDefault(group.Key.SecId) ?? [];
+            var amortizations = amortizationsBySecId.GetValueOrDefault(group.Key.SecId) ?? [];
 
-            var security = securities
-                .Where(x => x.SecId == group.Key.SecId)
-                .OrderByDescending(x => x.BoardId == group.Key.BoardId)
-                .ThenBy(x => x.BoardId)
-                .FirstOrDefault();
-
-            var schedule = coupons
-                .Where(x => x.SecId == group.Key.SecId)
-                .OrderBy(x => x.CouponDate)
-                .ToArray();
-
-            var amortizations = amorts
-                .Where(x => x.SecId == group.Key.SecId)
-                .OrderBy(x => x.AmortDate)
-                .ToArray();
-
-            
-            
-            var instrument = BuildClosedSessionInstrument(group, bond, security, schedule, amortizations, currencyRates);
+            var instrument =
+                BuildClosedSessionInstrument(group, bond, security, schedule, amortizations, currencyRates);
             results.Add(instrument);
         }
 
         return results;
     }
 
+    private static MoexBondSecurityEntity? SelectSecurity(
+        IReadOnlyList<MoexBondSecurityEntity> securities,
+        string boardId)
+        => securities.FirstOrDefault(x => x.BoardId == boardId) ?? securities.FirstOrDefault();
+
     private static ClosedSessionInstrument BuildClosedSessionInstrument(
         IGrouping<(string SecId, string BoardId, string CurrencyId), PortfolioTradeEntity> group,
         MoexBondEntity? bond,
-        MoexBondSecurityEntity? security, 
+        MoexBondSecurityEntity? security,
         MoexCouponsEntity[] schedule,
-        MoexAmortsEntity[] amortizations, ClosedSessionCurrencyRate[] currencyRates)
+        MoexAmortsEntity[] amortizations,
+        ClosedSessionCurrencyRate[] currencyRates)
     {
         var faceUnit = bond?.FaceUnit ?? security?.FaceUnit ?? schedule.FirstOrDefault()?.FaceUnit ?? "";
         var initial = bond?.InitialFaceValue ?? schedule.FirstOrDefault()?.InitialFaceValue
             ?? amortizations.FirstOrDefault()?.InitialFaceValue ?? 0;
-        
+
         return new ClosedSessionInstrument(
-            group.Key.SecId, 
-            group.Key.BoardId, 
+            group.Key.SecId,
+            group.Key.BoardId,
             group.Key.CurrencyId,
-            bond?.ShortName ?? security?.ShortName ?? group.Key.SecId, 
+            bond?.ShortName ?? security?.ShortName ?? group.Key.SecId,
             faceUnit,
-            bond?.BondType ?? security?.BondType ?? "", 
+            bond?.BondType ?? security?.BondType ?? "",
             bond?.BondSubType ?? security?.BondSubType ?? "",
             bond?.CouponFrequency, initial, bond?.MatDate ?? security?.MatDate,
             group.Select(x => new ClosedSessionTrade(x.Id, x.TradeDate, x.Side, x.Quantity,
@@ -119,4 +136,12 @@ public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDb
                 x.Value, x.ValueInRub, x.ValuePercent,
                 x.InitialFaceValue, x.FaceUnit)).ToArray(), currencyRates);
     }
+
+    private sealed record ClosedSessionSourceData(
+        IReadOnlyList<PortfolioTradeEntity> Trades,
+        IReadOnlyList<MoexBondEntity> Bonds,
+        IReadOnlyList<MoexBondSecurityEntity> Securities,
+        IReadOnlyList<MoexCouponsEntity> Coupons,
+        IReadOnlyList<MoexAmortsEntity> Amortizations,
+        IReadOnlyList<CurrencyRateEntity> Rates);
 }

@@ -13,7 +13,7 @@ SVG/PNG — направленный граф тех же вызовов: стр
 - [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15; `ClosedPositionSessionsPageService`, `ClosedPositionSessionsService.RecalculateAsync` и входной provider D21 остаются открытыми. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала; R11 — точность преобразования чисел в миграции D15. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
+**Текущий статус:** этап 2; сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecurities` остаётся отдельным непроверенным методом: Core вызывает его напрямую, минуя `BondsService`. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15. 21.10.2026 проверены D21 `ClosedPositionSessionSourceProvider.GetAsync` и его helpers до запросов EF к исходным таблицам; S13 и `ClosedPositionSessionsService.RecalculateAsync` остаются открытыми. R01–R03 исправлены; R04 — гонка Add/Update фонда, R05 — нет прямых Storage-тестов выборок валют и валют номинала; R11 — точность преобразования чисел в миграции D15. Денежные остатки/снимки кеша и журнал операций фондов удалены; cash-рекомендации и денежные потоки портфеля остаются действующими отдельными ветками.
 
 ## Как пользоваться картой
 
@@ -590,10 +590,10 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - **D18 `MoexIndexHistoryStore`** (`IMoexIndexHistoryStore`) — S10 обновляет кэш LQDT; также используется J02.
   - [ ] `UpsertAsync`.
   - [ ] `GetHistoryAsync`.
-- **D19 Прямой запрос валютных курсов через `IDbContextFactory<PopoDbContext>`** — используется расчётами валют облигационных позиций в S11; в цепочке оценки фондов C02 не участвует.
+- **D19 Прямое чтение `CurrencyRates` через `IDbContextFactory<PopoDbContext>`** — два отдельных вызова S11 и один вызов D21; это общий источник данных, а не общий метод. Фильтр D21 по валютам исходных сделок/купонов/амортизаций и `RateDate <= asOf` проверен в составе D21; вызовы S11 остаются открытыми.
 - **D20 Hangfire `IBackgroundJobClient` / `JobStorage`** — внешние методы постановки/чтения статуса в S13; J04 исполняет задачу.
-- **D21 `ClosedPositionSessionSourceProvider`** — J04 читает здесь сделки, купоны, амортизации и валютные курсы для K08.
-  - [ ] `GetAsync`.
+- **D21 `ClosedPositionSessionSourceProvider`** — J04 читает здесь сделки, облигации, режимы торгов, купоны, амортизации и валютные курсы для K08.
+  - [x] `GetAsync` — проверено 21.10.2026 вместе с `LoadSourceDataAsync`, `BuildInstruments`, `SelectSecurity`, `BuildClosedSessionInstrument` и запросами EF к `PortfolioTrades`, `MoexBonds`, `MoexBondSecurities`, `MoexCouponsEntities`, `MoexAmortsEntities`, `CurrencyRates`. Источники читаются в `RepeatableRead`; D19 остаётся общим узлом, потому что S11 выполняет отдельные незавершённые ревью выборки курсов.
 - Проверить модели EF, запросы и миграции в [`Popo.Storage`](../../src/Popo.Storage/).
 
 ### Hxx — внешние клиенты и транспорт
@@ -769,6 +769,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | D15 `ClosedPositionSessionsProvider` | S13, J04 | S13 читает опубликованный снимок, J04 атомарно заменяет его после расчёта. |
 | D16 `InitializationStateStore` | S13, S14, J01, J03, J04 | Общие состояния/переходы проверять в одном месте, затем сверить каждого caller. |
 | D18 `MoexIndexHistoryStore` | S10, J02 | S10 обновляет и читает историю LQDT, J02 также синхронизирует её. |
+| D19 чтение `CurrencyRates` | S11.GetPageAsync/GetOverviewAsync, D21.GetAsync | Одну таблицу читают три независимых call sites; проверять каждый фильтр в его вызывающей ветке, не считать это общим методом. |
 | D21 `ClosedPositionSessionSourceProvider` | J04 → K08 | Источник входных данных пересчёта; D15 отдельно отвечает за публикацию снимка. |
 | D20 Hangfire client/storage | S13, J04 | Enqueue/status проверять отдельно от реализации самого фонового расчёта. |
 | H01 `MoexHttpClient` | S07, S10–S12, J02 | Общий клиент; каждый consumer дополнительно проверяет семантику конкретного запроса.
@@ -808,5 +809,6 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - [x] **K08 `ClosedPositionSessionCalculator` и весь вызываемый им стек:** `Calculate` и внутренние помощники; выбор типа калькулятора, расчёт купонов/амортизации/валют; общий `BondCouponClassifier.IsFloater`. Проверено 20.10.2026; открытое замечание по некорректным сделкам записано как R07.
 - [x] **K07 `BondPriceCalculator`, `YieldCalculator` и нижняя ветка до D13:** оба overload-а dirty price; YTM solver и его helpers; `BondYieldCashFlowBuilder` и helpers; `CashFlowProvider.GetYieldSchedule` и вызываемые им конвертеры валют. Проверено 20.10.2026; численные граничные дефекты и неоднозначное имя контракта оставлены открытыми как R08–R10. Проверка стека не означает, что эти замечания исправлены или что верхняя ветка S07/C03 проверена.
 - [x] **D15 `ClosedPositionSessionsProvider` — `GetAsync` и `ReplaceAsync` до таблицы `ClosedPositionSessions`:** проверены чтение, упорядочивание, полное отображение полей, транзакционная замена и тесты round-trip/rollback. R11 отдельно фиксирует точность преобразования при миграции.
+- [x] **D21 `ClosedPositionSessionSourceProvider.GetAsync` и весь нижний стек:** проверены private helpers, согласованное чтение шести исходных таблиц, фильтры по `asOf`, подбор режима торгов и группировка данных по `SecId`. Будущие купоны сохраняются для расчёта периода, амортизации и курсы ограничены `asOf`; тесты покрывают границу даты, раздельные ключи инструмента и валютную конвертацию. Запросы CurrencyRates в S11 не отмечены: это отдельные call sites D19.
 
 `CashRecommendationsController.GetPage` и его стек теперь явно показаны в C03, но эта ветка остаётся непроверенной: ранее по ней запрашивалось документирование методов, а не отметка ревью.
