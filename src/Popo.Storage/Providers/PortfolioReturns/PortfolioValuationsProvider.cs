@@ -7,6 +7,7 @@ namespace Popo.Storage.Providers.PortfolioReturns;
 public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IPortfolioValuationsProvider
 {
+    /// <summary>Возвращает все сохранённые оценки портфеля, начиная с самой новой.</summary>
     public async Task<IReadOnlyList<PortfolioValuationRecord>> GetValuationsAsync(
         CancellationToken cancellationToken)
     {
@@ -18,6 +19,7 @@ public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext>
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>Возвращает оценку по идентификатору или <see langword="null"/>, если она не найдена.</summary>
     public async Task<PortfolioValuationRecord?> GetValuationAsync(
         Guid id,
         CancellationToken cancellationToken)
@@ -30,6 +32,7 @@ public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext>
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>Сохраняет оценку общей стоимости портфеля на указанную дату и возвращает созданную запись.</summary>
     public async Task<PortfolioValuationRecord> AddValuationAsync(
         DateOnly date,
         double totalValue,
@@ -49,6 +52,7 @@ public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext>
         return ToRecord(entity);
     }
 
+    /// <summary>Обновляет дату, общую стоимость и комментарий оценки; возвращает <see langword="true"/>, если запись найдена.</summary>
     public async Task<bool> UpdateValuationAsync(
         Guid id,
         DateOnly date,
@@ -66,6 +70,7 @@ public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext>
         return updated > 0;
     }
 
+    /// <summary>Удаляет оценку по идентификатору и возвращает <see langword="true"/>, если запись существовала.</summary>
     public async Task<bool> DeleteValuationAsync(Guid id, CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);

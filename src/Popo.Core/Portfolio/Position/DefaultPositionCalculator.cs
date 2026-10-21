@@ -6,11 +6,9 @@ public sealed class DefaultPositionCalculator : IPositionCalculator
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        var openLots = new PositionOpenLotCalculator().Calculate(input.Trades, input.AsOf);
+        var openLots = PositionOpenLotCalculator.Calculate(input.Trades, input.AsOf);
         if (openLots.RemainingQuantity <= 0)
-        {
             return new(null, new PortfolioPositionValuation(null, null, null, null), null);
-        }
 
         var averageBuyPriceAtCurrentFaceValue = openLots.RemainingCleanCost / openLots.RemainingQuantity;
         var averageBuyPrice = openLots.ActualRemainingCleanCost / openLots.RemainingQuantity;

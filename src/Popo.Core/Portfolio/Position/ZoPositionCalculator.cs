@@ -6,7 +6,7 @@ public sealed class ZoPositionCalculator : IPositionCalculator
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        var openLots = new PositionOpenLotCalculator().Calculate(input.Trades, input.AsOf);
+        var openLots = PositionOpenLotCalculator.Calculate(input.Trades, input.AsOf);
         var lots = openLots.Lots;
         var remainingQuantity = openLots.RemainingQuantity;
         if (remainingQuantity <= 0)

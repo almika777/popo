@@ -2,7 +2,6 @@ namespace Popo.Core.Portfolio.Position;
 
 public sealed class FloaterPositionCalculator : IPositionCalculator
 {
-    private static readonly PositionOpenLotCalculator OpenLotCalculator = new();
     private static readonly PositionCouponHistoryCalculator CouponHistoryCalculator = new();
     private static readonly IPositionCouponEntitlementPolicy CouponEntitlementPolicy =
         new FloaterPositionCouponEntitlementPolicy();
@@ -12,7 +11,7 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
         ArgumentNullException.ThrowIfNull(input);
 
         var couponValuationDate = input.CouponValuationDate ?? input.AsOf;
-        var openLots = OpenLotCalculator.Calculate(input.Trades, input.AsOf);
+        var openLots = PositionOpenLotCalculator.Calculate(input.Trades, input.AsOf);
         if (openLots.RemainingQuantity <= 0)
         {
             return new PositionCalculationResult(

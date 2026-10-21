@@ -1,5 +1,3 @@
-using Popo.Core.Portfolio.Trades;
-
 namespace Popo.Core.Portfolio.Position;
 
 public static class PortfolioPositionCalculator
@@ -25,7 +23,8 @@ public static class PortfolioPositionCalculator
                     buys.Sum(x => x.CleanAmount),
                     buys.Sum(x => x.Amount),
                     sells.Sum(x => x.Amount));
-                var openLots = new PositionOpenLotCalculator().Calculate(
+                
+                var openLots = PositionOpenLotCalculator.Calculate(
                     group.Select(x => new PositionIncomeTrade(
                         x.TradeDate,
                         x.Side,
@@ -81,24 +80,18 @@ public static class PortfolioPositionCalculator
             throw new ArgumentException("Текущая цена и данные по купону должны быть неотрицательными.");
         }
 
-        var openLots = new PositionOpenLotCalculator().Calculate(trades, asOf);
-        var remainingLots = openLots.Lots;
-        var remainingQuantity = openLots.RemainingQuantity;
-        var remainingCleanCost = openLots.RemainingCleanCost;
-        var actualRemainingCleanCost = openLots.ActualRemainingCleanCost;
-        var paidBuyCommission = openLots.PaidBuyCommission;
-        var averageBuyPricePercent = openLots.AverageBuyPricePercent;
+        var openLots = PositionOpenLotCalculator.Calculate(trades, asOf);
         var dailyCoupon = couponPeriodDays == 0 ? 0 : couponValue / couponPeriodDays;
-        var couponIncome = remainingLots.Sum(x =>
-            x.Quantity * dailyCoupon * Math.Max(0, asOf.DayNumber - x.TradeDate.DayNumber));
-        var pnlCost = includeIndexedNominalIncreaseInPnl ? actualRemainingCleanCost : remainingCleanCost;
-        var unrealizedPnl = remainingQuantity * currentCleanPrice - pnlCost;
+        var couponIncome = openLots.Lots
+            .Sum(x => x.Quantity * dailyCoupon * Math.Max(0, asOf.DayNumber - x.TradeDate.DayNumber));
+        var pnlCost = includeIndexedNominalIncreaseInPnl ? openLots.ActualRemainingCleanCost : openLots.RemainingCleanCost;
+        var unrealizedPnl = openLots.RemainingQuantity * currentCleanPrice - pnlCost;
         var unrealizedPnlPercent = pnlCost == 0 ? 0 : unrealizedPnl / pnlCost * 100;
         var totalPnl = unrealizedPnl
                        + couponIncome
-                       - paidBuyCommission;
+                       - openLots.PaidBuyCommission;
         var totalPnlPercent = pnlCost == 0 ? 0 : totalPnl / pnlCost * 100;
-        var annualizedPnlAmount = remainingLots.Sum(lot =>
+        var annualizedPnlAmount = openLots.Lots.Sum(lot =>
         {
             var lotCostPerUnit = includeIndexedNominalIncreaseInPnl ? lot.ActualCleanPrice : lot.CleanPrice;
             var holdingDays = Math.Max(1, asOf.DayNumber - lot.TradeDate.DayNumber);
@@ -112,16 +105,16 @@ public static class PortfolioPositionCalculator
             : annualizedPnlAmount / pnlCost * 100;
 
         return new PortfolioPositionIncome(
-            remainingCleanCost,
-            paidBuyCommission,
+            openLots.RemainingCleanCost,
+            openLots.PaidBuyCommission,
             couponIncome,
             totalPnl,
             totalPnlPercent,
-            remainingQuantity,
-            averageBuyPricePercent,
+            openLots.RemainingQuantity,
+            openLots.AverageBuyPricePercent,
             unrealizedPnl,
             unrealizedPnlPercent,
-            actualRemainingCleanCost,
+            openLots.ActualRemainingCleanCost,
             annualizedTotalPnlPercent);
     }
     public static PortfolioPositionValuation Calculate(
