@@ -484,9 +484,8 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 1, 6);
         var history = new PortfolioBondBenchmarkHistory(
-            "SU000A10F504",
             "RU000A10F504",
-            "TQOB",
+            "TQCB",
             "RUB",
             "RUB",
             new[]
@@ -513,9 +512,8 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
         var firstQuoteDate = new DateOnly(2026, 1, 3);
         var to = new DateOnly(2026, 1, 6);
         var history = new PortfolioBondBenchmarkHistory(
-            "SU000A10F504",
             "RU000A10F504",
-            "TQOB",
+            "TQCB",
             "RUB",
             "RUB",
             new[]
@@ -544,9 +542,8 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
         var firstQuoteDate = new DateOnly(2026, 1, 3);
         var to = new DateOnly(2026, 1, 6);
         var history = new PortfolioBondBenchmarkHistory(
-            "SU000A10F504",
             "RU000A10F504",
-            "TQOB",
+            "TQCB",
             "RUB",
             "RUB",
             new[]

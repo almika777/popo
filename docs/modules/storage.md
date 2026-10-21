@@ -30,8 +30,8 @@ Popo.Storage содержит EF Core-модель PostgreSQL, справочн�
 `SecId + TradeDate`. `MoexIndexHistoryStore` идемпотентно добавляет новые даты и обновляет уже сохранённые значения.
 Первичная и ежедневная синхронизация истории LQDTM выполняется `MoexIndexHistoryUpdateJob`.
 
-`PortfolioBondBenchmarkHistoryProvider` разрешает ISIN RU000A10F504 в `SecId` и основную торговую доску,
-затем читает для диапазона дневные `Close`, `LegalClosePrice`, исторические `FaceValue`, `CouponPercent` и `AccInt`
+`PortfolioBondBenchmarkHistoryProvider` принимает `SecId` и `BoardId`, читает характеристики выпуска по составному ключу
+торговой доски и инструмента, затем загружает для диапазона по той же доске дневные `Close`, `LegalClosePrice`, исторические `FaceValue`, `CouponPercent` и `AccInt`
 из `MoexHistoryYieldsEntities`. Купонные периоды из `MoexCouponsEntities` включают даты начала, выплаты и фиксации
 владельцев, а также опубликованную сумму в рублях (`ValueInRub`, затем `Value` для RUB/SUR).
 Периоды охватывают диапазон от опорной исторической котировки до конца выбранного периода, включая незавершённый

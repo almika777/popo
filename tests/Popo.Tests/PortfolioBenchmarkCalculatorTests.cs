@@ -989,7 +989,7 @@ public sealed class PortfolioBenchmarkCalculatorTests
     }
 
     private static PortfolioBondBenchmarkHistory BondHistory(params PortfolioBondBenchmarkPricePoint[] points) =>
-        new("SU26238RMFS4", "RU000A10F504", "TQOB", "RUB", "RUB", points, []);
+        new("RU000A10F504", "TQCB", "RUB", "RUB", points, []);
 
     private static MoexIndexHistory Point(string secId, DateOnly date, decimal close) => new()
     {

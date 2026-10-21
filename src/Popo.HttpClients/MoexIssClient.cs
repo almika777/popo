@@ -99,21 +99,6 @@ namespace Popo.HttpClients
             }, ct))!;
         }
 
-        public async Task<List<MoexHistoryYields>> GetBondHistoryAsync(DateTimeOffset date, int start, int limit,
-            CancellationToken ct)
-        {
-            var url = $"history/engines/stock/markets/bonds/securities.json" +
-                      $"?date={date:yyyy-MM-dd}" +
-                      $"&start={start}" +
-                      $"&limit={limit}";
-
-            using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return ParseMoexResult<MoexHistoryYields>(json, "history");
-        }
-
         /// <summary>Запрашивает котировку фонда для заданных SECID и режима торгов и кэширует ответ на один час.</summary>
         /// <param name="secId">Код фонда на MOEX.</param>
         /// <param name="boardId">Режим торгов фонда.</param>

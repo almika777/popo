@@ -2,7 +2,9 @@ namespace Popo.Core.PortfolioReturns;
 
 internal sealed class Ru000A10F504BenchmarkSeriesCalculator
 {
-    private const string Isin = "RU000A10F504";
+    private const string BenchmarkSecId = "RU000A10F504";
+    private const string BenchmarkBoardId = "TQCB";
+    private const string BenchmarkName = "RU000A10F504";
     private const double InitialCapital = 1_000_000d;
 
     public DateOnly? FindFirstObservationDate(
@@ -27,7 +29,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         {
             if (history is null)
             {
-                throw new PortfolioBenchmarkHistoryUnavailableException($"В хранилище нет истории {Isin}.");
+                throw new PortfolioBenchmarkHistoryUnavailableException($"В хранилище нет истории {BenchmarkName}.");
             }
 
             var firstObservationDate = FindComparisonStartDate(from, to, history);
@@ -36,12 +38,12 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             if (comparisonStart < firstObservationDate || comparisonStart > to)
             {
                 throw new InvalidPortfolioBenchmarkHistoryException(
-                    $"Общая дата сравнения {comparisonStart:yyyy-MM-dd} не входит в доступную историю {Isin}.");
+                    $"Общая дата сравнения {comparisonStart:yyyy-MM-dd} не входит в доступную историю {BenchmarkName}.");
             }
 
             var prices = BuildDailyPrices(from, to, comparisonStart, history);
             var simulation = PortfolioBenchmarkMath.SimulatePriceSeries(
-                Isin, comparisonStart, to, InitialCapital, prices, [],
+                BenchmarkName, comparisonStart, to, InitialCapital, prices, [],
                 couponPeriods: history.CouponPeriods);
 
             var endValue = PortfolioBenchmarkMath.FindValuation(to, simulation.Valuations).TotalValue;
@@ -69,7 +71,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         }
         catch (InvalidOperationException exception)
         {
-            return Unavailable($"Не удалось рассчитать сценарий {Isin}: {exception.Message}");
+            return Unavailable($"Не удалось рассчитать сценарий {BenchmarkName}: {exception.Message}");
         }
 
         IndexedBondBenchmarkSeriesCalculation Unavailable(string reason) =>
@@ -82,32 +84,34 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         DateOnly calculationStartDate,
         PortfolioBondBenchmarkHistory history)
     {
-        if (!string.Equals(history.Isin, Isin, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(history.SecId, BenchmarkSecId, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(history.BoardId, BenchmarkBoardId, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidPortfolioBenchmarkHistoryException($"История облигации не соответствует {Isin}.");
+            throw new InvalidPortfolioBenchmarkHistoryException(
+                $"История облигации не соответствует {BenchmarkSecId}/{BenchmarkBoardId}.");
         }
 
         if (!IsRubleUnit(history.CurrencyId) || !IsRubleUnit(history.FaceUnit))
         {
-            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {Isin} поддерживается расчёт только рублёвой бумаги с номиналом в рублях.");
+            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {BenchmarkName} поддерживается расчёт только рублёвой бумаги с номиналом в рублях.");
         }
 
         var points = history.Points.OrderBy(point => point.Date).ToArray();
         if (points.Length == 0)
         {
-            throw new PortfolioBenchmarkHistoryUnavailableException($"В хранилище нет дневной истории {Isin}.");
+            throw new PortfolioBenchmarkHistoryUnavailableException($"В хранилище нет дневной истории {BenchmarkName}.");
         }
 
         if (points.GroupBy(point => point.Date).Any(group => group.Count() > 1))
         {
-            throw new InvalidPortfolioBenchmarkHistoryException($"В истории {Isin} есть повторяющиеся даты.");
+            throw new InvalidPortfolioBenchmarkHistoryException($"В истории {BenchmarkName} есть повторяющиеся даты.");
         }
 
         if (history.CouponPeriods.Count == 0 && points.Any(point =>
                 point.Date >= calculationStartDate && point.Date <= to && point.CouponPercent > 0))
         {
             throw new PortfolioBenchmarkHistoryUnavailableException(
-                $"Нет расписания купонов {Isin}; невозможно подтвердить отсутствие выплат в выбранном периоде.");
+                $"Нет расписания купонов {BenchmarkName}; невозможно подтвердить отсутствие выплат в выбранном периоде.");
         }
 
         foreach (var coupon in history.CouponPeriods.Where(coupon =>
@@ -116,23 +120,23 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             if (!coupon.RecordDate.HasValue)
             {
                 throw new PortfolioBenchmarkHistoryUnavailableException(
-                    $"Неизвестна дата фиксации владельцев {Isin} для выплаты {coupon.CouponDate:yyyy-MM-dd}.");
+                    $"Неизвестна дата фиксации владельцев {BenchmarkName} для выплаты {coupon.CouponDate:yyyy-MM-dd}.");
             }
 
             if (coupon.AmountInRub is not > 0 || !double.IsFinite(coupon.AmountInRub.Value))
             {
                 throw new PortfolioBenchmarkHistoryUnavailableException(
-                    $"Неизвестна сумма выплаты купона {Isin} за {coupon.CouponDate:yyyy-MM-dd}.");
+                    $"Неизвестна сумма выплаты купона {BenchmarkName} за {coupon.CouponDate:yyyy-MM-dd}.");
             }
         }
 
         var startPoint = points.FirstOrDefault(point => point.Date >= from && point.Date <= to)
-            ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {Isin} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
+            ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {BenchmarkName} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
         var coverageIndex = Array.FindLastIndex(points, point => point.Date <= calculationStartDate);
         if (coverageIndex < 0)
         {
             throw new PortfolioBenchmarkHistoryUnavailableException(
-                $"Нет цены {Isin} на общую дату {calculationStartDate:yyyy-MM-dd} или раньше.");
+                $"Нет цены {BenchmarkName} на общую дату {calculationStartDate:yyyy-MM-dd} или раньше.");
         }
 
         var observationIndexForCoverage = coverageIndex + 1;
@@ -148,7 +152,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                     period.PeriodStartDate <= date && period.CouponDate >= date))
             {
                 throw new PortfolioBenchmarkHistoryUnavailableException(
-                    $"Расписание купонов {Isin} не покрывает {date:yyyy-MM-dd}; сценарий нельзя рассчитать точно.");
+                    $"Расписание купонов {BenchmarkName} не покрывает {date:yyyy-MM-dd}; сценарий нельзя рассчитать точно.");
             }
         }
 
@@ -183,7 +187,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             var dirtyValue = currentCleanPrice * currentFace / 100d + accruedInterest;
             if (!double.IsFinite(dirtyValue) || dirtyValue <= 0)
             {
-                throw new InvalidPortfolioBenchmarkHistoryException($"Некорректная грязная цена {Isin} за {date:yyyy-MM-dd}.");
+                throw new InvalidPortfolioBenchmarkHistoryException($"Некорректная грязная цена {BenchmarkName} за {date:yyyy-MM-dd}.");
             }
 
             priceMap[date] = dirtyValue;
@@ -191,7 +195,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
 
         if (!actualTradeDates.Any(date => date > from && date <= to))
         {
-            throw new PortfolioBenchmarkHistoryUnavailableException($"В периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd} нет торговых цен {Isin}.");
+            throw new PortfolioBenchmarkHistoryUnavailableException($"В периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd} нет торговых цен {BenchmarkName}.");
         }
 
         return priceMap.Select(pair => new PriceValue(pair.Key, pair.Value, actualTradeDates.Contains(pair.Key))).ToArray();
@@ -203,7 +207,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         if (close is not > 0 || !double.IsFinite(close.Value) || !double.IsFinite(point.FaceValue) || point.FaceValue <= 0 ||
             !double.IsFinite(point.CouponPercent) || point.CouponPercent < 0)
         {
-            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {Isin} отсутствует корректная цена, номинал или купон за {point.Date:yyyy-MM-dd}.");
+            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {BenchmarkName} отсутствует корректная цена, номинал или купон за {point.Date:yyyy-MM-dd}.");
         }
 
         return close.Value;
@@ -213,7 +217,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
     {
         if (point.AccruedInterest is null || !double.IsFinite(point.AccruedInterest.Value) || point.AccruedInterest.Value < 0)
         {
-            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {Isin} отсутствует фактический НКД за торговую дату {point.Date:yyyy-MM-dd}.");
+            throw new PortfolioBenchmarkHistoryUnavailableException($"Для {BenchmarkName} отсутствует фактический НКД за торговую дату {point.Date:yyyy-MM-dd}.");
         }
 
         return point.AccruedInterest.Value;
@@ -230,7 +234,7 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         }
 
         var firstPrice = history.Points.Where(point => point.Date > from && point.Date <= to).MinBy(point => point.Date)
-            ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {Isin} в выбранном периоде.");
+            ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {BenchmarkName} в выбранном периоде.");
         return firstPrice.Date;
     }
 

@@ -13,6 +13,9 @@ public sealed class PortfolioBenchmarkService(
     PortfolioBenchmarkCalculator calculator,
     IPortfolioBondBenchmarkHistoryProvider? bondHistoryProvider = null)
 {
+    private const string BenchmarkBondSecId = "RU000A10F504";
+    private const string BenchmarkBondBoardId = "TQCB";
+
     public async Task<PortfolioBenchmarkResult> CalculateAsync(
         DateOnly from,
         DateOnly to,
@@ -40,7 +43,8 @@ public sealed class PortfolioBenchmarkService(
             if (bondHistoryProvider is not null)
             {
                 indexedBondHistory = await bondHistoryProvider.GetHistoryAsync(
-                    "RU000A10F504",
+                    BenchmarkBondSecId,
+                    BenchmarkBondBoardId,
                     from,
                     to,
                     cancellationToken);
