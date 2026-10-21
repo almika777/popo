@@ -31,35 +31,40 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
             .ToListAsync(cancellationToken);
     }
     
-    public async Task<IReadOnlyList<BondSecurityDto>> GetSecurities(CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<BondSecurityDto>> GetSecuritiesAsync(CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        return await dbContext.MoexBondSecurities
-            .Join(dbContext.MoexBonds, x => x.Isin, x => x.Isin, (entity, bondEntity) => new BondSecurityDto(
-                entity.SecId, 
-                entity.Isin, 
-                entity.BoardId, 
-                entity.BondType, 
-                entity.FaceUnit, 
-                entity.FaceValueOnSettleDate ?? entity.FaceValue,
-                entity.CurrencyId,
-                bondEntity.EmitterId,
-                dbContext.MoexEmitents
-                    .Where(x => x.Id == bondEntity.EmitterId)
-                    .Select(x => x.Title)
-                    .FirstOrDefault(),
-                bondEntity.CouponFrequency,
-                entity.SettleDate,
-                entity.OfferDate,
-                entity.MatDate,
-                entity.AccruedInt,
-                entity.BuybackDate,
-                entity.BuybackPrice,
-                entity.CallOptionDate,
-                entity.PutOptionDate,
-                entity.BondSubType,
-                entity.ShortName))
-            .ToListAsync(cancellationToken: cancellationToken);
+        var securities =
+            from security in dbContext.MoexBondSecurities
+            join bond in dbContext.MoexBonds.AsNoTracking()
+                on security.SecId equals bond.SecId
+            join issuer in dbContext.MoexEmitents
+                on bond.EmitterId equals issuer.Id into issuerGroup
+            from issuer in issuerGroup.DefaultIfEmpty()
+            select new BondSecurityDto(
+                SecId: security.SecId,
+                Isin: security.Isin,
+                BoardId: security.BoardId,
+                BondType: security.BondType,
+                FaceUnit: security.FaceUnit,
+                FaceValue: security.FaceValueOnSettleDate ?? security.FaceValue,
+                CurrencyId: security.CurrencyId,
+                EmitterId: bond.EmitterId,
+                IssuerName: issuer == null ? null : issuer.Title,
+                CouponFrequency: bond.CouponFrequency,
+                SettleDate: security.SettleDate,
+                OfferDate: security.OfferDate,
+                MatDate: security.MatDate,
+                AccruedInterest: security.AccruedInt,
+                BuybackDate: security.BuybackDate,
+                BuybackPrice: security.BuybackPrice,
+                CallOptionDate: security.CallOptionDate,
+                PutOptionDate: security.PutOptionDate,
+                BondSubType: security.BondSubType,
+                ShortName: security.ShortName);
+
+        return await securities.ToListAsync(cancellationToken);
     }
     
     public async Task<IReadOnlyList<BondSearchResult>> SearchAsync(

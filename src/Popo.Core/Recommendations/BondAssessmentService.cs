@@ -17,7 +17,7 @@ public sealed class BondAssessmentService(
         CancellationToken cancellationToken)
     {
         var today = MoscowTime.Today;
-        var securities = await bondsProvider.GetSecurities(cancellationToken);
+        var securities = await bondsProvider.GetSecuritiesAsync(cancellationToken);
         var ratings = await ratingsProvider.GetBondRatingsAsync(cancellationToken);
         var statistics = await historyProvider.GetDailyVolumeStatistics(cancellationToken);
         var market = (await moexHttpClient.GetActiveBondsMarketdataAsync(cancellationToken))

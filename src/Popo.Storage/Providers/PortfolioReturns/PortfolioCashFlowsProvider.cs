@@ -13,7 +13,6 @@ public sealed class PortfolioCashFlowsProvider(IDbContextFactory<PopoDbContext> 
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await dbContext.PortfolioCashFlows
-            .AsNoTracking()
             .OrderByDescending(x => x.Date)
             .ThenByDescending(x => x.Id)
             .Select(x => new PortfolioCashFlowRecord(x.Id, x.Date, x.Type, x.Amount, x.Comment))
@@ -24,7 +23,6 @@ public sealed class PortfolioCashFlowsProvider(IDbContextFactory<PopoDbContext> 
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await dbContext.PortfolioCashFlows
-            .AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new PortfolioCashFlowRecord(x.Id, x.Date, x.Type, x.Amount, x.Comment))
             .SingleOrDefaultAsync(cancellationToken);
@@ -40,7 +38,7 @@ public sealed class PortfolioCashFlowsProvider(IDbContextFactory<PopoDbContext> 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var entity = new PortfolioCashFlowEntity
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             Date = date,
             Type = type,
             Amount = amount,

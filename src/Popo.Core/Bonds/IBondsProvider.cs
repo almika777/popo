@@ -20,5 +20,8 @@ public interface IBondsProvider
     /// <returns>Коды валют номинала, указанные в данных облигаций.</returns>
     Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<BondSecurityDto>> GetSecurities(CancellationToken cancellationToken);
+    /// <summary>Читает сохранённые характеристики облигаций и торговых режимов для расчёта рекомендаций.</summary>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Облигации с данными торгового режима и эмитента, если они доступны.</returns>
+    Task<IReadOnlyList<BondSecurityDto>> GetSecuritiesAsync(CancellationToken cancellationToken);
 }
