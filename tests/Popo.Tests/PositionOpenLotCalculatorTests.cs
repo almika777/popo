@@ -10,7 +10,7 @@ public sealed class PositionOpenLotCalculatorTests
     [Test]
     public void Calculate_SalesReduceEveryOpenPurchaseCohortProportionally()
     {
-        var result = new PositionOpenLotCalculator().Calculate(
+        var result = PositionOpenLotCalculator.Calculate(
         [
             Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 10, 1_000, 5, 20),
             Trade(new DateOnly(2026, 2, 1), TradeSide.Buy, 5, 1_100, 8, 15),
@@ -32,7 +32,7 @@ public sealed class PositionOpenLotCalculatorTests
     public void Calculate_SameDayBuyAndSellHaveNoExecutionOrder()
     {
         var date = new DateOnly(2026, 9, 1);
-        var result = new PositionOpenLotCalculator().Calculate(
+        var result = PositionOpenLotCalculator.Calculate(
         [
             Trade(date, TradeSide.Sell, 1, 1_100),
             Trade(date, TradeSide.Buy, 1, 2_000),
@@ -52,7 +52,7 @@ public sealed class PositionOpenLotCalculatorTests
     public void Calculate_SameDaySaleDoesNotChangeWeightedAveragePurchasePrice()
     {
         var date = new DateOnly(2026, 9, 1);
-        var result = new PositionOpenLotCalculator().Calculate(
+        var result = PositionOpenLotCalculator.Calculate(
         [
             Trade(date, TradeSide.Buy, 2, 1_000),
             Trade(date, TradeSide.Sell, 1, 1_100)
@@ -68,7 +68,7 @@ public sealed class PositionOpenLotCalculatorTests
     [Test]
     public void Calculate_RejectsSalesAboveTheAvailableQuantity()
     {
-        Assert.Throws<InvalidOperationException>(() => new PositionOpenLotCalculator().Calculate(
+        Assert.Throws<InvalidOperationException>(() => PositionOpenLotCalculator.Calculate(
         [
             Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 1, 1_000),
             Trade(new DateOnly(2026, 2, 1), TradeSide.Sell, 2, 1_100)

@@ -129,8 +129,8 @@ public sealed class ClosedPositionSessionCalculatorTests
             Assert.That(result.CouponIncome, Is.EqualTo(380d));
             Assert.That(result.BodyPnl, Is.EqualTo(100d));
             Assert.That(result.TotalPnl, Is.EqualTo(476d));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(47.6d));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(347.48d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(47.6d).Within(0.000001));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(347.48d).Within(0.000001));
         });
     }
 

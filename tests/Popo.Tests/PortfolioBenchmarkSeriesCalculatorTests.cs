@@ -479,7 +479,7 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
     }
 
     [Test]
-    public void Indexed_bond_series_uses_its_own_nominal_and_clean_price_history()
+    public void Indexed_bond_series_uses_each_observed_nominal_and_legal_close_price()
     {
         var from = new DateOnly(2026, 1, 1);
         var to = new DateOnly(2026, 1, 6);
@@ -490,8 +490,8 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
             "RUB",
             new[]
             {
-                new PortfolioBondBenchmarkPricePoint(from, 100, null, 1000, 0, 0),
-                new PortfolioBondBenchmarkPricePoint(new DateOnly(2026, 1, 5), 101, null, 1000, 0, 0)
+                new PortfolioBondBenchmarkPricePoint(from, 90, 100, 1000, 0, 0),
+                new PortfolioBondBenchmarkPricePoint(new DateOnly(2026, 1, 5), 90, 101, 1100, 0, 0)
             },
             []);
 
@@ -500,7 +500,7 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.UnavailableReason, Is.Null);
-            Assert.That(result.Series!.ProfitPercent, Is.EqualTo(0.01).Within(0.000001));
+            Assert.That(result.Series!.ProfitPercent, Is.EqualTo(0.111).Within(0.000001));
             Assert.That(result.ComparisonStartDate, Is.EqualTo(from));
         });
     }

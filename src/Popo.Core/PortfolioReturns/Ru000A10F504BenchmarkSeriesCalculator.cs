@@ -84,6 +84,18 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         DateOnly calculationStartDate,
         PortfolioBondBenchmarkHistory history)
     {
+        ValidateBenchmarkInstrument(history);
+        var points = GetOrderedHistoryPoints(history);
+        ValidateCouponData(calculationStartDate, to, points, history.CouponPeriods);
+
+        var startPoint = FindFirstPeriodObservation(points, from, to);
+        ValidateCouponScheduleCoverage(calculationStartDate, to, points, history.CouponPeriods);
+
+        return CreateDailyPriceSeries(from, to, startPoint, points, history.CouponPeriods);
+    }
+
+    private static void ValidateBenchmarkInstrument(PortfolioBondBenchmarkHistory history)
+    {
         if (!string.Equals(history.SecId, BenchmarkSecId, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(history.BoardId, BenchmarkBoardId, StringComparison.OrdinalIgnoreCase))
         {
@@ -95,7 +107,11 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
         {
             throw new PortfolioBenchmarkHistoryUnavailableException($"Для {BenchmarkName} поддерживается расчёт только рублёвой бумаги с номиналом в рублях.");
         }
+    }
 
+    private static PortfolioBondBenchmarkPricePoint[] GetOrderedHistoryPoints(
+        PortfolioBondBenchmarkHistory history)
+    {
         var points = history.Points.OrderBy(point => point.Date).ToArray();
         if (points.Length == 0)
         {
@@ -107,14 +123,23 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
             throw new InvalidPortfolioBenchmarkHistoryException($"В истории {BenchmarkName} есть повторяющиеся даты.");
         }
 
-        if (history.CouponPeriods.Count == 0 && points.Any(point =>
+        return points;
+    }
+
+    private static void ValidateCouponData(
+        DateOnly calculationStartDate,
+        DateOnly to,
+        IReadOnlyCollection<PortfolioBondBenchmarkPricePoint> points,
+        IReadOnlyCollection<PortfolioBondBenchmarkCouponPeriod> couponPeriods)
+    {
+        if (couponPeriods.Count == 0 && points.Any(point =>
                 point.Date >= calculationStartDate && point.Date <= to && point.CouponPercent > 0))
         {
             throw new PortfolioBenchmarkHistoryUnavailableException(
                 $"Нет расписания купонов {BenchmarkName}; невозможно подтвердить отсутствие выплат в выбранном периоде.");
         }
 
-        foreach (var coupon in history.CouponPeriods.Where(coupon =>
+        foreach (var coupon in couponPeriods.Where(coupon =>
                      coupon.CouponDate > calculationStartDate && coupon.CouponDate <= to))
         {
             if (!coupon.RecordDate.HasValue)
@@ -129,9 +154,21 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                     $"Неизвестна сумма выплаты купона {BenchmarkName} за {coupon.CouponDate:yyyy-MM-dd}.");
             }
         }
+    }
 
-        var startPoint = points.FirstOrDefault(point => point.Date >= from && point.Date <= to)
+    private static PortfolioBondBenchmarkPricePoint FindFirstPeriodObservation(
+        IReadOnlyList<PortfolioBondBenchmarkPricePoint> points,
+        DateOnly from,
+        DateOnly to) =>
+        points.FirstOrDefault(point => point.Date >= from && point.Date <= to)
             ?? throw new PortfolioBenchmarkHistoryUnavailableException($"Нет цены {BenchmarkName} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
+
+    private static void ValidateCouponScheduleCoverage(
+        DateOnly calculationStartDate,
+        DateOnly to,
+        PortfolioBondBenchmarkPricePoint[] points,
+        IReadOnlyCollection<PortfolioBondBenchmarkCouponPeriod> couponPeriods)
+    {
         var coverageIndex = Array.FindLastIndex(points, point => point.Date <= calculationStartDate);
         if (coverageIndex < 0)
         {
@@ -148,23 +185,30 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                 coverageTerms = points[observationIndexForCoverage++];
             }
 
-            if (coverageTerms.CouponPercent > 0 && !history.CouponPeriods.Any(period =>
+            if (coverageTerms.CouponPercent > 0 && !couponPeriods.Any(period =>
                     period.PeriodStartDate <= date && period.CouponDate >= date))
             {
                 throw new PortfolioBenchmarkHistoryUnavailableException(
                     $"Расписание купонов {BenchmarkName} не покрывает {date:yyyy-MM-dd}; сценарий нельзя рассчитать точно.");
             }
         }
+    }
 
+    private static IReadOnlyList<PriceValue> CreateDailyPriceSeries(
+        DateOnly from,
+        DateOnly to,
+        PortfolioBondBenchmarkPricePoint startPoint,
+        IReadOnlyList<PortfolioBondBenchmarkPricePoint> points,
+        IReadOnlyCollection<PortfolioBondBenchmarkCouponPeriod> couponPeriods)
+    {
         var observations = points.Where(point => point.Date >= startPoint.Date && point.Date <= to).ToArray();
-        var priceMap = new Dictionary<DateOnly, double>();
+        var observationByDate = observations.ToDictionary(point => point.Date);
+        var couponPaymentDates = couponPeriods.Select(coupon => coupon.CouponDate).ToHashSet();
+        var prices = new List<PriceValue>();
         var currentFace = startPoint.FaceValue;
         var currentCoupon = startPoint.CouponPercent;
         var currentCleanPrice = GetCleanPrice(startPoint);
         var accruedInterest = GetAccruedInterest(startPoint);
-        var couponsByDate = history.CouponPeriods.Select(coupon => coupon.CouponDate).ToHashSet();
-        var observationByDate = observations.ToDictionary(point => point.Date);
-        var actualTradeDates = new HashSet<DateOnly>();
         for (var date = startPoint.Date; date <= to; date = date.AddDays(1))
         {
             if (observationByDate.TryGetValue(date, out var observed))
@@ -173,9 +217,8 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                 currentCoupon = observed.CouponPercent;
                 currentCleanPrice = GetCleanPrice(observed);
                 accruedInterest = GetAccruedInterest(observed);
-                actualTradeDates.Add(date);
             }
-            else if (couponsByDate.Contains(date))
+            else if (couponPaymentDates.Contains(date))
             {
                 accruedInterest = 0;
             }
@@ -190,15 +233,15 @@ internal sealed class Ru000A10F504BenchmarkSeriesCalculator
                 throw new InvalidPortfolioBenchmarkHistoryException($"Некорректная грязная цена {BenchmarkName} за {date:yyyy-MM-dd}.");
             }
 
-            priceMap[date] = dirtyValue;
+            prices.Add(new PriceValue(date, dirtyValue, observationByDate.ContainsKey(date)));
         }
 
-        if (!actualTradeDates.Any(date => date > from && date <= to))
+        if (!observations.Any(point => point.Date > from && point.Date <= to))
         {
             throw new PortfolioBenchmarkHistoryUnavailableException($"В периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd} нет торговых цен {BenchmarkName}.");
         }
 
-        return priceMap.Select(pair => new PriceValue(pair.Key, pair.Value, actualTradeDates.Contains(pair.Key))).ToArray();
+        return prices;
     }
 
     private static double GetCleanPrice(PortfolioBondBenchmarkPricePoint point)

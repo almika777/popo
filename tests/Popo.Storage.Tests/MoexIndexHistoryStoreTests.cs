@@ -13,7 +13,7 @@ public sealed class MoexIndexHistoryStoreTests
     [Test]
     public async Task Upsert_updates_existing_index_date_and_keeps_other_dates_and_indexes()
     {
-        await using var database = await TestDatabase.CreateIsolatedAsync();
+        await using var database = await TestDatabase.CreateIsolatedAsync(noTracking: true);
         var store = new MoexIndexHistoryStore(database.ContextFactory);
         var firstDate = new DateOnly(2022, 7, 22);
         var nextDate = new DateOnly(2022, 7, 25);

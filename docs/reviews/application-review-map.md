@@ -1,6 +1,6 @@
 # Карта ревью контроллеров и методов приложения
 
-Срез сверен с исходниками рабочей копии на 21.10.2026 после удаления кеша со страницы «Ликвидность» и перехода фондов на хранение текущего количества паёв и средней цены вместо журнала операций. Отметки по `InitializationStateStore`, его callers и калькуляторам открытой позиции обновлены 21.10.2026. Текстовые деревья ниже показывают цепочки до публичных методов providers и клиентов; одинаковый метод имеет один канонический ID. D01 `BondsProvider` и D05 `PortfolioCashFlowsProvider` со всеми публичными методами отмечены проверенными 21.10.2026; затем проверены три тонких метода S09 для денежных потоков.
+Срез сверен с исходниками рабочей копии на 21.10.2026 после удаления кеша со страницы «Ликвидность» и перехода фондов на хранение текущего количества паёв и средней цены вместо журнала операций. Отметки по `InitializationStateStore`, его callers и калькуляторам открытой позиции обновлены 21.10.2026. Текстовые деревья ниже показывают цепочки до публичных методов providers и клиентов; одинаковый метод имеет один канонический ID. D01 `BondsProvider` и D05 `PortfolioCashFlowsProvider` со всеми публичными методами отмечены проверенными 21.10.2026; затем проверены три тонких метода S09 для денежных потоков. 21.10.2026 проверены все публичные методы D18 `MoexIndexHistoryStore` и `PortfolioBenchmarkCalculator.Calculate` с его приватными помощниками.
 
 SVG/PNG — направленный граф тех же вызовов: стрелка показывает caller → callee, общий метод нарисован одним узлом с несколькими входящими стрелками. Зелёным отмечено ранее просмотренное, серым — открытое; пунктиром показан поток данных от фонового обновления к читающему его provider.
 Включены публичные production-методы достижимых от HTTP-входов и связанных фоновых producer-ов классов; DTO/record-конструкторы и сгенерированный EF-код не являются отдельными пунктами ревью.
@@ -10,10 +10,10 @@ SVG/PNG — направленный граф тех же вызовов: стр
 - [x] **Этап 1. Инвентаризация и карта зависимостей** — заново сверена 20.10.2026: 8 контроллеров и 34 HTTP-метода; цепочки перепроверены по вызовам, внедрению зависимостей и реализациям интерфейсов; общие методы имеют единый ID.
 - [ ] **Этап 2. Ревью HTTP-методов контроллеров** — начат 17.10.2026; C01 и все четыре маршрута C02 проверены; все четыре метода S01 и все пять публичных методов D01 проверены; R01–R03 исправлены, R04 и R05 открыты.
 - [ ] **Этап 3. Ревью уникальных application- и Core-методов** — после этапа 2.
-- [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз.
+- [ ] **Этап 4. Ревью providers, HTTP-клиентов и фоновых производителей данных** — общие узлы отмечать только один раз; D18 `MoexIndexHistoryStore` проверен.
 - [ ] **Этап 5. Сводка замечаний и решение по исправлениям**.
 
-**Текущий статус:** этап 2. Сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecuritiesAsync` проверен 21.10.2026 как отдельный метод вне `BondsService`; вызывающий S07 остаётся открытым из-за собственной логики и других зависимостей. Все пять публичных методов `PortfolioCashFlowsProvider` проверены; вслед за ними проверены три тонких метода S09 для CRUD денежных потоков. Остальные методы S08–S10 и маршруты C06 остаются открытыми из-за собственной логики; валидатор cash-flow запроса C06 не проверен. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15. 21.10.2026 проверены D21 и весь вызываемый им стек; вслед за этим проверены `ClosedPositionSessionsService.RecalculateAsync`, `ClosedPositionSessionsPageService.GetAsync`, HTTP-метод C04.Get и используемая дата `MoscowTime.Today` с конвертацией в московскую зону. 21.10.2026 проверены все методы `PortfolioPositionCalculator` и `PositionOpenLotCalculator.Calculate`; callers выше оставлены открытыми, поскольку содержат самостоятельную логику и другие непроверенные зависимости. 21.10.2026 также проверены `J04 ClosedPositionSessionsJob.UpdateAsync` и `D07 PortfolioPositionsProvider.GetPositionsAsync`; верхние ветки `S11`, `K04/J03` и `C04/S13` остаются открытыми из-за собственной логики. 21.10.2026 также проверены все методы `D06 PortfolioValuationsProvider` и метод `D12 RatingsProvider.GetBondRatingsAsync`; верхние consumers S08–S10 и S07, а также их HTTP/job callers, остаются открытыми из-за собственной логики. 21.10.2026 проверены D17 `PortfolioBondBenchmarkHistoryProvider.GetHistoryAsync` и все 12 методов H01 `MoexHttpClient`. Вверх по стеку новых отметок не поставлено: S10 и маршрут C06 `/benchmark` зависят от открытых D18 и K06; остальные consumers H01 также содержат собственную логику и незавершённые зависимости.
+**Текущий статус:** этап 2. Сохранены отметки ревью `BondsController.Search`, всех четырёх методов `BondsService` и соответствующих четырёх методов `BondsProvider`, всех маршрутов `LiquidityController` и пройденного ими стека. `BondsProvider.GetSecuritiesAsync` проверен 21.10.2026 как отдельный метод вне `BondsService`; вызывающий S07 остаётся открытым из-за собственной логики и других зависимостей. Все пять публичных методов `PortfolioCashFlowsProvider` проверены; вслед за ними проверены три тонких метода S09 для CRUD денежных потоков. Остальные методы S08–S10 и маршруты C06 остаются открытыми из-за собственной логики; валидатор cash-flow запроса C06 не проверен. 20.10.2026 проверены `ClosedPositionSessionCalculator` со всеми внутренними помощниками и весь вызываемый им K08-стек; общий `BondCouponClassifier.IsFloater` отмечен один раз в K09. 20.10.2026 проверены оба метода D15. 21.10.2026 проверены D21 и весь вызываемый им стек; вслед за этим проверены `ClosedPositionSessionsService.RecalculateAsync`, `ClosedPositionSessionsPageService.GetAsync`, HTTP-метод C04.Get и используемая дата `MoscowTime.Today` с конвертацией в московскую зону. 21.10.2026 проверены все методы `PortfolioPositionCalculator` и `PositionOpenLotCalculator.Calculate`; callers выше оставлены открытыми, поскольку содержат самостоятельную логику и другие непроверенные зависимости. 21.10.2026 также проверены `J04 ClosedPositionSessionsJob.UpdateAsync` и `D07 PortfolioPositionsProvider.GetPositionsAsync`; верхние ветки `S11`, `K04/J03` и `C04/S13` остаются открытыми из-за собственной логики. 21.10.2026 также проверены все методы `D06 PortfolioValuationsProvider` и метод `D12 RatingsProvider.GetBondRatingsAsync`; верхние consumers S08–S10 и S07, а также их HTTP/job callers, остаются открытыми из-за собственной логики. 21.10.2026 проверены D17 `PortfolioBondBenchmarkHistoryProvider.GetHistoryAsync`, все 12 методов H01 `MoexHttpClient`, все публичные методы D18 `MoexIndexHistoryStore` и `PortfolioBenchmarkCalculator.Calculate` с приватными помощниками. Новых отметок выше по стеку нет: S10 содержит orchestration и использует остальные открытые расчёты K06, J02 содержит свою логику синхронизации; C06 `/benchmark` и S09 также остаются открытыми.
 
 21.10.2026 проверены все 11 публичных методов `D16 InitializationStateStore`, его приватные помощники, EF-модель `InitializationJobStateEntity` и контракт `InitializationJobState.ProgressPercent`. Как прямые делегаты вслед за D16 проверены `S14 InitializationService.GetStatusAsync` и `C05 InitializationController.GetStatus`; также полностью проверен класс `J01 InitializationProgressReporter` (`Begin`, `End`, `ReportAsync`). `S14.RetryJobAsync`/HTTP retry остаются открытыми из-за собственной логики и непроверенного `InitializationBootstrap.TryGetJob`; `InitializationBootstrapService.ExecuteAsync`, `S13.RecalculateAsync`, `S13.GetStatus`, остальные маршруты C04 и `J03` остаются открытыми из-за собственной логики и/или других непроверенных зависимостей. `J04.UpdateAsync` проверен 21.10.2026. `InitializationService` и `InitializationController` в целом остаются частично проверенными.
 
@@ -226,8 +226,8 @@ GET /benchmark ── CalculateBenchmark → S09.CalculateBenchmarkAsync → S10
    ├─ [x] D05.GetCashFlowsAsync [общий с S08/S09]
    ├─ H01 IMoexHttpClient.GetLqdtPriceHistoryAsync [проверено 21.10.2026]
    ├─ D17 PortfolioBondBenchmarkHistoryProvider.GetHistoryAsync [проверено 21.10.2026]
-   ├─ D18 MoexIndexHistoryStore.UpsertAsync
-   └─ K06 PortfolioBenchmarkCalculator / series calculators
+   ├─ [x] D18 MoexIndexHistoryStore.UpsertAsync [проверено 21.10.2026; общий с J02]
+   └─ [x] K06 PortfolioBenchmarkCalculator.Calculate [проверено 21.10.2026] → series calculators (остальные K06 методы открыты)
 ```
 
 ### C07 — PositionsController
@@ -304,7 +304,7 @@ J02 — синхронизационные jobs
 ├─ BondRatingUpdateJob → H02 ICbondClient.GetRatingsAsync → BondRatings
 ├─ CbrCurrencyRatesUpdateJob → H02 ICbrHttpClient.GetCurrenciesAsync / GetCurrencyRatesAsync → CurrencyRates
 ├─ MoexHistoryPricesUpdateJob → D10.DailyVolumeStatisticsStore.RefreshAsync [после записи истории]
-└─ MoexIndexHistoryUpdateJob → D18.MoexIndexHistoryStore.UpsertAsync [общий с C06 benchmark]
+└─ MoexIndexHistoryUpdateJob → [x] D18.MoexIndexHistoryStore.UpsertAsync [проверено 21.10.2026; общий с C06 benchmark]
 
 J01 InitializationBootstrapService/RecurringJobsScheduler запускают источники J02; расписание и реестр retry — отдельные пункты J01.
 ```
@@ -480,7 +480,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 
 ### S10 — сервис сравнения с инструментами, `PortfolioBenchmarkService`
 
-Файл: [`PortfolioBenchmarkService.cs`](../../src/Popo.Api/Services/PortfolioBenchmarkService.cs). Зависимости D05 [проверено], D06 [проверено 21.10.2026], D17 [проверено 21.10.2026], D18, H01 [проверено 21.10.2026]; расчёты K06.
+Файл: [`PortfolioBenchmarkService.cs`](../../src/Popo.Api/Services/PortfolioBenchmarkService.cs). Зависимости D05 [проверено], D06 [проверено 21.10.2026], D17 [проверено 21.10.2026], D18 [проверено 21.10.2026], H01 [проверено 21.10.2026]; расчёты K06 частично проверены.
 
 - [ ] `CalculateAsync(from, to, includeLqdt, includeIndexedBond)`; проверить загрузку свежей истории и публикацию LQDT-кэша.
 
@@ -598,8 +598,9 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - **D17 `PortfolioBondBenchmarkHistoryProvider`** (`IPortfolioBondBenchmarkHistoryProvider`) — S10; история бенчмарка по `SecId + BoardId`.
   - [x] `GetHistoryAsync` — ревью 21.10.2026: метаданные выпуска и цены читаются по составному ключу, выбирается последняя точка до начала периода и дневные точки внутри диапазона, купонная история ограничена периодом по `SecId`. Сумма купона в RUB имеет приоритет; значение в номинале используется только для RUB/SUR. Storage-тест покрывает стартовую историческую точку, окно дат купонов и выбор суммы в рублях.
 - **D18 `MoexIndexHistoryStore`** (`IMoexIndexHistoryStore`) — S10 обновляет кэш LQDT; также используется J02.
-  - [ ] `UpsertAsync`.
-  - [ ] `GetHistoryAsync`.
+  - [x] `UpsertAsync` — проверено 21.10.2026: пустой набор не создаёт контекст; дубли по `SecId + TradeDate` отклоняются; существующие строки обновляются, новые добавляются одним `SaveChangesAsync`. Storage-тест обновления запускается с тем же `NoTracking`, что и приложение.
+  - [x] `GetHistoryAsync` — проверено 21.10.2026: валидирует SECID и диапазон дат, возвращает только выбранный индекс в включительном диапазоне, отсортированным по дате; Storage-тест покрывает фильтрацию и порядок.
+  - Приватный `ToEntity` проверен вместе с `UpsertAsync`; Storage-тесты также покрывают повторный upsert и создание таблицы миграцией.
 - **D19 Прямое чтение `CurrencyRates` через `IDbContextFactory<PopoDbContext>`** — два отдельных вызова S11 и один вызов D21; это общий источник данных, а не общий метод. Фильтр D21 по валютам исходных сделок/купонов/амортизаций и `RateDate <= asOf` проверен в составе D21; вызовы S11 остаются открытыми.
 - **D20 Hangfire `IBackgroundJobClient` / `JobStorage`** — внешние методы постановки/чтения статуса в S13; J04 исполняет задачу.
 - **D21 `ClosedPositionSessionSourceProvider`** — J04 читает здесь сделки, облигации, режимы торгов, купоны, амортизации и валютные курсы для K08.
@@ -680,7 +681,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - **K05 TWR, вызывается S09.**
   - [ ] `PortfolioReturnCalculator.Calculate`.
 - **K06 Benchmark series, вызывается S10.**
-  - [ ] `PortfolioBenchmarkCalculator.Calculate`.
+  - [x] `PortfolioBenchmarkCalculator.Calculate` — проверено 21.10.2026 вместе с приватными `LaterOf`, `RebaseSeries`, `GetPeriodValuations` и `ValidateCashFlows`; тесты покрывают согласование дат сравнения, потоки, недоступные оценки, включение/исключение линий и ошибки истории.
   - [ ] `PortfolioBenchmarkSeriesCalculator.Calculate`.
   - [ ] `PortfolioBenchmarkMath.CalculateProfitPercent`.
   - [ ] `PortfolioBenchmarkMath.BuildAssetPoints`.
@@ -778,7 +779,8 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 | D14 `PositionRecommendationStore` | S11, J03 | J03 публикует снимок, S11 читает его для C07. |
 | D15 `ClosedPositionSessionsProvider` | S13, J04 | S13.GetAsync читает опубликованный снимок и проверен; K08 service вызывает проверенный ReplaceAsync. `J04.UpdateAsync` проверен 21.10.2026. |
 | D16 `InitializationStateStore` | S13, S14, J01, J03, J04 | Store и все методы проверены 21.10; прямые делегаты S14.GetStatusAsync и C05.GetStatus отмечены. Recalculate/status, bootstrap, J03 и остальные jobs остаются открытыми по своим зависимостям; J04 проверен отдельно. |
-| D18 `MoexIndexHistoryStore` | S10, J02 | S10 обновляет и читает историю LQDT, J02 также синхронизирует её. |
+| D18 `MoexIndexHistoryStore` | S10, J02 | Оба публичных метода проверены 21.10.2026; `UpsertAsync` общий для S10 и J02. `GetHistoryAsync` пока не имеет production-caller. S10 и J02 остаются открытыми из-за собственной логики. |
+| K06 `PortfolioBenchmarkCalculator.Calculate` | S10.CalculateAsync | Метод и его приватные помощники проверены 21.10.2026; S10 использует также остальные непроверенные методы K06. |
 | D19 чтение `CurrencyRates` | S11.GetPageAsync/GetOverviewAsync, D21.GetAsync | Одну таблицу читают три независимых call sites; проверять каждый фильтр в его вызывающей ветке, не считать это общим методом. |
 | K03 `PortfolioPositionCalculator` / `PositionOpenLotCalculator` | D07.GetPositionsAsync через C06/C07/J03; K02 Default/Floater/ZO calculators; `PortfolioPositionCalculator` также общий для расчёта оценки | Калькуляторы и D07 проверены 21.10.2026; K02 и оркестрация S11/J03 остаются открытыми. `PortfolioPositionsValidate` проверяется отдельным узлом. |
 | D21 `ClosedPositionSessionSourceProvider` | J04 → K08 | Источник входных данных пересчёта; D15 отдельно отвечает за публикацию снимка. |
@@ -833,6 +835,8 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 - [x] **D12 `RatingsProvider.GetBondRatingsAsync`.** Проверены чтение полного набора, ключ словаря ISIN, преобразование четырёх рейтинговых полей и первичный ключ ISIN. Прямого Storage-теста нет. Верхний S07 `BondAssessmentService.GetAssessmentsAsync`, его consumers C03/J03 и их вызывающие методы остаются открытыми из-за собственной логики и других источников.
 - [x] **Проверка предков D06 и D12:** дополнительных верхних методов автоматически не отмечено; прямые потребители не являются тонкими делегатами.
 - [x] **D17 `PortfolioBondBenchmarkHistoryProvider.GetHistoryAsync` и H01 `MoexHttpClient` — все 12 публичных методов.** Проверены 21.10.2026; для H01 сверены контракт, адаптер и соответствующие транспортные методы.
-- [x] **Проверка предков D17 и H01:** новых верхних методов автоматически не отмечено. S10 `PortfolioBenchmarkService.CalculateAsync` использует открытые D18 и K06; D06, D05, D17 и H01 уже проверены. consumers H01 (S07, S11, S12 и J02) содержат собственную логику и другие непроверенные зависимости. Поэтому C06 `/benchmark`, S09 `CalculateBenchmarkAsync` и эти consumers остаются открытыми.
+- [x] **D18 `MoexIndexHistoryStore` — все публичные методы.** Проверены 21.10.2026: `UpsertAsync`, `GetHistoryAsync` и приватный `ToEntity`; тесты проверяют обновление/добавление строк, выбор индекса и включительный диапазон дат, порядок, а также создание таблицы миграцией.
+- [x] **K06 `PortfolioBenchmarkCalculator.Calculate` и приватные помощники.** Проверены 21.10.2026: `LaterOf`, `RebaseSeries`, `GetPeriodValuations`, `ValidateCashFlows`; тесты `PortfolioBenchmarkCalculatorTests` покрывают общую дату сравнения, денежные потоки, доступность портфельной оценки и выбранные линии.
+- [x] **Проверка предков D17, H01, D18 и K06:** новых верхних методов автоматически не отмечено. S10 `PortfolioBenchmarkService.CalculateAsync` содержит orchestration и вызывает другие открытые расчёты K06; J02 `MoexIndexHistoryUpdateJob.UpdateAsync` проверяет полноту данных и управляет прогрессом/логированием. Поэтому S10, J02, S09 `CalculateBenchmarkAsync` и C06 `/benchmark` остаются открытыми. Остальные consumers H01 (S07, S11, S12 и J02) также содержат собственную логику и другие непроверенные зависимости.
 
 `CashRecommendationsController.GetPage` и его стек теперь явно показаны в C03, но эта ветка остаётся непроверенной: ранее по ней запрашивалось документирование методов, а не отметка ревью.
