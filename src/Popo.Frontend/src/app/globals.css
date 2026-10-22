@@ -233,7 +233,7 @@ body {
 
 .position-details-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   padding: 6px;
   border: 1px solid #303030;
@@ -250,32 +250,10 @@ body {
   white-space: nowrap;
 }
 
-.position-detail-metric + .position-detail-metric {
-  border-left: 1px solid #303030;
-}
-
 .position-detail-metric .ant-typography {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.position-recommendation-details {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  white-space: normal;
-}
-
-.position-recommendation-details .ant-tag {
-  justify-self: start;
-  width: fit-content;
-  margin: 0;
-}
-
-.position-recommendation-details .ant-typography {
-  overflow: visible;
-  white-space: normal;
 }
 
 .portfolio-valuation-edit-input .ant-input-number-handler-wrap {
@@ -628,12 +606,6 @@ body {
   .position-summary-item:first-child {
     padding-top: 0;
     border-top: 0;
-  }
-
-  .position-detail-metric + .position-detail-metric {
-    padding-inline: 12px;
-    border-top: 1px solid #303030;
-    border-left: 0;
   }
 
   .position-detail-metric:first-child {

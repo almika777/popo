@@ -22,8 +22,6 @@ public sealed class InitializationContractsTests
                 "BondRatingUpdateJob",
                 "CbrCurrencyRatesUpdateJob"
             }));
-        Assert.That(InitializationBootstrap.Jobs.Select(x => x.Key),
-            Does.Not.Contain("PositionRecommendationJob"));
     }
 
     [TestCase(0, 10, 0)]

@@ -7,6 +7,8 @@ namespace Popo.Jobs;
 
 public static class RecurringJobsScheduler
 {
+    private const string RetiredPositionRecommendationJobId = "IPositionRecommendationJob";
+
     public static void ScheduleAll()
     {
         RecurringJob.AddOrUpdate<IClosedPositionSessionsJob>(
@@ -24,12 +26,6 @@ public static class RecurringJobsScheduler
         Schedule<IMoexEmitentUpdateJob>("fast");
         Schedule<IBondRatingUpdateJob>("fast");
         Schedule<ICbrCurrencyRatesUpdateJob>("long");
-        RecurringJob.AddOrUpdate<IPositionRecommendationJob>(
-            nameof(IPositionRecommendationJob),
-            "fast",
-            job => job.UpdateAsync(CancellationToken.None),
-            "*/15 * * * *",
-            new RecurringJobOptions { TimeZone = MoscowTime.Zone });
     }
 
     public static void RemoveAll()
@@ -44,7 +40,7 @@ public static class RecurringJobsScheduler
         RecurringJob.RemoveIfExists(nameof(IMoexEmitentUpdateJob));
         RecurringJob.RemoveIfExists(nameof(IBondRatingUpdateJob));
         RecurringJob.RemoveIfExists(nameof(ICbrCurrencyRatesUpdateJob));
-        RecurringJob.RemoveIfExists(nameof(IPositionRecommendationJob));
+        RecurringJob.RemoveIfExists(RetiredPositionRecommendationJobId);
     }
 
     private static void Schedule<T>(string queue) where T : IHangfireJob => RecurringJob.AddOrUpdate<T>(

@@ -18,7 +18,7 @@ public sealed class PopoSchemaTests
             "MoexCouponsEntities", "MoexAmortsEntities", "MoexEmitents", "BondRatings",
             "CurrencyRates", "PortfolioValuations", "PortfolioCashFlows", "PortfolioTrades",
             "MoneyMarketFunds", "InvestmentStrategySettings",
-            "PositionRecommendationStates", "DailyVolumeStatistics", "InitializationJobStates",
+            "DailyVolumeStatistics", "InitializationJobStates",
             "ClosedPositionSessions",
             "MoexIndexHistories"
         }));
@@ -35,6 +35,15 @@ public sealed class PopoSchemaTests
         Assert.That(tables, Does.Not.Contain("MoneyMarketFundOperations"));
         Assert.That(tables, Does.Not.Contain("ArchivedMoneyMarketFunds"));
         Assert.That(tables, Does.Not.Contain("ArchivedMoneyMarketFundOperations"));
+    }
+
+    [Test]
+    public void Model_does_not_contain_position_recommendation_state_table()
+    {
+        using var context = CreateContext();
+        var tables = context.Model.GetEntityTypes().Select(x => x.GetTableName()).ToHashSet(StringComparer.Ordinal);
+
+        Assert.That(tables, Does.Not.Contain("PositionRecommendationStates"));
     }
 
     [Test]

@@ -5,6 +5,14 @@ using Popo.Core.HttpClients;
 
 namespace Popo.Core.Recommendations;
 
+/// <summary>
+/// Собирает данные по облигациям и формирует их оценки для рекомендаций и мониторинга позиций.
+/// </summary>
+/// <param name="bondsProvider">Поставщик сохранённых характеристик облигаций.</param>
+/// <param name="ratingsProvider">Поставщик кредитных рейтингов эмитентов.</param>
+/// <param name="moexHttpClient">Клиент для получения текущих рыночных котировок MOEX.</param>
+/// <param name="historyProvider">Поставщик статистики дневного торгового оборота.</param>
+/// <param name="cashFlowProvider">Поставщик будущих денежных потоков для расчёта доходности.</param>
 public sealed class BondAssessmentService(
     IBondsProvider bondsProvider,
     IRatingsProvider ratingsProvider,
@@ -12,6 +20,17 @@ public sealed class BondAssessmentService(
     IHistoryProvider historyProvider,
     ICashFlowProvider cashFlowProvider) : IBondAssessmentService
 {
+    /// <summary>
+    /// Рассчитывает доступные показатели и диагностические признаки для каждой сохранённой облигации.
+    /// </summary>
+    /// <param name="settings">
+    /// Настройки стратегии, определяющие признаки соответствия типу инструмента, сроку и окну оферты.
+    /// </param>
+    /// <param name="cancellationToken">Токен отмены загрузки данных и расчётов.</param>
+    /// <returns>
+    /// Оценки сохранённых облигаций. Кандидат с рассчитанной доходностью появляется только при наличии
+    /// необходимых рыночных данных, рейтинга, ликвидности и графика денежных потоков.
+    /// </returns>
     public async Task<IReadOnlyList<BondAssessment>> GetAssessmentsAsync(
         InvestmentStrategySettings settings,
         CancellationToken cancellationToken)
@@ -117,6 +136,12 @@ public sealed class BondAssessmentService(
 
 public interface IBondAssessmentService
 {
+    /// <summary>
+    /// Возвращает оценки сохранённых облигаций, включая доступную доходность и причины неполных данных.
+    /// </summary>
+    /// <param name="settings">Настройки стратегии для вычисления признаков соответствия.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
+    /// <returns>Оценки облигаций, по которым вызывающий сервис может отобрать рекомендации.</returns>
     Task<IReadOnlyList<BondAssessment>> GetAssessmentsAsync(
         InvestmentStrategySettings settings,
         CancellationToken cancellationToken);

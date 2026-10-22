@@ -21,8 +21,7 @@ public sealed record UpsertMoneyMarketFundRequest(
 
 public sealed record PositionsPageResponse(
     IReadOnlyList<PortfolioPositionRecord> Positions,
-    PositionTotalsResponse Totals,
-    PositionRecommendationStateResponse Recommendation);
+    PositionTotalsResponse Totals);
 
 public sealed record PositionTotalsResponse(
     double MarketValueRub,

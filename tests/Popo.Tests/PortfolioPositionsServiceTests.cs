@@ -8,7 +8,6 @@ using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
-using Popo.Core.Recommendations;
 
 namespace Popo.Tests;
 
@@ -47,8 +46,7 @@ public sealed class PortfolioPositionsServiceTests
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var valuedFunds = await service.GetMoneyMarketFundsAsync(CancellationToken.None);
         var overview = await service.GetOverviewAsync(asOf, CancellationToken.None);
@@ -100,8 +98,7 @@ public sealed class PortfolioPositionsServiceTests
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -163,8 +160,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeMoexHttpClient(security, quote),
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(couponSchedule),
-            null!);
+            new FakeCouponProvider(couponSchedule));
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -239,8 +235,7 @@ public sealed class PortfolioPositionsServiceTests
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -302,8 +297,7 @@ public sealed class PortfolioPositionsServiceTests
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -384,8 +378,7 @@ public sealed class PortfolioPositionsServiceTests
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 

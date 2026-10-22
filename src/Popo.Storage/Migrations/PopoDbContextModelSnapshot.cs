@@ -1058,38 +1058,6 @@ namespace Popo.Storage.Migrations
 
                     b.ToTable("PortfolioValuations");
                 });
-
-            modelBuilder.Entity("Popo.Storage.Entities.PositionRecommendationStateEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("CalculationStartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("LastSuccessfulAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResultJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTimeOffset?>("SnapshotTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PositionRecommendationStates");
-                });
 #pragma warning restore 612, 618
         }
     }

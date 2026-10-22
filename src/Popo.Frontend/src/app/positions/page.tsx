@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { InfoCircleOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Descriptions, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
-import dayjs from "dayjs";
+import { App as AntdApp, Card, Space, Table, Tabs, Tooltip, Typography } from "antd";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
 import { portfolioLedgerApi, type PortfolioPosition, type PositionTotals } from "../../lib/portfolio-ledger-api";
 import { getPositionAverageBuyPrice } from "../../lib/position-average-price";
 import { positionDetailsPath } from "../../lib/position-details";
 import { getPositionLiquidityLevel, type PositionLiquidityLevel } from "../../lib/position-liquidity";
-import { type PositionRecommendationAction, type PositionRecommendationState } from "../../lib/position-recommendations-api";
-import { findPositionRecommendation, formatPositionRecommendationReason } from "../../lib/position-recommendations";
 import ClosedPositionSessionsTab from "./closed-sessions-tab";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,17 +19,9 @@ const liquidityTextType: Record<PositionLiquidityLevel, "success" | "warning" | 
   medium: "warning",
   high: "danger"
 };
-const actionPresentation: Record<PositionRecommendationAction, { label: string; color: string }> = {
-  Buy: { label: "Купить", color: "green" },
-  Hold: { label: "Держать", color: "gold" },
-  Sell: { label: "Продать", color: "red" },
-  Unavailable: { label: "Нет данных", color: "default" }
-};
-
 export default function PositionsPage() {
   const [rows, setRows] = useState<PortfolioPosition[]>([]);
   const [totals, setTotals] = useState<PositionTotals>();
-  const [recommendationState, setRecommendationState] = useState<PositionRecommendationState>();
   const [loading, setLoading] = useState(true);
   const { message } = AntdApp.useApp();
 
@@ -41,7 +30,6 @@ export default function PositionsPage() {
       .then((page) => {
         setRows(page.positions);
         setTotals(page.totals);
-        setRecommendationState(page.recommendation);
       })
       .catch((error) => message.error(error instanceof Error ? error.message : "Не удалось загрузить позиции"))
       .finally(() => setLoading(false));
@@ -159,27 +147,8 @@ export default function PositionsPage() {
 
   const expandedRowRender = (row: PortfolioPosition) => {
     const annualized = row.approximateAnnualizedTotalPnlPercent;
-    const recommendation = findPositionRecommendation(recommendationState, row.secId, row.boardId);
-    const action = recommendation?.action ?? "Unavailable";
-    const presentation = actionPresentation[action];
 
     return <div className="position-details-grid">
-      <div className="position-detail-metric position-recommendation-metric">
-        <Typography.Text type="secondary">Рекомендация</Typography.Text>
-        <div className="position-recommendation-details">
-          <Tag color={presentation.color}>{presentation.label}</Tag>
-          {recommendation == null
-            ? <Typography.Text type="secondary">Рекомендация ещё не рассчитана</Typography.Text>
-            : <>
-                <Typography.Text>{recommendation.reasons.map(formatPositionRecommendationReason).join(". ")}</Typography.Text>
-                <Descriptions bordered size="small" column={1} items={[
-                  { key: "current", label: "Текущая", children: `${row.shortName || row.secId} · YTM ${recommendation.ytm == null ? "нет данных" : `${number.format(recommendation.ytm)}%`} · цена расчёта ${recommendation.calculationPrice == null ? "нет данных" : `${number.format(recommendation.calculationPrice)} ${row.currencyId}`} · ${recommendation.rating ?? "без рейтинга"}` },
-                  { key: "alternative", label: "Альтернатива", children: recommendation.alternative == null ? "Нет сопоставимой бумаги" : `${recommendation.alternative.shortName || recommendation.alternative.secId} (${recommendation.alternative.secId}) · YTM ${number.format(recommendation.alternative.ytm)}% · цена расчёта ${number.format(recommendation.alternative.calculationPrice)} ${row.currencyId} · ${recommendation.alternative.rating} · до ${dayjs(recommendation.alternative.yieldDate).format("DD.MM.YYYY")}` },
-                  { key: "liquidity", label: "Ликвидность", children: `Средний Volume ${recommendation.averageDailyVolume == null ? "нет данных" : `${integer.format(recommendation.averageDailyVolume)} шт.`}; доля позиции ${recommendation.positionVolumeShare == null ? "нет данных" : `${number.format(recommendation.positionVolumeShare * 100)}%`}` }
-                ]} />
-              </>}
-        </div>
-      </div>
       <div className="position-detail-metric">
         <Typography.Text type="secondary">Годовых, оценка</Typography.Text>
         {annualized == null
@@ -203,7 +172,6 @@ export default function PositionsPage() {
           label: "Открытые позиции",
           children: <>
             <Typography.Paragraph type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
-            {recommendationState?.status === "Stale" && <Typography.Paragraph type="warning">Рекомендации устарели. Последний успешный расчёт: {recommendationState.lastSuccessfulAt ? dayjs(recommendationState.lastSuccessfulAt).format("DD.MM.YYYY HH:mm") : "нет данных"}.</Typography.Paragraph>}
             <Card>
               <div className="positions-summary">
                 <div className="position-summary-item">

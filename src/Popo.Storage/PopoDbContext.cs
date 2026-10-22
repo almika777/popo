@@ -25,7 +25,6 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
     public DbSet<PortfolioTradeEntity> PortfolioTrades => Set<PortfolioTradeEntity>();
     public DbSet<MoneyMarketFundEntity> MoneyMarketFunds => Set<MoneyMarketFundEntity>();
     public DbSet<InvestmentStrategySettingsEntity> InvestmentStrategySettings => Set<InvestmentStrategySettingsEntity>();
-    public DbSet<PositionRecommendationStateEntity> PositionRecommendationStates => Set<PositionRecommendationStateEntity>();
     public DbSet<InitializationJobStateEntity> InitializationJobStates => Set<InitializationJobStateEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -115,13 +114,6 @@ public sealed class PopoDbContext(DbContextOptions<PopoDbContext> options) : DbC
                 CurrencyId = defaults.CurrencyId,
                 UpdatedAt = new DateTimeOffset(2026, 8, 15, 0, 0, 0, TimeSpan.Zero)
             });
-        });
-        modelBuilder.Entity<PositionRecommendationStateEntity>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).ValueGeneratedNever();
-            entity.Property(x => x.ResultJson).HasColumnType("jsonb");
-            entity.Property(x => x.Version).IsConcurrencyToken().ValueGeneratedNever();
         });
         modelBuilder.Entity<InitializationJobStateEntity>(entity =>
         {

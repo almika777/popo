@@ -1,5 +1,3 @@
-import type { PositionRecommendationState } from "./position-recommendations-api";
-
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5109/api";
 
 export type TradeSide = "Buy" | "Sell";
@@ -9,7 +7,7 @@ export type PortfolioTrade = { id: string; secId: string; boardId: string; curre
 export type PortfolioPosition = { secId: string; boardId: string; currencyId: string; quantity: number; boughtQuantity: number; soldQuantity: number; boughtAmount: number; soldAmount: number; averageBuyPrice: number | null; averageBuyPriceAtCurrentFaceValue: number | null; averageBuyPricePercent: number | null; currentFaceValue: number | null; faceUnit: string | null; marketPricePercent: number | null; marketPrice: number | null; marketValue: number | null; unrealizedPnl: number | null; unrealizedPnlPercent: number | null; approximateCouponIncome: number | null; approximateTotalPnl: number | null; approximateTotalPnlPercent: number | null; approximateAnnualizedTotalPnlPercent: number | null; shortName: string; averageDailyVolume: number | null; medianDailyVolume: number | null; isNominalIndexed: boolean };
 export type PortfolioSummary = { asOf: string; totalValueRub: number; positionsValueRub: number; moneyMarketFundsValueRub: number };
 export type PositionTotals = { marketValueRub: number; investedAmountRub: number | null; unrealizedPnlRub: number | null; unrealizedPnlPercent: number | null };
-export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTotals; recommendation: PositionRecommendationState };
+export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTotals };
 export type MoneyMarketFundOption = { secId: string; boardId: string; name: string };
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
 export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[] };

@@ -7,7 +7,6 @@ using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
-using Popo.Core.Recommendations;
 using Popo.Storage;
 
 namespace Popo.Api.Services.Position;
@@ -30,18 +29,13 @@ public sealed class PortfolioPositionsService(
     IMoexHttpClient moexHttpClient,
     IDbContextFactory<PopoDbContext> dbContextFactory,
     IHistoryProvider historyProvider,
-    IPortfolioCouponProvider couponProvider,
-    IPositionRecommendationStore recommendationStore) : IPortfolioPositionsService
+    IPortfolioCouponProvider couponProvider) : IPortfolioPositionsService
 {
     private static readonly PositionCalculatorFactory PositionCalculatorFactory = new();
 
     public async Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken)
     {
-        var recommendationTask = recommendationStore.GetAsync(cancellationToken);
-        var valuedPositionsTask = LoadPositionsAsync(cancellationToken);
-        await Task.WhenAll(recommendationTask, valuedPositionsTask);
-
-        var valuedPositions = await valuedPositionsTask;
+        var valuedPositions = await LoadPositionsAsync(cancellationToken);
         var positions = valuedPositions.Select(x => x.Position).ToArray();
         var marketValueRub = valuedPositions.Sum(x =>
             x.Position.MarketValue.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
@@ -60,10 +54,7 @@ public sealed class PortfolioPositionsService(
                 ? null
                 : unrealizedPnlRub!.Value / investedAmountRub.Value * 100);
 
-        return new PositionsPageResponse(
-            positions,
-            totals,
-            PositionRecommendationApiMapper.ToResponse(await recommendationTask));
+        return new PositionsPageResponse(positions, totals);
     }
 
     public async Task<IReadOnlyList<PortfolioPositionRecord>> GetPositionsAsync(CancellationToken cancellationToken)
