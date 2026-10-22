@@ -7,6 +7,7 @@ namespace Popo.Storage.Providers;
 public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> dbContextFactory)
     : IInitializationStateStore
 {
+    /// <summary>Создаёт записи со статусом ожидания для задач текущей версии первичной загрузки, если их ещё нет.</summary>
     public async Task EnsureCurrentBootstrapAsync(CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -27,14 +28,13 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             .ToArray();
 
         if (missing.Length == 0)
-        {
             return;
-        }
 
         await context.InitializationJobStates.AddRangeAsync(missing, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Возвращает незавершённые и завершившиеся ошибкой задачи текущей версии в статус ожидания.</summary>
     public async Task RecoverUnfinishedJobsAsync(CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -45,18 +45,15 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             .ToListAsync(cancellationToken);
 
         if (jobs.Count == 0)
-        {
             return;
-        }
 
         foreach (var job in jobs)
-        {
             ResetToPending(job);
-        }
 
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Возвращает статусы всех настроенных задач текущей версии, включая ещё не сохранённые задачи.</summary>
     public async Task<InitializationStatus> GetStatusAsync(CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -79,12 +76,14 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             result);
     }
 
+    /// <summary>Возвращает признак того, что все обязательные задачи первичной загрузки завершены.</summary>
     public async Task<bool> IsCompleteAsync(CancellationToken cancellationToken)
     {
         var status = await GetStatusAsync(cancellationToken);
         return status.IsComplete;
     }
 
+    /// <summary>Возвращает ключ первой сохранённой ожидающей задачи в порядке конфигурации или <see langword="null"/>.</summary>
     public async Task<string?> GetNextPendingJobKeyAsync(CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -100,6 +99,8 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             .FirstOrDefault(pendingKeys.Contains);
     }
 
+    /// <summary>Переводит ожидающую задачу в выполнение и подготавливает её счётчики;
+    /// возвращает <see langword="false"/>, если запуск невозможен.</summary>
     public async Task<bool> StartJobAsync(string jobKey, CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -122,6 +123,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         return true;
     }
 
+    /// <summary>Сохраняет прогресс выполняющейся задачи, ограничивая счётчики снизу нулём.</summary>
     public async Task UpdateProgressAsync(
         string jobKey,
         int processedItems,
@@ -143,6 +145,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Отмечает задачу завершённой: итоговое количество берёт из общего, а если оно неизвестно — из обработанного.</summary>
     public async Task MarkSucceededAsync(string jobKey, CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -162,6 +165,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Отмечает задачу завершившейся ошибкой и сохраняет сообщение, обрезая его до 4000 символов.</summary>
     public async Task MarkFailedAsync(string jobKey, string error, CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -178,6 +182,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Возвращает завершившуюся ошибкой задачу в ожидание, если число попыток меньше трёх.</summary>
     public async Task<bool> RetryFailedJobAutomaticallyAsync(string jobKey, CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -197,6 +202,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         return true;
     }
 
+    /// <summary>Сбрасывает завершившуюся ошибкой задачу к ожиданию; для остальных возвращает текущий статус, либо <see langword="null"/>, если задача не найдена.</summary>
     public async Task<InitializationJobStatus?> RetryJobAsync(string jobKey, CancellationToken cancellationToken)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -215,6 +221,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
         return state.Status;
     }
 
+    /// <summary>Ищет запись задачи по ключу и текущей версии загрузки с отслеживанием изменений EF Core.</summary>
     private static async Task<InitializationJobStateEntity?> FindStateAsync(
         PopoDbContext context,
         string jobKey,
@@ -223,6 +230,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             x => x.BootstrapVersion == InitializationBootstrap.CurrentVersion && x.JobKey == jobKey,
             cancellationToken);
 
+    /// <summary>Преобразует сохранённое состояние задачи в контракт с отображаемым именем из конфигурации.</summary>
     private static InitializationJobState ToContract(
         InitializationJobDefinition definition,
         InitializationJobStateEntity state) =>
@@ -239,6 +247,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             state.LastError,
             state.UpdatedAt);
 
+    /// <summary>Создаёт контракт ожидающей задачи, для которой ещё нет записи в базе данных.</summary>
     private static InitializationJobState NewPendingState(InitializationJobDefinition definition) =>
         new(
             definition.Key,
@@ -253,6 +262,7 @@ public sealed class InitializationStateStore(IDbContextFactory<PopoDbContext> db
             null,
             DateTimeOffset.UtcNow);
 
+    /// <summary>Сбрасывает статус, счётчики, временные метки и ошибку задачи к исходному состоянию ожидания.</summary>
     private static void ResetToPending(InitializationJobStateEntity state)
     {
         state.Status = InitializationJobStatus.Pending;

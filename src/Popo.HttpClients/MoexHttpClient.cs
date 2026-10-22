@@ -27,6 +27,7 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
     public async Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) =>
         (await client.GetBondHistoryPageAsync(secId, boardId, from, ct)).Select(value => value.ToContract()).ToList();
 
+    /// <inheritdoc />
     public async Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
         (await client.GetMoneyMarketFundMarketdataAsync(secId, boardId, ct)).ToContract();
 

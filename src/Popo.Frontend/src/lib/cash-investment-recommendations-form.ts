@@ -1,4 +1,4 @@
-import type { InvestmentStrategySettings } from "./cash-investment-recommendations-api";
+import type { InvestmentStrategyPreset, InvestmentStrategySettings } from "./cash-investment-recommendations-api";
 
 export type StrategyFormValues = Pick<InvestmentStrategySettings, "minimumRating" | "offerWindowDays" | "instrumentType" | "faceUnit" | "currencyId"> & {
   presetName: string;
@@ -10,6 +10,14 @@ export type StrategyFormValues = Pick<InvestmentStrategySettings, "minimumRating
 };
 
 const DaysPerYear = 365;
+
+export function getPersistedPresetNameForCalculation(
+  presets: Pick<InvestmentStrategyPreset, "id" | "name" | "isActive">[],
+  selectedPresetId: number | null
+): string | undefined {
+  const selected = selectedPresetId == null ? undefined : presets.find(preset => preset.id === selectedPresetId);
+  return selected?.name ?? presets.find(preset => preset.isActive)?.name;
+}
 
 export function yearsToDays(years: number): number {
   return Math.round(years * DaysPerYear);

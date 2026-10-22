@@ -8,7 +8,7 @@ const items = [
   { key: "/portfolio", label: <Link href="/portfolio">Портфель</Link> },
   { key: "/positions", label: <Link href="/positions">Позиции</Link> },
   { key: "/trades", label: <Link href="/trades">Сделки</Link> },
-  { key: "/cash", label: <Link href="/cash">Ликвидность</Link> },
+  { key: "/liquidity", label: <Link href="/liquidity">Ликвидность</Link> },
   { key: "/recommendations", label: <Link href="/recommendations">Рекомендации</Link> }
 ];
 

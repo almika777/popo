@@ -8,14 +8,6 @@ public sealed class BondSearchRequest
     public string? Query { get; init; }
 }
 
-public sealed class BrokerReportPreviewRequest
-{
-    public const long MaximumFileSizeBytes = 20 * 1024 * 1024;
-
-    [FromForm(Name = "file")]
-    public IFormFile? File { get; init; }
-}
-
 public sealed class PortfolioReturnQuery
 {
     [FromQuery(Name = "from")]

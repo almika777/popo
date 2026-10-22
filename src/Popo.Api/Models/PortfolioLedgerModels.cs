@@ -14,29 +14,14 @@ public sealed record UpsertPortfolioTradeRequest(
     double AccruedInterestTotal,
     double CommissionPercent);
 
-public sealed record UpsertCashSnapshotRequest(
-    string CurrencyId,
-    DateOnly SnapshotDate,
-    double Amount,
-    string? Comment);
-
 public sealed record UpsertMoneyMarketFundRequest(
     string SecId,
     double Quantity,
     double AveragePrice);
 
-public sealed record AddMoneyMarketFundOperationRequest(
-    string SecId,
-    DateOnly Date,
-    TradeSide Side,
-    double Quantity,
-    double Price,
-    double Commission);
-
 public sealed record PositionsPageResponse(
     IReadOnlyList<PortfolioPositionRecord> Positions,
-    PositionTotalsResponse Totals,
-    PositionRecommendationStateResponse Recommendation);
+    PositionTotalsResponse Totals);
 
 public sealed record PositionTotalsResponse(
     double MarketValueRub,
@@ -46,10 +31,6 @@ public sealed record PositionTotalsResponse(
 
 public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId, string Name);
 
-public sealed record CashPageResponse(
-    IReadOnlyList<CashSnapshotRecord> Snapshots,
-    IReadOnlyList<CashBalance> Balances,
-    IReadOnlyList<string> Currencies,
+public sealed record MoneyMarketFundsPageResponse(
     IReadOnlyList<MoneyMarketFundRecord> MoneyMarketFunds,
-    IReadOnlyList<MoneyMarketFundOptionResponse> MoneyMarketFundOptions,
-    IReadOnlyList<MoneyMarketFundOperationRecord> MoneyMarketFundOperations);
+    IReadOnlyList<MoneyMarketFundOptionResponse> MoneyMarketFundOptions);

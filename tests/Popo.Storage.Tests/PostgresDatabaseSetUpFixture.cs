@@ -23,12 +23,17 @@ internal static class TestDatabase
 
     public static IDbContextFactory<PopoDbContext> ContextFactory { get; private set; } = null!;
 
-    public static async Task<IsolatedTestDatabase> CreateIsolatedAsync()
+    public static async Task<IsolatedTestDatabase> CreateIsolatedAsync(bool noTracking = false)
     {
         var schema = $"test_{Guid.NewGuid():N}";
-        var options = new DbContextOptionsBuilder<PopoDbContext>()
-            .UseNpgsql($"{_postgres.GetConnectionString()};Search Path={schema}")
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<PopoDbContext>()
+            .UseNpgsql($"{_postgres.GetConnectionString()};Search Path={schema}");
+        if (noTracking)
+        {
+            optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        }
+
+        var options = optionsBuilder.Options;
 
         await using var context = new PopoDbContext(options);
         await ExecuteSchemaCommandAsync(context, $"CREATE SCHEMA \"{schema}\"");

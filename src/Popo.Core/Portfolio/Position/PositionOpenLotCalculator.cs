@@ -2,7 +2,7 @@ namespace Popo.Core.Portfolio.Position;
 
 public sealed class PositionOpenLotCalculator
 {
-    public PositionOpenLotsResult Calculate(
+    public static PositionOpenLotsResult Calculate(
         IReadOnlyCollection<PositionIncomeTrade> trades,
         DateOnly asOf)
     {
@@ -33,6 +33,7 @@ public sealed class PositionOpenLotCalculator
 
             var quantityToSell = dayTrades.Where(x => x.Side == TradeSide.Sell).Sum(x => x.Quantity);
             var availableQuantity = lots.Sum(x => x.Quantity);
+            
             if (quantityToSell > availableQuantity)
                 throw new InvalidOperationException("Количество продажи не может превышать доступный остаток.");
 

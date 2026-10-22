@@ -24,7 +24,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMoexEmitentUpdateJob, MoexEmitentUpdateJob>();
         services.AddScoped<IBondRatingUpdateJob, BondRatingUpdateJob>();
         services.AddScoped<ICbrCurrencyRatesUpdateJob, CbrCurrencyRatesUpdateJob>();
-        services.AddScoped<IPositionRecommendationJob, PositionRecommendationJob>();
         services.AddScoped<IClosedPositionSessionsJob, ClosedPositionSessionsJob>();
         services.AddScoped<InitializationExecutionContext>();
         services.AddScoped<IInitializationProgressReporter, InitializationProgressReporter>();

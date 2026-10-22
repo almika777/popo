@@ -10,7 +10,7 @@ import { filterPositionTrades } from "../../../../lib/position-details";
 import { getPositionAverageBuyPrice } from "../../../../lib/position-average-price";
 import { portfolioLedgerApi, type BondSearchResult, type PortfolioPosition, type PortfolioTrade, type TradeSide } from "../../../../lib/portfolio-ledger-api";
 
-type TradeForm = { tradeDate: Dayjs; side: TradeSide; quantity: number; price: number; accruedInterestTotal: number; commission: number };
+type TradeForm = { tradeDate: Dayjs; side: TradeSide; quantity: number; price: number; accruedInterestTotal?: number; commission: number };
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const integer = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 
@@ -39,7 +39,11 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
       setTrades(matchingTrades);
       const exactInstrument = searchResults.find((item) => item.secId === secId && item.boardId === boardId);
       const fallbackTrade = matchingTrades[0];
-      setInstrument(exactInstrument ?? (fallbackTrade ? { secId, boardId, currency: fallbackTrade.currencyId, shortName: fallbackTrade.shortName || secId, accruedInterest: fallbackTrade.accruedInterest, faceValue: fallbackTrade.faceValue } : undefined));
+      const resolvedInstrument = exactInstrument ?? (fallbackTrade ? { secId, boardId, currency: fallbackTrade.currencyId, shortName: fallbackTrade.shortName || secId, accruedInterest: fallbackTrade.accruedInterest, faceValue: fallbackTrade.faceValue } : undefined);
+      setInstrument(resolvedInstrument);
+      if (resolvedInstrument && resolvedInstrument.accruedInterest == null) {
+        form.setFieldValue("accruedInterestTotal", undefined);
+      }
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Не удалось загрузить позицию");
     } finally {
@@ -54,6 +58,7 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
 
   const save = async (values: TradeForm) => {
     if (!instrument) { message.error("Не удалось определить параметры инструмента"); return; }
+    if (values.accruedInterestTotal == null) { message.error("Укажите НКД по сделке"); return; }
     try {
       const originalTrade = editingId ? trades.find((trade) => trade.id === editingId) : undefined;
       await portfolioLedgerApi.saveTrade({ secId, boardId, currencyId: instrument.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side: values.side, quantity: values.quantity, price: values.price, faceValue: originalTrade?.faceValue ?? instrument.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
@@ -110,7 +115,7 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
             <Col xs={24} md={8}><Form.Item label="Тип сделки" name="side" rules={[{ required: true }]}><Select options={[{ value: "Buy", label: "Покупка" }, { value: "Sell", label: "Продажа" }]} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Количество, шт." name="quantity" rules={[{ required: true }]}><InputNumber min={1} precision={0} style={{ width: "100%" }} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Цена за 1 шт." name="price" rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
-            <Col xs={24} md={8}><Form.Item label="НКД за все бумаги" name="accruedInterestTotal" rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
+            <Col xs={24} md={8}><Form.Item label="НКД за все бумаги" name="accruedInterestTotal" help={!editingId && instrument?.accruedInterest == null ? "НКД не указан в справочнике. Введите сумму вручную." : undefined} rules={[{ required: true, message: "Укажите НКД по сделке" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Комиссия, %"><Space.Compact block><Form.Item name="commission" noStyle rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "calc(100% - 40px)" }} /></Form.Item><Input value="%" disabled style={{ width: 40, textAlign: "center" }} /></Space.Compact></Form.Item></Col>
             {instrument && <Col xs={24} md={8}><Typography.Text type="secondary">Номинал: {number.format(instrument.faceValue)} {instrument.currency}</Typography.Text></Col>}
           </Row>

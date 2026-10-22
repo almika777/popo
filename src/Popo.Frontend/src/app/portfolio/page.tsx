@@ -34,7 +34,7 @@ import {
   isBenchmarkEndDateDisabled,
   isBenchmarkStartDateDisabled
 } from "../../lib/portfolio-benchmark-presentation";
-import type { CashBalance, PortfolioSummary } from "../../lib/portfolio-ledger-api";
+import type { PortfolioSummary } from "../../lib/portfolio-ledger-api";
 import {
   Bar,
   BarChart,
@@ -542,18 +542,17 @@ export default function PortfolioPage() {
   const [cashFlowForm] = Form.useForm<CashFlowForm>();
   const [valuations, setValuations] = useState<PortfolioValuation[]>([]);
   const [cashFlows, setCashFlows] = useState<PortfolioCashFlow[]>([]);
-  const [cashBalances, setCashBalances] = useState<CashBalance[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary>();
   const [editingValuationId, setEditingValuationId] = useState<string>();
   const [editingValuationValue, setEditingValuationValue] = useState<number>();
   const [editingCashFlowId, setEditingCashFlowId] = useState<string>();
   const [editingCashFlow, setEditingCashFlow] = useState<PortfolioCashFlow>();
   const [period, setPeriod] = useState<[Dayjs, Dayjs]>();
+  const [result, setResult] = useState<PortfolioReturn>();
+  const [calculationError, setCalculationError] = useState<string>();
   const [benchmarkPeriod, setBenchmarkPeriod] = useState<[Dayjs, Dayjs]>();
   const [benchmarkTabOpened, setBenchmarkTabOpened] = useState(false);
   const autoBenchmarkCalculationStarted = useRef(false);
-  const [result, setResult] = useState<PortfolioReturn>();
-  const [calculationError, setCalculationError] = useState<string>();
   const [benchmarkResult, setBenchmarkResult] = useState<PortfolioBenchmarkResult>();
   const [visibleBenchmarkIndexes, setVisibleBenchmarkIndexes] = useState<string[]>(["lqdt", "indexedBond"]);
   const [benchmarkCalculationError, setBenchmarkCalculationError] = useState<string>();
@@ -568,7 +567,6 @@ export default function PortfolioPage() {
       const page = await portfolioReturnApi.getPage(dayjs().format("YYYY-MM-DD"));
       setValuations(page.valuations);
       setCashFlows(page.cashFlows);
-      setCashBalances(page.balances);
       setSummary(page.summary);
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Не удалось загрузить данные");
@@ -819,7 +817,7 @@ export default function PortfolioPage() {
       <Content className="app-content">
         <Typography.Title level={1}>Портфель</Typography.Title>
         <Typography.Paragraph type="secondary">
-          Общая картина портфеля: позиции, кеш и фонды ликвидности в рублях.
+          Общая картина портфеля: позиции и фонды ликвидности в рублях.
         </Typography.Paragraph>
 
         <Space orientation="vertical" size="large" style={{ width: "100%" }}>
@@ -838,36 +836,15 @@ export default function PortfolioPage() {
                   children: (
                     <Card className="portfolio-overview-card">
                       <div className="portfolio-metrics-row">
-                        <div className="portfolio-metrics-section">
-                          <MetricCard title="Общий объём">
-                            {summary ? money.format(summary.totalValueRub) : "—"}
-                            {summary && <div className="portfolio-total-breakdown">
-                              <span><small>Позиции</small><strong>{money.format(summary.positionsValueRub)}</strong></span>
-                              <span><small>Кеш</small><strong>{money.format(summary.cashValueRub)}</strong></span>
-                              <span><small>Фонды</small><strong>{money.format(summary.moneyMarketFundsValueRub)}</strong></span>
-                            </div>}
-                          </MetricCard>
-                        </div>
-                        <div className="portfolio-metrics-section">
-                          <MetricCard title="Кеш" hint="Текущий расчётный остаток">
-                            {cashBalances.length === 0
-                              ? "—"
-                              : <div className="portfolio-cash-values">
-                                  {cashBalances.map((balance) => (
-                                    <span key={balance.currencyId}>{number.format(balance.amount)} {balance.currencyId}</span>
-                                  ))}
-                                </div>}
-                          </MetricCard>
-                        </div>
-                        <div className="portfolio-metrics-section">
-                          <MetricCard title="Результат позиций" hint="Нереализованный результат открытых позиций">
-                            {!summary || summary.unrealizedPnlRub == null
-                              ? "—"
-                              : <Typography.Text type={summary.unrealizedPnlRub >= 0 ? "success" : "danger"}>
-                                  {summary.unrealizedPnlRub >= 0 ? "+" : ""}{money.format(summary.unrealizedPnlRub)}
-                                </Typography.Text>}
-                          </MetricCard>
-                        </div>
+                        <MetricCard title="Общий объём">
+                          {summary ? money.format(summary.totalValueRub) : "—"}
+                        </MetricCard>
+                        <MetricCard title="Позиции">
+                          {summary ? money.format(summary.positionsValueRub) : "—"}
+                        </MetricCard>
+                        <MetricCard title="Фонды">
+                          {summary ? money.format(summary.moneyMarketFundsValueRub) : "—"}
+                        </MetricCard>
                       </div>
                       <div className="portfolio-chart-section">
                         <ValuationChart
@@ -956,15 +933,16 @@ export default function PortfolioPage() {
 
           <Card title="Доходность портфеля" className="portfolio-return-card">
             <Space wrap>
-               {period && <>
-                 <DatePicker value={period[0]} onChange={(value) => changePeriod(value, period[1])} />
-                 <DatePicker value={period[1]} onChange={(value) => changePeriod(period[0], value)} />
-               </>}
-               <Button type="primary" disabled={!period} onClick={() => void calculate()}>Рассчитать</Button>
+              {period && <>
+                <DatePicker value={period[0]} onChange={(value) => changePeriod(value, period[1])} />
+                <DatePicker value={period[1]} onChange={(value) => changePeriod(period[0], value)} />
+              </>}
+              <Button type="primary" disabled={!period} onClick={() => void calculate()}>Рассчитать</Button>
             </Space>
             {calculationError && <Alert type="error" showIcon title={calculationError} style={{ marginTop: 16 }} />}
             {result && <div className="portfolio-return-result">
               <Typography.Title level={2}>{percent.format(result.periodReturn)} за период</Typography.Title>
+              <Typography.Text type="secondary">После налогов и комиссий</Typography.Text>
               <div className="portfolio-return-details">
                 <span>Годовая доходность <strong>{percent.format(result.annualizedReturn)}</strong></span>
                 <span>Финансовый результат <strong>{money.format(result.absoluteReturn)}</strong></span>

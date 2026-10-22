@@ -5,5 +5,5 @@ public sealed record BondSearchResult(
     string BoardId,
     string Currency,
     string ShortName,
-    double AccruedInterest,
+    double? AccruedInterest,
     double FaceValue);

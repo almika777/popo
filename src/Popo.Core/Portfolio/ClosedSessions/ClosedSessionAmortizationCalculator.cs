@@ -2,11 +2,12 @@ namespace Popo.Core.Portfolio.ClosedSessions;
 
 public sealed class ClosedSessionAmortizationCalculator
 {
+    /// <summary>Рассчитывает частичные амортизации, полученные во время владения, и сообщает, если данных недостаточно.</summary>
     public ClosedSessionIncome Calculate(ClosedSessionInstrument instrument,
         IReadOnlyList<ClosedSessionHolding> holdings)
     {
-        decimal total = 0;
-        decimal repaidNominal = 0;
+        double total = 0;
+        double repaidNominal = 0;
         var lastDate = holdings.Count == 0 ? DateOnly.MinValue : holdings.Max(x => x.To);
         var nominalHistoryComplete = true;
         foreach (var amort in instrument.Amortizations.OrderBy(x => x.Date))
@@ -23,7 +24,7 @@ public sealed class ClosedSessionAmortizationCalculator
                 : amort.ValuePercent is >= 0 && initial > 0 ? initial * amort.ValuePercent / 100 : null;
             var isMaturityDate = instrument.MaturityDate.HasValue && amort.Date >= instrument.MaturityDate.Value;
             var isFinal = isMaturityDate || nominalHistoryComplete && initial > 0
-                && nominalValue.HasValue && repaidNominal + nominalValue.Value >= initial - 0.000001m;
+                && nominalValue.HasValue && repaidNominal + nominalValue.Value >= initial - 0.000001;
             if (!nominalValue.HasValue)
                 nominalHistoryComplete = false;
             else

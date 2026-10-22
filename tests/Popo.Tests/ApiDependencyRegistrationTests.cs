@@ -61,15 +61,11 @@ public sealed class ApiDependencyRegistrationTests
         var requestTypes = new[]
         {
             typeof(BondSearchRequest),
-            typeof(BrokerReportPreviewRequest),
             typeof(UpsertPortfolioTradeRequest),
-            typeof(UpsertCashSnapshotRequest),
             typeof(UpsertMoneyMarketFundRequest),
-            typeof(AddMoneyMarketFundOperationRequest),
             typeof(UpsertPortfolioValuationRequest),
             typeof(UpsertPortfolioCashFlowRequest),
             typeof(PortfolioReturnQuery),
-            typeof(BrokerReportImportRequest),
             typeof(InvestmentStrategySettingsRequest),
             typeof(InvestmentStrategyPresetRequest)
         };

@@ -36,8 +36,6 @@ public sealed class PortfolioBondBenchmarkHistoryProviderTests
         var couponDate = new DateOnly(2026, 11, 19);
         await using (var context = await _database.ContextFactory.CreateDbContextAsync())
         {
-            context.MoexBonds.Add(new MoexBondEntity { SecId = secId, Isin = isin });
-            context.ActiveSecEntities.Add(new SecInfoEntity { SecId = secId, PrimaryBoardId = boardId });
             context.MoexBondSecurities.Add(new MoexBondSecurityEntity
             {
                 SecId = secId,
@@ -66,7 +64,7 @@ public sealed class PortfolioBondBenchmarkHistoryProviderTests
             await context.SaveChangesAsync();
         }
 
-        var result = await _provider.GetHistoryAsync(isin, from, through, CancellationToken.None);
+        var result = await _provider.GetHistoryAsync(secId, boardId, from, through, CancellationToken.None);
 
         Assert.That(result, Is.Not.Null);
         Assert.Multiple(() =>

@@ -17,6 +17,9 @@ public class MoexResponse<T>
     [JsonPropertyName("data")] 
     public List<List<JsonElement?>>? Data { get; set; }
     
+    /// <summary>Сопоставляет колонки табличного ответа MOEX со свойствами типа и создаёт объекты строк.</summary>
+    /// <param name="options">Настройки сериализации значений JSON.</param>
+    /// <returns>Типизированные строки из блока <c>data</c> ответа MOEX.</returns>
     public IEnumerable<T> GetTypedData(JsonSerializerOptions options)
     {
         if (Data == null || Columns == null)

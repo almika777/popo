@@ -33,15 +33,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPortfolioValuationsProvider, PortfolioValuationsProvider>();
         services.AddScoped<IPortfolioCashFlowsProvider, PortfolioCashFlowsProvider>();
         services.AddScoped<IPortfolioMoneyMarketFundsProvider, PortfolioMoneyMarketFundsProvider>();
-        services.AddScoped<IPortfolioCashProvider, PortfolioCashProvider>();
         services.AddScoped<IPortfolioTradesProvider, PortfolioTradesProvider>();
         services.AddScoped<IPortfolioPositionsProvider, PortfolioPositionsProvider>();
         services.AddScoped<IClosedPositionSessionSourceProvider, ClosedPositionSessionSourceProvider>();
         services.AddScoped<IClosedPositionSessionsProvider, ClosedPositionSessionsProvider>();
-        services.AddScoped<IBrokerReportImportProvider, BrokerReportImportProvider>();
         services.AddScoped<IPortfolioCouponProvider, PortfolioCouponProvider>();
         services.AddScoped<ICashInvestmentRecommendationStore, InvestmentStrategySettingsStore>();
-        services.AddScoped<IPositionRecommendationStore, PositionRecommendationStore>();
         services.AddScoped<IInitializationStateStore, InitializationStateStore>();
         return services;
     }

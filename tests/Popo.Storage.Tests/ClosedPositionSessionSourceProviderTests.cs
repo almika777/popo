@@ -40,16 +40,16 @@ public sealed class ClosedPositionSessionSourceProviderTests
             Assert.That(result.Id, Is.EqualTo(buyId));
             Assert.That(result.SecId, Is.EqualTo(secId));
             Assert.That(result.HoldingDays, Is.EqualTo(31));
-            Assert.That(result.BoughtQuantity, Is.EqualTo(2m));
-            Assert.That(result.BoughtCleanAmount, Is.EqualTo(2_000m));
-            Assert.That(result.SoldCleanAmount, Is.EqualTo(2_200m));
-            Assert.That(result.Commission, Is.EqualTo(5m));
-            Assert.That(result.AmortizationIncome, Is.EqualTo(100m));
-            Assert.That(result.BodyPnl, Is.EqualTo(300m));
-            Assert.That(result.CouponIncome, Is.EqualTo(155m));
-            Assert.That(result.TotalPnl, Is.EqualTo(450m));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(22.5m));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(264.91935484m));
+            Assert.That(result.BoughtQuantity, Is.EqualTo(2));
+            Assert.That(result.BoughtCleanAmount, Is.EqualTo(2_000));
+            Assert.That(result.SoldCleanAmount, Is.EqualTo(2_200));
+            Assert.That(result.Commission, Is.EqualTo(5));
+            Assert.That(result.AmortizationIncome, Is.EqualTo(100));
+            Assert.That(result.BodyPnl, Is.EqualTo(300));
+            Assert.That(result.CouponIncome, Is.EqualTo(155));
+            Assert.That(result.TotalPnl, Is.EqualTo(450));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(22.5));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(264.92));
             Assert.That(result.IsComplete, Is.True);
         });
     }
@@ -171,13 +171,13 @@ public sealed class ClosedPositionSessionSourceProviderTests
         Assert.Multiple(() =>
         {
             Assert.That(instruments.Single().CurrencyRates.Select(x => x.UnitRate),
-                Is.EquivalentTo(new[] { 90m, 100m }));
+                Is.EquivalentTo(new[] { 90m, 100 }));
             // Five days at 90 plus five days at 100, two bonds and one USD coupon per day.
-            Assert.That(result.CouponIncome, Is.EqualTo(1_900m));
+            Assert.That(result.CouponIncome, Is.EqualTo(1_900));
             Assert.That(result.CalculatorKind, Is.EqualTo("Zo"));
-            Assert.That(result.BodyPnl, Is.EqualTo(200m));
-            Assert.That(result.TotalPnl, Is.EqualTo(2_095m));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(104.75m));
+            Assert.That(result.BodyPnl, Is.EqualTo(200));
+            Assert.That(result.TotalPnl, Is.EqualTo(2_095));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(104.75));
         });
     }
 

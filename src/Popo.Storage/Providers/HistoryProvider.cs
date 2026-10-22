@@ -12,8 +12,7 @@ public class HistoryProvider(IDbContextFactory<PopoDbContext> dbContextFactory) 
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(ct);
 
-        var statistics = await dbContext.DailyVolumeStatistics.AsNoTracking().ToListAsync(ct);
-
+        var statistics = await dbContext.DailyVolumeStatistics.ToListAsync(ct);
         return statistics.ToDictionary(x => x.SecId, x => new DailyVolumeStatistics(x.Average, x.Median));
     }
 

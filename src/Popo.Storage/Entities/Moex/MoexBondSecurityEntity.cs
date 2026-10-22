@@ -96,7 +96,7 @@ public class MoexBondSecurityEntity
     public string? RegNumber { get; set; }
 
     /// <summary>Валюта торгов и расчётов по сделкам. Для денежных потоков использовать это поле, а не FaceUnit.</summary>
-    public string? CurrencyId { get; set; }
+    public string CurrencyId { get; set; } = null!;
 
     /// <summary>Количество ценных бумаг в обращении</summary>
     public long? IssueSizePlaced { get; set; }

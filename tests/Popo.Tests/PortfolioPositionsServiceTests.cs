@@ -8,12 +8,61 @@ using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
-using Popo.Core.Recommendations;
 
 namespace Popo.Tests;
 
 public sealed class PortfolioPositionsServiceTests
 {
+    [Test]
+    public async Task OverviewTotal_EqualsPositionsAndMoneyMarketFunds()
+    {
+        const string secId = "OVERVIEW-POSITION";
+        const string boardId = "TQCB";
+        var asOf = MoscowTime.Today;
+        var position = new PortfolioPositionRecord(secId, boardId, "RUB", 1, 1, 0, 900, 900, 0, 900);
+        var fund = new MoneyMarketFundRecord(Guid.NewGuid(), "LQDT", "TQBR", 110, 10.875);
+        var moex = new FakeMoexHttpClient(
+            new MoexBond
+            {
+                SecId = secId,
+                BoardId = boardId,
+                Isin = secId,
+                InitialFaceValue = 1_000,
+                FaceValue = 1_000,
+                FaceUnit = "RUB",
+                CouponPeriod = 182
+            },
+            new MoexMarketdata
+            {
+                SecId = secId,
+                BoardId = boardId,
+                LCurrentPrice = 11.25,
+                SysTime = asOf.ToDateTime(TimeOnly.MinValue)
+            });
+        var service = new PortfolioPositionsService(
+            new FakeMoneyMarketFundsProvider([fund]),
+            new FakeTradesProvider([]),
+            new FakePositionsProvider(position),
+            moex,
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider());
+
+        var valuedFunds = await service.GetMoneyMarketFundsAsync(CancellationToken.None);
+        var overview = await service.GetOverviewAsync(asOf, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(valuedFunds.Single().CurrentPrice, Is.EqualTo(11.25));
+            Assert.That(valuedFunds.Single().CurrentValue, Is.EqualTo(1237.5).Within(0.001));
+            Assert.That(valuedFunds.Single().Pnl, Is.EqualTo(41.25).Within(0.001));
+            Assert.That(valuedFunds.Single().PnlPercent, Is.EqualTo(41.25 / 1196.25 * 100).Within(0.001));
+            Assert.That(overview.Summary.MoneyMarketFundsValueRub, Is.EqualTo(1237.5).Within(0.001));
+            Assert.That(overview.Summary.TotalValueRub,
+                Is.EqualTo(overview.Summary.PositionsValueRub + overview.Summary.MoneyMarketFundsValueRub).Within(0.001));
+        });
+    }
+
     [Test]
     public async Task FutureDatedTrade_IsExcludedFromPositionIncome()
     {
@@ -43,15 +92,13 @@ public sealed class PortfolioPositionsServiceTests
                 SysTime = asOf.ToDateTime(TimeOnly.MinValue)
             });
         var service = new PortfolioPositionsService(
-            new FakePortfolioService(),
             new FakeMoneyMarketFundsProvider(),
             new FakeTradesProvider([futureTrade]),
             new FakePositionsProvider(position),
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -107,15 +154,13 @@ public sealed class PortfolioPositionsServiceTests
                 new DateOnly(2026, 9, 15))
         };
         var service = new PortfolioPositionsService(
-            new FakePortfolioService(),
             new FakeMoneyMarketFundsProvider(),
             new FakeTradesProvider(trades),
             new FakePositionsProvider(position),
             new FakeMoexHttpClient(security, quote),
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(couponSchedule),
-            null!);
+            new FakeCouponProvider(couponSchedule));
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -152,7 +197,6 @@ public sealed class PortfolioPositionsServiceTests
         var trades = tradeData.Select(x => new PortfolioTradeRecord(
             Guid.NewGuid(), secId, boardId, "RUB", x.Date, TradeSide.Buy, x.Quantity,
             x.Price, x.FaceValue, 0, x.Commission, 0, x.Quantity * x.Price + x.Commission)).ToArray();
-        var portfolioService = new FakePortfolioService();
         var position = new PortfolioPositionRecord(
             secId,
             boardId,
@@ -185,15 +229,13 @@ public sealed class PortfolioPositionsServiceTests
                 SysTime = new DateTime(2026, 9, 25)
             });
         var service = new PortfolioPositionsService(
-            portfolioService,
             new FakeMoneyMarketFundsProvider(),
             new FakeTradesProvider(trades),
             new FakePositionsProvider(position),
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -227,7 +269,6 @@ public sealed class PortfolioPositionsServiceTests
             new PortfolioTradeRecord(Guid.NewGuid(), secId, boardId, "RUB", new DateOnly(2026, 7, 24),
                 TradeSide.Sell, 1, 600, 600, 0, 0, 0, 600)
         };
-        var portfolioService = new FakePortfolioService();
         var position = new PortfolioPositionRecord(secId, boardId, "RUB", 1, 2, 1,
             500 + openLotFaceValue, 500 + openLotFaceValue, 600,
             (500 + openLotFaceValue) / 2);
@@ -250,15 +291,13 @@ public sealed class PortfolioPositionsServiceTests
                 SysTime = new DateTime(2026, 9, 25)
             });
         var service = new PortfolioPositionsService(
-            portfolioService,
             new FakeMoneyMarketFundsProvider(),
             new FakeTradesProvider(trades),
             new FakePositionsProvider(position),
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -301,7 +340,6 @@ public sealed class PortfolioPositionsServiceTests
         var trades = tradeData.Select(x => new PortfolioTradeRecord(
             Guid.NewGuid(), secId, boardId, "RUB", x.Date, TradeSide.Buy, x.Quantity,
             x.Price, 750, 0, x.Commission, 0, x.Quantity * x.Price + x.Commission)).ToArray();
-        var portfolioService = new FakePortfolioService();
         var position = new PortfolioPositionRecord(
             secId,
             boardId,
@@ -334,15 +372,13 @@ public sealed class PortfolioPositionsServiceTests
                 SysTime = new DateTime(2026, 9, 25)
             });
         var service = new PortfolioPositionsService(
-            portfolioService,
             new FakeMoneyMarketFundsProvider(),
             new FakeTradesProvider(trades),
             new FakePositionsProvider(position),
             moex,
             null!,
             new FakeHistoryProvider(),
-            new FakeCouponProvider(),
-            null!);
+            new FakeCouponProvider());
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
@@ -357,11 +393,6 @@ public sealed class PortfolioPositionsServiceTests
         });
     }
 
-    private sealed class FakePortfolioService : IPortfolioService
-    {
-        public Task<IReadOnlyList<CashBalance>> GetCashBalancesAsync(DateOnly asOf, CancellationToken cancellationToken) => throw new NotSupportedException();
-    }
-
     private sealed class FakePositionsProvider(PortfolioPositionRecord position) : IPortfolioPositionsProvider
     {
         public Task<IReadOnlyList<PortfolioPositionRecord>> GetPositionsAsync(
@@ -370,14 +401,14 @@ public sealed class PortfolioPositionsServiceTests
             Task.FromResult<IReadOnlyList<PortfolioPositionRecord>>([position]);
     }
 
-    private sealed class FakeMoneyMarketFundsProvider : IPortfolioMoneyMarketFundsProvider
+    private sealed class FakeMoneyMarketFundsProvider(IReadOnlyList<MoneyMarketFundRecord>? funds = null)
+        : IPortfolioMoneyMarketFundsProvider
     {
-        public Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(funds ?? Array.Empty<MoneyMarketFundRecord>());
         public Task<MoneyMarketFundRecord> AddMoneyMarketFundAsync(MoneyMarketFund fund, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<MoneyMarketFundRecord?> UpdateMoneyMarketFundAsync(Guid id, MoneyMarketFund fund, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> DeleteMoneyMarketFundAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<IReadOnlyList<MoneyMarketFundOperationRecord>> GetMoneyMarketFundOperationsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<MoneyMarketFundOperationRecord> AddMoneyMarketFundOperationAsync(MoneyMarketFundOperation operation, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeTradesProvider(IReadOnlyList<PortfolioTradeRecord> trades) : IPortfolioTradesProvider
@@ -402,7 +433,14 @@ public sealed class PortfolioPositionsServiceTests
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
+            Task.FromResult(new MoexMarketdata
+            {
+                SecId = secId,
+                BoardId = boardId,
+                LCurrentPrice = quote.LCurrentPrice,
+                SysTime = quote.SysTime
+            });
 
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotSupportedException();

@@ -66,7 +66,6 @@ public sealed class MoexIndexHistoryStore(IDbContextFactory<PopoDbContext> dbCon
 
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return await context.MoexIndexHistories
-            .AsNoTracking()
             .Where(x => x.SecId == secId && x.TradeDate >= from && x.TradeDate <= to)
             .OrderBy(x => x.TradeDate)
             .Select(x => new MoexIndexHistory

@@ -9,6 +9,10 @@ public sealed class MoexDateTimeJsonConverter : JsonConverter<DateTime?>
 {
     private const string DateTimeFormat = "yyyy-MM-dd HH:mm:ss";
 
+    /// <summary>Разбирает строку времени MOEX и переводит московское время в UTC.</summary>
+    /// <param name="raw">Значение даты и времени из ответа MOEX.</param>
+    /// <param name="value">Результат в UTC или <see langword="null"/> для пустого значения.</param>
+    /// <returns><see langword="true"/>, если значение пустое или успешно разобрано.</returns>
     public static bool TryParse(string? raw, out DateTime? value)
     {
         value = null;

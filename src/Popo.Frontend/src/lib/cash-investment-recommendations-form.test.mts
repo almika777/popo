@@ -1,12 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { InvestmentStrategyPreset } from "./cash-investment-recommendations-api.ts";
 
 import {
   daysToYears,
   fromStrategyFormValues,
+  getPersistedPresetNameForCalculation,
   toStrategyFormValues,
   type StrategyFormValues
 } from "./cash-investment-recommendations-form.ts";
+
+test("uses the selected saved preset name and ignores an unsaved form name", () => {
+  const presets: Pick<InvestmentStrategyPreset, "id" | "name" | "isActive">[] = [
+    { id: 1, name: "Active saved", isActive: true },
+    { id: 2, name: "Selected saved", isActive: false }
+  ];
+
+  assert.equal(getPersistedPresetNameForCalculation(presets, 2), "Selected saved");
+  assert.equal(getPersistedPresetNameForCalculation(presets, null), "Active saved");
+});
 
 test("maps API values to form values converting maturity days to years", () => {
   const values = toStrategyFormValues({

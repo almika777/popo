@@ -5,6 +5,7 @@ public sealed class FloaterClosedSessionBondCalculator : IClosedSessionBondCalcu
     public string Kind => "Floater";
 
     // При отсутствии суммы используется последний известный купон предыдущего периода.
+    /// <summary>При отсутствии суммы купона использует последнюю известную сумму предыдущего периода.</summary>
     public ClosedSessionIncome CalculateCouponIncome(ClosedSessionInstrument instrument,
         IReadOnlyList<ClosedSessionHolding> holdings)
         => new ClosedSessionCouponAccrualCalculator().Calculate(instrument, holdings,

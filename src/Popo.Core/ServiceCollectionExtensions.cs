@@ -13,7 +13,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBondsService, BondsService>();
         services.AddScoped<ICashRecommendationService, CashRecommendationService>();
         services.AddScoped<IBondAssessmentService, BondAssessmentService>();
-        services.AddScoped<IPositionRecommendationService, PositionRecommendationService>();
         services.AddSingleton<PortfolioReturnCalculator>();
         services.AddSingleton<PortfolioBenchmarkCalculator>();
         services.AddScoped<ClosedPositionSessionsService>();

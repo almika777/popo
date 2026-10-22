@@ -8,6 +8,7 @@ public interface IInitializationStateStore
 
     Task<InitializationStatus> GetStatusAsync(CancellationToken cancellationToken);
 
+    /// <summary>Проверяет, завершена ли первичная загрузка данных приложения.</summary>
     Task<bool> IsCompleteAsync(CancellationToken cancellationToken);
 
     Task<string?> GetNextPendingJobKeyAsync(CancellationToken cancellationToken);

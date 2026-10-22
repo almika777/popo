@@ -25,9 +25,9 @@ public sealed class ClosedPositionSessionsProviderTests
         yield return new TestCaseData(new ClosedPositionSession(
             Guid.Parse("10000000-0000-0000-0000-000000000001"), "ROUNDTRIP-COMPLETE", "TQCB", "RUB",
             "Complete session", new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 1), 31,
-            3.125m, 12345.67890123m, 12001.23456789m, 12.3456789m,
-            98.7654321m, -444.44444444m, 333.33333333m, -123.45678901m,
-            -1.23456789m, -14.81481468m, true, null, "Floater", calculatedAt))
+            3.125d, 12345.67890123d, 12001.23456789d, 12.3456789d,
+            98.7654321d, -444.44444444d, 333.33333333d, -123.45678901d,
+            -1.23456789d, -14.81481468d, true, null, "Floater", calculatedAt))
             .SetName("Round_trip_complete_session_all_fields");
 
         yield return new TestCaseData(new ClosedPositionSession(
@@ -40,7 +40,7 @@ public sealed class ClosedPositionSessionsProviderTests
         yield return new TestCaseData(new ClosedPositionSession(
             Guid.Parse("10000000-0000-0000-0000-000000000003"), "ROUNDTRIP-NO-AMORT", "TQCB", "RUB",
             "Missing amortization", new DateOnly(2026, 4, 1), new DateOnly(2026, 4, 21), 20,
-            1.5m, 300, 310, 0.75m, null, null, 12.34m, null, null, null, false,
+            1.5d, 300, 310, 0.75d, null, null, 12.34d, null, null, null, false,
             "Неизвестна сумма амортизации или курс.", "Zo", calculatedAt))
             .SetName("Round_trip_incomplete_session_with_null_amortization_and_body");
     }
@@ -61,7 +61,7 @@ public sealed class ClosedPositionSessionsProviderTests
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].Id, Is.EqualTo(first.Id));
-        Assert.That(result[0].TotalPnl, Is.EqualTo(50m));
+        Assert.That(result[0].TotalPnl, Is.EqualTo(50d));
 
         await provider.ReplaceAsync([], CancellationToken.None);
         Assert.That(await provider.GetAsync(CancellationToken.None), Is.Empty);
@@ -74,14 +74,14 @@ public sealed class ClosedPositionSessionsProviderTests
         var provider = new ClosedPositionSessionsProvider(database.ContextFactory);
         var saved = Session(Guid.NewGuid(), 10);
         await provider.ReplaceAsync([saved], CancellationToken.None);
-        // numeric(28,8) не вместит decimal.MaxValue: ошибка возникает после удаления внутри транзакции.
-        var invalid = Session(Guid.NewGuid(), 20) with { BoughtCleanAmount = decimal.MaxValue };
+        // Отсутствующий обязательный SECID вызывает ошибку сохранения после удаления внутри транзакции.
+        var invalid = Session(Guid.NewGuid(), 20) with { SecId = null! };
         Assert.ThrowsAsync<DbUpdateException>(async () =>
             await provider.ReplaceAsync([invalid], CancellationToken.None));
 
         var result = await provider.GetAsync(CancellationToken.None);
         Assert.That(result.Select(x => x.Id), Is.EqualTo(new[] { saved.Id }));
-        Assert.That(result[0].TotalPnl, Is.EqualTo(10m));
+        Assert.That(result[0].TotalPnl, Is.EqualTo(10d));
     }
 
     [Test]
@@ -94,7 +94,7 @@ public sealed class ClosedPositionSessionsProviderTests
         Assert.That((await provider.GetAsync(CancellationToken.None)).Single().Id, Is.EqualTo(session.Id));
     }
 
-    private static ClosedPositionSession Session(Guid id, decimal coupon) => new(
+    private static ClosedPositionSession Session(Guid id, double coupon) => new(
         id, $"SESSION-{id:N}", "TQCB", "RUB", "Test", new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 31),
         30, 1, 1000, 1000, 0, 0, 0, coupon, coupon, coupon / 10, coupon / 10 * 365 / 30,
         true, null, "Default", DateTimeOffset.UtcNow);

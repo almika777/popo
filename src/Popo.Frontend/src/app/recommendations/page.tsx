@@ -11,7 +11,7 @@ import {
   type CashRecommendationResponse,
   type CreditRating
 } from "../../lib/cash-investment-recommendations-api";
-import { fromStrategyFormValues, toStrategyFormValues, type StrategyFormValues } from "../../lib/cash-investment-recommendations-form";
+import { fromStrategyFormValues, getPersistedPresetNameForCalculation, toStrategyFormValues, type StrategyFormValues } from "../../lib/cash-investment-recommendations-form";
 import { buildYieldCashFlowRows, recommendationColumnTitles, recommendationYtmActionLabel } from "../../lib/cash-investment-recommendations-table";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -116,6 +116,7 @@ function createColumns(onYtmClick: (bond: CashRecommendationBond) => void): Colu
 export default function RecommendationsPage() {
   const [form] = Form.useForm<StrategyFormValues>();
   const [result, setResult] = useState<CashRecommendationResponse | null>(null);
+  const [resultPresetName, setResultPresetName] = useState<string>();
   const [presets, setPresets] = useState<Awaited<ReturnType<typeof cashInvestmentRecommendationsApi.getPresets>>>([]);
   const [tradingCurrencies, setTradingCurrencies] = useState<string[]>([]);
   const [faceUnits, setFaceUnits] = useState<string[]>([]);
@@ -123,6 +124,7 @@ export default function RecommendationsPage() {
   const [creatingPreset, setCreatingPreset] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
+  const [activatingPreset, setActivatingPreset] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedBond, setSelectedBond] = useState<CashRecommendationBond | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -200,6 +202,10 @@ export default function RecommendationsPage() {
   }, [form, message]);
 
   const savePreset = async (values: StrategyFormValues) => {
+    if (loadingSettings || recalculating || activatingPreset || savingSettings) {
+      return;
+    }
+
     setSavingSettings(true);
     try {
       const settings = fromStrategyFormValues(values);
@@ -219,23 +225,34 @@ export default function RecommendationsPage() {
   };
 
   const selectPreset = async (id: number) => {
+    if (loadingSettings || recalculating || savingSettings || activatingPreset) {
+      return;
+    }
+
     const preset = presets.find(x => x.id === id);
     if (!preset) {
       return;
     }
 
-    setSelectedPresetId(id);
-    setCreatingPreset(false);
-    applyStrategyFormValues({ ...toStrategyFormValues(preset.settings), presetName: preset.name });
+    setActivatingPreset(true);
     try {
       await cashInvestmentRecommendationsApi.activatePreset(id);
+      setSelectedPresetId(id);
+      setCreatingPreset(false);
+      applyStrategyFormValues({ ...toStrategyFormValues(preset.settings), presetName: preset.name });
       setResult(null);
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Не удалось выбрать пресет");
+    } finally {
+      setActivatingPreset(false);
     }
   };
 
   const startNewPreset = () => {
+    if (loadingSettings || recalculating || savingSettings || activatingPreset) {
+      return;
+    }
+
     setSelectedPresetId(null);
     setCreatingPreset(true);
     form.resetFields();
@@ -244,7 +261,7 @@ export default function RecommendationsPage() {
   };
 
   const deleteSelectedPreset = async () => {
-    if (selectedPresetId === null) {
+    if (loadingSettings || recalculating || savingSettings || activatingPreset || selectedPresetId === null) {
       return;
     }
 
@@ -266,10 +283,16 @@ export default function RecommendationsPage() {
   };
 
   const recalculate = async () => {
+    if (loadingSettings || recalculating || activatingPreset || savingSettings) {
+      return;
+    }
+
+    const requestedPresetName = getPersistedPresetNameForCalculation(presets, selectedPresetId);
     setRecalculating(true);
     try {
       const response = await cashInvestmentRecommendationsApi.recalculate();
       setResult(response);
+      setResultPresetName(requestedPresetName);
       setSettingsOpen(false);
       message.success("Расчёт завершён");
     } catch (error) {
@@ -280,6 +303,10 @@ export default function RecommendationsPage() {
   };
 
   const saveSettings = async (values: StrategyFormValues) => {
+    if (loadingSettings || recalculating || activatingPreset || savingSettings) {
+      return;
+    }
+
     setSavingSettings(true);
     try {
       const settings = await cashInvestmentRecommendationsApi.updateSettings(fromStrategyFormValues(values));
@@ -307,19 +334,20 @@ export default function RecommendationsPage() {
             style={{ width: 220 }}
             value={creatingPreset ? undefined : selectedPresetId ?? undefined}
             placeholder="Выберите пресет"
-            loading={loadingSettings}
+            loading={loadingSettings || activatingPreset}
+            disabled={loadingSettings || recalculating || savingSettings || activatingPreset}
             options={presets.map(x => ({ value: x.id, label: x.name }))}
             onChange={(id: number) => void selectPreset(id)}
           />
-          <Button onClick={startNewPreset}>Новый пресет</Button>
-          <Button danger disabled={creatingPreset || selectedPresetId === null || presets.length <= 1} onClick={() => void deleteSelectedPreset()}>Удалить</Button>
-          <Button type="text" className="recommendations-settings-open" onClick={() => setSettingsOpen(true)}>
+          <Button disabled={loadingSettings || recalculating || savingSettings || activatingPreset} onClick={startNewPreset}>Новый пресет</Button>
+          <Button danger disabled={loadingSettings || recalculating || savingSettings || activatingPreset || creatingPreset || selectedPresetId === null || presets.length <= 1} onClick={() => void deleteSelectedPreset()}>Удалить</Button>
+          <Button type="text" className="recommendations-settings-open" disabled={loadingSettings || recalculating || activatingPreset || savingSettings} onClick={() => setSettingsOpen(true)}>
             <SettingOutlined />
             <Typography.Text strong>Параметры стратегии</Typography.Text>
             {strategyName && <Typography.Text type="secondary">— {strategyName}</Typography.Text>}
           </Button>
         </div>
-        <Button type="primary" size="small" loading={recalculating} onClick={() => void recalculate()}>Рассчитать</Button>
+        <Button type="primary" size="small" loading={recalculating} disabled={loadingSettings || recalculating || activatingPreset || savingSettings} onClick={() => void recalculate()}>Рассчитать</Button>
       </div>
       {mounted && <Drawer
         title="Параметры стратегии"
@@ -328,7 +356,7 @@ export default function RecommendationsPage() {
         open={settingsOpen}
         forceRender
         onClose={() => setSettingsOpen(false)}
-        footer={<Button type="primary" onClick={() => form.submit()} loading={savingSettings} block>Сохранить настройки</Button>}
+        footer={<Button type="primary" onClick={() => form.submit()} loading={savingSettings} disabled={loadingSettings || recalculating || activatingPreset || savingSettings} block>Сохранить настройки</Button>}
       >
         <Form
           id="recommendation-strategy-form"
@@ -374,7 +402,14 @@ export default function RecommendationsPage() {
         {!result
           ? <Empty description="Нажмите «Рассчитать», чтобы получить список облигаций" />
           : result.bonds.length === 0
-            ? <Alert type="info" showIcon title="Подходящих облигаций не найдено" />
+            ? <Alert
+              type="info"
+              showIcon
+              title={resultPresetName
+                ? `По условиям пресета «${resultPresetName}» облигации не найдены`
+                : "По условиям текущего пресета облигации не найдены"}
+              description="Проверьте минимальный рейтинг, сроки погашения, окно оферты, минимальный объём торгов, границы доходности, тип инструмента, валюту номинала и валюту торгов, затем повторите расчёт. Если бумаги должны проходить эти условия, проверьте обновление рыночных данных."
+            />
             : <Collapse
               key={result.snapshotTime}
               defaultActiveKey={[ratingGroups[0].rating]}

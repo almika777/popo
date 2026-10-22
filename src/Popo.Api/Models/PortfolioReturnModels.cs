@@ -17,5 +17,4 @@ public sealed record UpsertPortfolioCashFlowRequest(
 public sealed record PortfolioPageResponse(
     IReadOnlyList<PortfolioValuationRecord> Valuations,
     IReadOnlyList<PortfolioCashFlowRecord> CashFlows,
-    IReadOnlyList<CashBalance> Balances,
     PortfolioSummaryRecord Summary);

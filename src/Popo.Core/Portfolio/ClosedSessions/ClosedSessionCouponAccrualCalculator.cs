@@ -3,11 +3,12 @@ namespace Popo.Core.Portfolio.ClosedSessions;
 /// <summary>Линейное распределение суммы каждого купонного периода по дням владения.</summary>
 public sealed class ClosedSessionCouponAccrualCalculator
 {
+    /// <summary>Начисляет купоны по дням владения; сообщает о неполном графике, сумме купона или валютном курсе.</summary>
     public ClosedSessionIncome Calculate(ClosedSessionInstrument instrument,
         IReadOnlyList<ClosedSessionHolding> holdings, bool preferRubValue = false,
         bool carryForwardMissingFloaterCoupon = false)
     {
-        decimal total = 0;
+        double total = 0;
         var periods = instrument.Coupons.Distinct().ToArray();
         foreach (var holding in holdings)
         {

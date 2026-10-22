@@ -11,7 +11,8 @@ public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbConte
         CancellationToken cancellationToken)
     {
         var trades = await GetTradeInputsAsync(asOf, cancellationToken);
-        return PortfolioPositionCalculator.Calculate(trades)
+        return PortfolioPositionCalculator
+            .Calculate(trades)
             .Select(PortfolioPositionCalculator.ToRecord)
             .ToArray();
     }
@@ -21,7 +22,7 @@ public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbConte
         CancellationToken cancellationToken)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        return await dbContext.PortfolioTrades.AsNoTracking()
+        return await dbContext.PortfolioTrades
             .Where(x => x.TradeDate <= asOf)
             .Select(x => new PortfolioTrade(
                 x.SecId,
@@ -34,7 +35,6 @@ public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbConte
                 x.FaceValue, 
                 x.AccruedInterest,
                 x.Commission / (x.Quantity * x.Price + x.Quantity * x.AccruedInterest) * 100)
-            )
-            .ToListAsync(cancellationToken);
+            ).ToListAsync(cancellationToken);
     }
 }

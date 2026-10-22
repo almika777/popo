@@ -28,8 +28,9 @@ public sealed class PortfolioBenchmarkCalculator
         }
 
         var lqdt = _lqdtCalculator.Calculate(from, to, lqdtPriceHistory);
-        var indexedBondFirstObservationDate = _indexedBondCalculator.FindFirstObservationDate(
-            from, to, indexedBondHistory);
+        var indexedBondFirstObservationDate = _indexedBondCalculator
+            .FindFirstObservationDate(from, to, indexedBondHistory);
+
         DateOnly? candidateComparisonStartDate = indexedBondFirstObservationDate.HasValue
             ? LaterOf(lqdt.StartPriceDate, indexedBondFirstObservationDate.Value)
             : null;
@@ -40,8 +41,9 @@ public sealed class PortfolioBenchmarkCalculator
             (false, true) => indexedBondFirstObservationDate,
             _ => null
         };
-        var indexedBond = _indexedBondCalculator.Calculate(
-            from, to, indexedBondHistory, includeIndexedBond ? candidateComparisonStartDate : null);
+
+        var indexedBond = _indexedBondCalculator
+            .Calculate(from, to, indexedBondHistory, includeIndexedBond ? candidateComparisonStartDate : null);
         var hasAvailableSelectedIndexes = (!includeLqdt || candidateComparisonStartDate.HasValue) &&
             (!includeIndexedBond || indexedBond.Series is not null);
         var comparisonStartDate = hasAvailableSelectedIndexes && (includeLqdt || includeIndexedBond)

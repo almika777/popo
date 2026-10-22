@@ -16,6 +16,7 @@ public sealed class InvestmentStrategySettingsStore(IDbContextFactory<PopoDbCont
         return entity is null ? InvestmentStrategySettings.Defaults : ToDomain(entity);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<InvestmentStrategyPreset>> GetPresetsAsync(CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -90,7 +91,7 @@ public sealed class InvestmentStrategySettingsStore(IDbContextFactory<PopoDbCont
         return true;
     }
 
-    private static void Apply(InvestmentStrategySettingsEntity entity, InvestmentStrategySettings settings)
+    internal static void Apply(InvestmentStrategySettingsEntity entity, InvestmentStrategySettings settings)
     {
         entity.MinimumRating = (Rating)settings.MinimumRating;
         entity.MinimumMaturityDays = settings.MinimumMaturityDays;

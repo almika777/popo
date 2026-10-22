@@ -50,63 +50,34 @@ namespace Popo.Storage.Migrations
                     b.ToTable("BondRatings");
                 });
 
-            modelBuilder.Entity("Popo.Storage.Entities.CashSnapshotEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("Amount")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Comment")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CurrencyId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateOnly>("SnapshotDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CurrencyId", "SnapshotDate")
-                        .IsUnique();
-
-                    b.ToTable("CashSnapshots");
-                });
-
             modelBuilder.Entity("Popo.Storage.Entities.ClosedPositionSessionEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal?>("AmortizationIncome")
+                    b.Property<double?>("AmortizationIncome")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("AnnualizedPnlPercent")
+                    b.Property<double?>("AnnualizedPnlPercent")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<string>("BoardId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("BodyPnl")
+                    b.Property<double?>("BodyPnl")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal>("BoughtCleanAmount")
+                    b.Property<double>("BoughtCleanAmount")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal>("BoughtQuantity")
+                    b.Property<double>("BoughtQuantity")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<DateTimeOffset>("CalculatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -115,13 +86,13 @@ namespace Popo.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Commission")
+                    b.Property<double>("Commission")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("CouponIncome")
+                    b.Property<double?>("CouponIncome")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<string>("CurrencyId")
                         .IsRequired()
@@ -147,20 +118,20 @@ namespace Popo.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("SoldCleanAmount")
+                    b.Property<double>("SoldCleanAmount")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
-                    b.Property<decimal?>("TotalPnl")
+                    b.Property<double?>("TotalPnl")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("TotalPnlPercent")
+                    b.Property<double?>("TotalPnlPercent")
                         .HasPrecision(28, 8)
-                        .HasColumnType("numeric(28,8)");
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -573,6 +544,7 @@ namespace Popo.Storage.Migrations
                         .HasColumnType("double precision");
 
                     b.Property<string>("CurrencyId")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateOnly?>("DateYieldFromIssuer")
@@ -982,41 +954,6 @@ namespace Popo.Storage.Migrations
                     b.ToTable("MoneyMarketFunds");
                 });
 
-            modelBuilder.Entity("Popo.Storage.Entities.MoneyMarketFundOperationEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<double>("Commission")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<double>("Price")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("Quantity")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("SecId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Side")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Date", "SecId");
-
-                    b.ToTable("MoneyMarketFundOperations");
-                });
-
             modelBuilder.Entity("Popo.Storage.Entities.PortfolioCashFlowEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1120,38 +1057,6 @@ namespace Popo.Storage.Migrations
                         .IsUnique();
 
                     b.ToTable("PortfolioValuations");
-                });
-
-            modelBuilder.Entity("Popo.Storage.Entities.PositionRecommendationStateEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("CalculationStartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("LastSuccessfulAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResultJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTimeOffset?>("SnapshotTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PositionRecommendationStates");
                 });
 #pragma warning restore 612, 618
         }

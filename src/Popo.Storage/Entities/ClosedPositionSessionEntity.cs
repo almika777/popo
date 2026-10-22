@@ -10,16 +10,16 @@ public sealed class ClosedPositionSessionEntity
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public int HoldingDays { get; set; }
-    public decimal BoughtQuantity { get; set; }
-    public decimal BoughtCleanAmount { get; set; }
-    public decimal SoldCleanAmount { get; set; }
-    public decimal Commission { get; set; }
-    public decimal? AmortizationIncome { get; set; }
-    public decimal? BodyPnl { get; set; }
-    public decimal? CouponIncome { get; set; }
-    public decimal? TotalPnl { get; set; }
-    public decimal? TotalPnlPercent { get; set; }
-    public decimal? AnnualizedPnlPercent { get; set; }
+    public double BoughtQuantity { get; set; }
+    public double BoughtCleanAmount { get; set; }
+    public double SoldCleanAmount { get; set; }
+    public double Commission { get; set; }
+    public double? AmortizationIncome { get; set; }
+    public double? BodyPnl { get; set; }
+    public double? CouponIncome { get; set; }
+    public double? TotalPnl { get; set; }
+    public double? TotalPnlPercent { get; set; }
+    public double? AnnualizedPnlPercent { get; set; }
     public bool IsComplete { get; set; }
     public string? IncompleteReason { get; set; }
     public string CalculatorKind { get; set; } = string.Empty;

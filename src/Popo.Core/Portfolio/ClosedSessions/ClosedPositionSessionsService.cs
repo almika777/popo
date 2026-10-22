@@ -6,6 +6,7 @@ public sealed class ClosedPositionSessionsService(
     IClosedPositionSessionSourceProvider sourceProvider,
     IClosedPositionSessionsProvider sessionsProvider)
 {
+    /// <summary>Загружает данные на текущую московскую дату, пересчитывает закрытые сессии и заменяет сохранённый снимок.</summary>
     public async Task<int> RecalculateAsync(CancellationToken cancellationToken)
     {
         var instruments = await sourceProvider.GetAsync(MoscowTime.Today, cancellationToken);

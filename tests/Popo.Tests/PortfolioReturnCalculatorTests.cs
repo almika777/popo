@@ -55,21 +55,108 @@ public sealed class PortfolioReturnCalculatorTests
     }
 
     [Test]
-    public void Tax_IsAddedToAbsoluteReturnButExcludedFromTimeWeightedReturn()
+    public void Tax_IsExpenseInNetAbsoluteAndTimeWeightedReturnsWithoutPreviousDayValuation()
     {
         var result = _calculator.Calculate(
             From,
             To,
-            [
-                After(From, 100_000),
-                After(new DateOnly(2026, 1, 15), 110_000),
-                After(To, 100_000)
-            ],
-            [new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), PortfolioCashFlowType.Tax, 10_000)]);
+            [After(From, 100_000), After(To, 108_500)],
+            [new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), PortfolioCashFlowType.Tax, 1_300)]);
 
-        Assert.That(result.Taxes, Is.EqualTo(10_000).Within(0.001));
-        Assert.That(result.AbsoluteReturn, Is.EqualTo(10_000).Within(0.001));
+        Assert.That(result.Taxes, Is.EqualTo(1_300).Within(0.001));
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(8_500).Within(0.001));
+        Assert.That(result.PeriodReturn, Is.EqualTo(0.085).Within(0.000001));
+        Assert.That(result.AnnualizedReturn, Is.EqualTo(Math.Pow(1.085, 365d / 31) - 1).Within(0.000001));
+    }
+
+    [Test]
+    public void NetReturns_DoNotSubtractEmbeddedFeesAgain()
+    {
+        var result = Calculate(100_000, 108_500);
+
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(8_500).Within(0.001));
+        Assert.That(result.PeriodReturn, Is.EqualTo(0.085).Within(0.000001));
+    }
+
+    [Test]
+    public void TaxAndDepositOnSameDay_AdjustCapitalOnlyForDeposit()
+    {
+        var result = _calculator.Calculate(From, To,
+            [After(From, 100_000), After(new DateOnly(2026, 1, 9), 100_000), After(To, 220_000)],
+            [new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Tax, 5_000),
+             new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Deposit, 100_000)]);
+
         Assert.That(result.PeriodReturn, Is.EqualTo(0.1).Within(0.000001));
+    }
+
+    [Test]
+    public void TaxAndWithdrawalOnSameDay_AdjustCapitalOnlyForWithdrawal()
+    {
+        var result = _calculator.Calculate(From, To,
+            [After(From, 100_000), After(new DateOnly(2026, 1, 9), 100_000), After(To, 45_000)],
+            [new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Tax, 5_000),
+             new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Withdrawal, 50_000)]);
+
+        Assert.That(result.PeriodReturn, Is.EqualTo(-0.1).Within(0.000001));
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(-5_000).Within(0.001));
+    }
+
+    [Test]
+    public void TaxBetweenExternalFlows_DoesNotChangeAdjustedCapital()
+    {
+        var result = _calculator.Calculate(From, To,
+            [After(From, 100_000), After(new DateOnly(2026, 1, 9), 100_000),
+             After(new DateOnly(2026, 1, 19), 195_000), After(To, 145_000)],
+            [new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Deposit, 100_000),
+             new(new DateOnly(2026, 1, 15), PortfolioCashFlowType.Tax, 5_000),
+             new(new DateOnly(2026, 1, 20), PortfolioCashFlowType.Withdrawal, 50_000)]);
+
+        Assert.That(result.PeriodReturn, Is.EqualTo(-0.025).Within(0.000001));
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(-5_000).Within(0.001));
+        Assert.That(result.Taxes, Is.EqualTo(5_000).Within(0.001));
+    }
+
+    [Test]
+    public void TaxOnFromIsExcludedAndTaxOnToIsIncluded()
+    {
+        var result = _calculator.Calculate(From, To,
+            [After(From, 100_000), After(To, 98_000)],
+            [new(From, PortfolioCashFlowType.Tax, 10_000), new(To, PortfolioCashFlowType.Tax, 2_000)]);
+
+        Assert.That(result.Taxes, Is.EqualTo(2_000));
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(-2_000));
+        Assert.That(result.PeriodReturn, Is.EqualTo(-0.02).Within(0.000001));
+    }
+
+    [Test]
+    public void UnknownCashFlowType_IsRejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Calculate(100_000, 110_000,
+            new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), (PortfolioCashFlowType)99, 1)));
+    }
+
+    [TestCase(double.NaN)]
+    [TestCase(double.PositiveInfinity)]
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void InvalidTaxAmount_Throws(double amount)
+    {
+        Assert.Throws<ArgumentException>(() => Calculate(100_000, 110_000,
+            new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), PortfolioCashFlowType.Tax, amount)));
+    }
+
+    [Test]
+    public void MultipleExternalFlows_GeometricallyLinkReturnsOnReducedCapital()
+    {
+        var result = _calculator.Calculate(From, To,
+            [After(From, 100_000), After(new DateOnly(2026, 1, 9), 101_000),
+             After(new DateOnly(2026, 1, 19), 71_710), After(To, 101_710)],
+            [new(new DateOnly(2026, 1, 10), PortfolioCashFlowType.Withdrawal, 30_000),
+             new(new DateOnly(2026, 1, 20), PortfolioCashFlowType.Deposit, 30_000)]);
+
+        Assert.That(result.PeriodReturn, Is.EqualTo(0.0201).Within(0.000001));
+        Assert.That(result.AbsoluteReturn, Is.EqualTo(1_710).Within(0.001));
+        Assert.That(result.AnnualizedReturn, Is.EqualTo(Math.Pow(1.0201, 365d / 31) - 1).Within(0.000001));
     }
 
     [Test]
@@ -124,8 +211,9 @@ public sealed class PortfolioReturnCalculatorTests
         Assert.That(result.PeriodReturn, Is.EqualTo(0.1).Within(0.000001));
     }
 
-    [Test]
-    public void CashFlowWithoutPreviousDayValuation_ReportsPreviousDay()
+    [TestCase(PortfolioCashFlowType.Deposit)]
+    [TestCase(PortfolioCashFlowType.Withdrawal)]
+    public void ExternalFlowWithoutPreviousDayValuation_ReportsPreviousDay(PortfolioCashFlowType flowType)
     {
         var exception = Assert.Throws<MissingPortfolioValuationsException>(() => _calculator.Calculate(
             From,
@@ -134,7 +222,7 @@ public sealed class PortfolioReturnCalculatorTests
                 new PortfolioValuationInput(From, 100_000),
                 new PortfolioValuationInput(To, 110_000)
             ],
-            [new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), PortfolioCashFlowType.Deposit, 10_000)]));
+            [new PortfolioCashFlowInput(new DateOnly(2026, 1, 16), flowType, 10_000)]));
 
         Assert.That(exception!.RequiredDates, Is.EqualTo(new[] { new DateOnly(2026, 1, 15) }));
     }
