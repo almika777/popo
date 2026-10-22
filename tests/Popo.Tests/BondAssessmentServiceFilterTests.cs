@@ -72,13 +72,89 @@ public sealed class BondAssessmentServiceFilterTests
         });
     }
 
+    [Test]
+    public async Task GetAssessments_CollectsAllMissingInputsWithoutRequestingCashFlows()
+    {
+        var assessment = await AssessAsync(400,
+            transformSecurity: security => security with { SecId = "UNKNOWN", Isin = "UNKNOWN", EmitterId = null },
+            transformSchedule: _ => throw new AssertionException("При неполных исходных данных потоки не нужны."));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(assessment.Issues, Is.EqualTo(new[]
+            {
+                BondAssessmentIssue.MissingMarketPrice,
+                BondAssessmentIssue.MissingRating,
+                BondAssessmentIssue.MissingLiquidity,
+                BondAssessmentIssue.MissingSecurityData
+            }));
+            Assert.That(assessment.Candidate, Is.Null);
+            Assert.That(assessment.Ytm, Is.Null);
+            Assert.That(assessment.MeetsMaturityRange, Is.False);
+            Assert.That(assessment.MeetsOfferWindow, Is.False);
+        });
+    }
+
+    [Test]
+    public async Task GetAssessments_MissingSchedulePreservesIndependentMaturityChecks()
+    {
+        var assessment = await AssessAsync(400, transformSchedule: _ => null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(assessment.Issues, Is.EqualTo(new[] { BondAssessmentIssue.MissingYieldSchedule }));
+            Assert.That(assessment.Candidate, Is.Null);
+            Assert.That(assessment.Ytm, Is.Null);
+            Assert.That(assessment.MeetsMaturityRange, Is.True);
+            Assert.That(assessment.MeetsOfferWindow, Is.True);
+        });
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task GetAssessments_InvalidPriceOrCashFlowsReturnsInvalidYield(bool missingAccruedInterest)
+    {
+        var assessment = await AssessAsync(400,
+            transformSecurity: security => missingAccruedInterest ? security with { AccruedInterest = null } : security,
+            transformSchedule: schedule => missingAccruedInterest ? schedule : schedule with { CashFlows = [] });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(assessment.Issues, Is.EqualTo(new[] { BondAssessmentIssue.InvalidYield }));
+            Assert.That(assessment.Candidate, Is.Null);
+            Assert.That(assessment.Ytm, Is.Null);
+            Assert.That(assessment.MeetsMaturityRange, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task GetAssessments_CompleteInputsProduceCandidateWithPriceAndYieldDetails()
+    {
+        var assessment = await AssessAsync(400);
+        var candidate = assessment.Candidate!.Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(assessment.Issues, Is.Empty);
+            Assert.That(assessment.Ytm, Is.EqualTo(candidate.Ytm));
+            Assert.That(candidate.Ytm, Is.EqualTo(0d).Within(0.000001d));
+            Assert.That(candidate.BuyPrice, Is.EqualTo(1_000d));
+            Assert.That(candidate.Rating, Is.EqualTo(CreditRating.AAA));
+            Assert.That(candidate.MedianDailyVolume, Is.EqualTo(1_000d));
+            Assert.That(candidate.Calculation.MarketPricePercent, Is.EqualTo(100d));
+            Assert.That(candidate.Calculation.AccruedInterest, Is.EqualTo(0d));
+        });
+    }
+
     private static InvestmentStrategySettings Settings() => new(
         CreditRating.D, null, null, 0d, 0, 100d, 0d);
 
     private static async Task<BondAssessment> AssessAsync(
         int maturityDays,
         int? offerDays = null,
-        InvestmentStrategySettings? settings = null)
+        InvestmentStrategySettings? settings = null,
+        Func<BondSecurityDto, BondSecurityDto>? transformSecurity = null,
+        Func<BondYieldSchedule, BondYieldSchedule?>? transformSchedule = null)
     {
         var settleDate = MoscowTime.Today;
         var maturityDate = settleDate.AddDays(maturityDays);
@@ -86,6 +162,7 @@ public sealed class BondAssessmentServiceFilterTests
             "SEC", "ISIN", "TQCB", "Корпоративные облигации", "RUB", 1_000d, "RUB", 1,
             "Issuer", 4, settleDate, offerDays is null ? null : settleDate.AddDays(offerDays.Value),
             maturityDate, 0d, BuybackPrice: offerDays is null ? null : 100d);
+        if (transformSecurity is not null) security = transformSecurity(security);
         var schedule = new BondYieldSchedule(
             offerDays is null ? maturityDate : settleDate.AddDays(offerDays.Value),
             offerDays is null ? BondYieldDateType.Maturity : BondYieldDateType.Offer,
@@ -101,7 +178,7 @@ public sealed class BondAssessmentServiceFilterTests
             new RatingsProvider(),
             new MarketDataClient(),
             new HistoryProvider(),
-            new CashFlowProvider(schedule));
+            new CashFlowProvider(schedule, transformSchedule));
 
         return (await service.GetAssessmentsAsync(settings ?? Settings(), CancellationToken.None)).Single();
     }
@@ -157,9 +234,11 @@ public sealed class BondAssessmentServiceFilterTests
             Task.FromResult(new Dictionary<string, DailyVolumeStatistics> { ["SEC"] = new(1_000d, 1_000d) });
     }
 
-    private sealed class CashFlowProvider(BondYieldSchedule schedule) : ICashFlowProvider
+    private sealed class CashFlowProvider(
+        BondYieldSchedule schedule,
+        Func<BondYieldSchedule, BondYieldSchedule?>? transformSchedule = null) : ICashFlowProvider
     {
         public Task<BondYieldSchedule?> GetYieldSchedule(BondYieldRequest request, CancellationToken ct) =>
-            Task.FromResult<BondYieldSchedule?>(schedule);
+            Task.FromResult(transformSchedule is null ? schedule : transformSchedule(schedule));
     }
 }

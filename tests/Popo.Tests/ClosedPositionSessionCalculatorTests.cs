@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Popo.Core.Extensions;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.ClosedSessions;
 
@@ -156,11 +157,11 @@ public sealed class ClosedPositionSessionCalculatorTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.CouponIncome, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
-            Assert.That(result.TotalPnl, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
-            Assert.That(result.TotalPnlPercent, Is.EqualTo(89.22d * 5d / 182d).Within(1e-10d));
+            Assert.That(result.CouponIncome, Is.EqualTo((89.22d * 5d / 182d).Round()).Within(1e-10d));
+            Assert.That(result.TotalPnl, Is.EqualTo((89.22d * 5d / 182d).Round()).Within(1e-10d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo((89.22d * 5d / 182d).Round()).Within(1e-10d));
             Assert.That(result.AnnualizedPnlPercent,
-                Is.EqualTo(89.22d * 5d / 182d * 365d / 5d).Within(1e-10d));
+                Is.EqualTo((89.22d * 5d / 182d * 365d / 5d).Round()).Within(1e-10d));
             Assert.That(result.HoldingDays, Is.EqualTo(5));
             Assert.That(result.CalculatorKind, Is.EqualTo("Floater"));
             Assert.That(result.IsComplete, Is.True);
@@ -199,7 +200,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             new(new DateOnly(2026, 6, 15), new DateOnly(2026, 12, 14), null, 1_000d, "RUB")
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo(1_000d * 5d / 182d).Within(1e-10d));
+        Assert.That(result.CouponIncome, Is.EqualTo((1_000d * 5d / 182d).Round()).Within(1e-10d));
     }
 
     [Test]
@@ -291,7 +292,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             new(new DateOnly(2026, 8, 19), "EUR", 1)
         ]);
 
-        Assert.That(result.CouponIncome, Is.EqualTo((3d * 30d * 90d + 2d * 30d * 100d) / 182d));
+        Assert.That(result.CouponIncome, Is.EqualTo(((3d * 30d * 90d + 2d * 30d * 100d) / 182d).Round()));
     }
 
     [Test]
@@ -445,7 +446,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         Assert.That(result.BoughtCleanAmount, Is.EqualTo(15000d));
         Assert.That(result.TotalPnl, Is.EqualTo(1500d));
         Assert.That(result.TotalPnlPercent, Is.EqualTo(10d));
-        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(10d * 365 / 30));
+        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo((10d * 365 / 30).Round()));
     }
 
     [Test]

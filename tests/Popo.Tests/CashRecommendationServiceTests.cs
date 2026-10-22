@@ -18,7 +18,7 @@ public sealed class CashRecommendationServiceTests
             null,
             null);
 
-        Assert.That(CashRecommendationService.GetRecommendationRating(ratings), Is.EqualTo(CreditRating.AA_minus));
+        Assert.That(BondAssessmentRules.GetRecommendationRating(ratings), Is.EqualTo(CreditRating.AA_minus));
     }
 
     [TestCase(CreditRating.AA_minus, null, CreditRating.A_plus, null, CreditRating.AA_minus)]
@@ -33,14 +33,14 @@ public sealed class CashRecommendationServiceTests
     {
         var ratings = new RatingsDto("RU000A107GX8", acra, expert, nra, nkr);
 
-        Assert.That(CashRecommendationService.GetRecommendationRating(ratings), Is.EqualTo(expected));
+        Assert.That(BondAssessmentRules.GetRecommendationRating(ratings), Is.EqualTo(expected));
     }
 
     [Test]
     public void GetRecommendationRating_ReturnsNullWhenNoAgencyRatingExists()
     {
         Assert.That(
-            CashRecommendationService.GetRecommendationRating(new RatingsDto("RU000A107GX8", null, null, null, null)),
+            BondAssessmentRules.GetRecommendationRating(new RatingsDto("RU000A107GX8", null, null, null, null)),
             Is.Null);
     }
 
@@ -57,7 +57,7 @@ public sealed class CashRecommendationServiceTests
             [new CashFlow(flow.Amount, flow.Date)],
             [flow]);
 
-        var details = CashRecommendationService.CreateCalculationDetails(
+        var details = BondAssessmentRules.CreateCalculationDetails(
             settlementDate,
             100.5d,
             30.25d,
@@ -85,7 +85,7 @@ public sealed class CashRecommendationServiceTests
         var settlementDate = today.AddDays(settlementLagDays);
         var security = Security(settlementDate: settlementDate);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             security,
             today,
             out var request);
@@ -104,9 +104,9 @@ public sealed class CashRecommendationServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(CashRecommendationService.TryCreateYieldRequest(
+            Assert.That(BondAssessmentRules.TryCreateYieldRequest(
                 Security(settlementDate: null), today, out _), Is.False);
-            Assert.That(CashRecommendationService.TryCreateYieldRequest(
+            Assert.That(BondAssessmentRules.TryCreateYieldRequest(
                 Security(settlementDate: today.AddDays(-1)), today, out _), Is.False);
         });
     }
@@ -121,7 +121,7 @@ public sealed class CashRecommendationServiceTests
             buybackDate: offerDate,
             buybackPrice: 98.5d);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             security,
             today,
             out var request);
@@ -148,7 +148,7 @@ public sealed class CashRecommendationServiceTests
             PutOptionDate = new DateOnly(2027, 2, 19)
         };
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             security,
             today,
             out var request);
@@ -170,7 +170,7 @@ public sealed class CashRecommendationServiceTests
             buybackDate: new DateOnly(2027, 2, 19),
             buybackPrice: null);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             security,
             today,
             out _);
@@ -189,7 +189,7 @@ public sealed class CashRecommendationServiceTests
             buybackDate: today,
             buybackPrice: 100d);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             security,
             today,
             out var request);
@@ -208,7 +208,7 @@ public sealed class CashRecommendationServiceTests
     {
         var today = new DateOnly(2026, 8, 19);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             Security(settlementDate: today.AddDays(1), perpetual: true),
             today,
             out _);
@@ -227,7 +227,7 @@ public sealed class CashRecommendationServiceTests
     {
         var today = new DateOnly(2026, 8, 19);
 
-        var success = CashRecommendationService.TryCreateYieldRequest(
+        var success = BondAssessmentRules.TryCreateYieldRequest(
             Security(settlementDate: today.AddDays(1), bondType: bondType),
             today,
             out var request);
@@ -255,13 +255,13 @@ public sealed class CashRecommendationServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(floater, BondInstrumentType.Any), Is.True);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Any), Is.True);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(floater, BondInstrumentType.Floating), Is.True);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(moexFloater, BondInstrumentType.Floating), Is.True);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Floating), Is.False);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(floater, BondInstrumentType.Fixed), Is.False);
-            Assert.That(CashRecommendationService.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Fixed), Is.True);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(floater, BondInstrumentType.Any), Is.True);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Any), Is.True);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(floater, BondInstrumentType.Floating), Is.True);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(moexFloater, BondInstrumentType.Floating), Is.True);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Floating), Is.False);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(floater, BondInstrumentType.Fixed), Is.False);
+            Assert.That(BondAssessmentRules.IsAllowedByInstrumentType(fixedBond, BondInstrumentType.Fixed), Is.True);
         });
     }
 

@@ -1,3 +1,5 @@
+using Popo.Core.Extensions;
+
 namespace Popo.Core.Portfolio.ClosedSessions;
 
 /// <summary>Строит закрытые сессии владения облигацией и рассчитывает их финансовый результат.</summary>
@@ -158,13 +160,13 @@ public sealed class ClosedPositionSessionCalculator
             BoughtQuantity: session.BoughtQuantity,
             BoughtCleanAmount: session.BoughtCleanAmount,
             SoldCleanAmount: session.SoldCleanAmount,
-            Commission: session.Commission,
-            AmortizationIncome: amortization.Amount,
-            BodyPnl: bodyPnl,
-            CouponIncome: coupon.Amount,
-            TotalPnl: totalPnl,
-            TotalPnlPercent: totalPnlPercent,
-            AnnualizedPnlPercent: annualizedPnlPercent,
+            Commission: session.Commission.Round(),
+            AmortizationIncome: amortization.Amount.Round(),
+            BodyPnl: bodyPnl.Round(),
+            CouponIncome: coupon.Amount.Round(),
+            TotalPnl: totalPnl.Round(),
+            TotalPnlPercent: totalPnlPercent.Round(),
+            AnnualizedPnlPercent: annualizedPnlPercent.Round(),
             IsComplete: coupon.Amount.HasValue && amortization.Amount.HasValue,
             IncompleteReason: incompleteReason.Length > 0 ? incompleteReason : null,
             CalculatorKind: calculator.Kind,

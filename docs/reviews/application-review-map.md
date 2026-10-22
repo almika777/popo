@@ -445,7 +445,7 @@ J01 InitializationBootstrapService/RecurringJobsScheduler запускают и�
 
 - [ ] `CashRecommendationService.GetRecommendations` — фильтры и состав кандидатов.
 - [ ] `BondAssessmentService.GetAssessmentsAsync` — сбор данных, полнота, рейтинг, ликвидность, YTM.
-- [ ] `TryCreateYieldRequest`, выбор рейтинга и создание calculation details — проверять как части S07, не отдельными повторами.
+- [ ] `BondAssessmentRules`: `TryCreateYieldRequest`, выбор рейтинга, проверки типа/сроков и создание calculation details — проверять как части S07, не отдельными повторами.
 
 ### S08 — сводка страницы портфеля, `PortfolioPageService`
 
