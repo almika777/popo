@@ -91,7 +91,7 @@ public sealed class InvestmentStrategySettingsStore(IDbContextFactory<PopoDbCont
         return true;
     }
 
-    private static void Apply(InvestmentStrategySettingsEntity entity, InvestmentStrategySettings settings)
+    internal static void Apply(InvestmentStrategySettingsEntity entity, InvestmentStrategySettings settings)
     {
         entity.MinimumRating = (Rating)settings.MinimumRating;
         entity.MinimumMaturityDays = settings.MinimumMaturityDays;

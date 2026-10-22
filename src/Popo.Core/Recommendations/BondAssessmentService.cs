@@ -76,14 +76,13 @@ public sealed class BondAssessmentService(
             if (hasYieldRequest && marketData?.CurrentPrice is { } price && rating is { } actualRating &&
                 volume is not null)
             {
-                var maturityDays = yieldRequest.YieldDateType == BondYieldDateType.Maturity
-                    ? yieldRequest.YieldDate.DayNumber - yieldRequest.SettlementDate.DayNumber
-                    : security.MatDate!.Value.DayNumber - yieldRequest.SettlementDate.DayNumber;
+                var maturityDays = security.MatDate!.Value.DayNumber - yieldRequest.SettlementDate.DayNumber;
                 meetsMaturity =
                     (settings.MinimumMaturityDays is null || maturityDays >= settings.MinimumMaturityDays) &&
                     (settings.MaximumMaturityDays is null || maturityDays <= settings.MaximumMaturityDays);
                 meetsOfferWindow = yieldRequest.YieldDateType != BondYieldDateType.Offer ||
-                                   maturityDays >= settings.OfferWindowDays;
+                                   yieldRequest.YieldDate.DayNumber - yieldRequest.SettlementDate.DayNumber >=
+                                   settings.OfferWindowDays;
 
                 var schedule = await cashFlowProvider.GetYieldSchedule(yieldRequest, cancellationToken);
                 if (schedule is null)

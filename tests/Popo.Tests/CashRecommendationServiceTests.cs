@@ -21,6 +21,21 @@ public sealed class CashRecommendationServiceTests
         Assert.That(CashRecommendationService.GetRecommendationRating(ratings), Is.EqualTo(CreditRating.AA_minus));
     }
 
+    [TestCase(CreditRating.AA_minus, null, CreditRating.A_plus, null, CreditRating.AA_minus)]
+    [TestCase(null, CreditRating.BBB_minus, null, CreditRating.A, CreditRating.A)]
+    [TestCase(CreditRating.D, null, CreditRating.AAA, null, CreditRating.AAA)]
+    public void GetRecommendationRating_IgnoresMissingAgenciesAndUsesBestKnownRating(
+        CreditRating? acra,
+        CreditRating? expert,
+        CreditRating? nra,
+        CreditRating? nkr,
+        CreditRating expected)
+    {
+        var ratings = new RatingsDto("RU000A107GX8", acra, expert, nra, nkr);
+
+        Assert.That(CashRecommendationService.GetRecommendationRating(ratings), Is.EqualTo(expected));
+    }
+
     [Test]
     public void GetRecommendationRating_ReturnsNullWhenNoAgencyRatingExists()
     {
@@ -265,6 +280,199 @@ public sealed class CashRecommendationServiceTests
             Assert.That(CashRecommendationService.IsAllowedByCurrencies(replacementBond, "RUB", "RUB"), Is.False);
             Assert.That(CashRecommendationService.IsAllowedByCurrencies(replacementBond, "USD", "USD"), Is.False);
         });
+    }
+
+    [TestCaseSource(nameof(MinimumRatingCases))]
+    public async Task GetRecommendations_AppliesMinimumRatingIndependently(
+        CreditRating minimumRating,
+        CreditRating candidateRating,
+        bool expected)
+    {
+        var assessment = Assessment(rating: candidateRating);
+        var settings = Settings() with { MinimumRating = minimumRating };
+        var service = RecommendationService(assessment, settings);
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    [TestCase(1_000d, 999.99d, false)]
+    [TestCase(1_000d, 1_000d, true)]
+    [TestCase(1_000d, 1_000.01d, true)]
+    public async Task GetRecommendations_AppliesMinimumMedianVolumeIndependently(
+        double minimum,
+        double median,
+        bool expected)
+    {
+        var service = RecommendationService(Assessment(medianDailyVolume: median), Settings() with { MinimumMedianDailyVolume = minimum });
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    [Test]
+    public async Task GetRecommendations_ExcludesMissingMedianVolumeStatistics()
+    {
+        var service = RecommendationService(Assessment(medianDailyVolume: null), Settings());
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetRecommendations_ExcludesCandidatesOutsideMaturityRange()
+    {
+        var service = RecommendationService(Assessment(meetsMaturityRange: false), Settings());
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Is.Empty);
+    }
+
+    [Test]
+    public async Task GetRecommendations_ExcludesCandidatesOutsideOfferWindow()
+    {
+        var service = RecommendationService(Assessment(meetsOfferWindow: false), Settings());
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Is.Empty);
+    }
+
+    [TestCase(15d, 14.99d, false)]
+    [TestCase(15d, 15d, true)]
+    [TestCase(15d, 15.01d, true)]
+    public async Task GetRecommendations_AppliesMinimumYtmIndependently(double minimum, double ytm, bool expected)
+    {
+        var service = RecommendationService(Assessment(ytm: ytm), Settings() with { MinimumYtm = minimum });
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    [TestCase(30d, 29.99d, true)]
+    [TestCase(30d, 30d, true)]
+    [TestCase(30d, 30.01d, false)]
+    public async Task GetRecommendations_AppliesMaximumYtmIndependently(double maximum, double ytm, bool expected)
+    {
+        var service = RecommendationService(Assessment(ytm: ytm), Settings() with { MaximumYtm = maximum });
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    [TestCase(BondInstrumentType.Any, true)]
+    [TestCase(BondInstrumentType.Floating, true)]
+    [TestCase(BondInstrumentType.Fixed, false)]
+    public async Task GetRecommendations_AppliesInstrumentTypeIndependently(
+        BondInstrumentType instrumentType,
+        bool expected)
+    {
+        var service = RecommendationService(Assessment(meetsInstrumentType: expected), Settings() with { InstrumentType = instrumentType });
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    [TestCase("USD", null, "usd", "RUB", true)]
+    [TestCase("USD", null, "RUB", "RUB", false)]
+    [TestCase(null, "RUB", "USD", "rub", true)]
+    [TestCase(null, "RUB", "USD", "USD", false)]
+    [TestCase(null, null, "USD", "RUB", true)]
+    [TestCase("USD", "RUB", "usd", "rub", true)]
+    [TestCase("USD", "RUB", "RUB", "RUB", false)]
+    [TestCase("USD", "RUB", "USD", "USD", false)]
+    public async Task GetRecommendations_AppliesFaceUnitAndCurrencyIndependently(
+        string? faceUnit,
+        string? currencyId,
+        string actualFaceUnit,
+        string actualCurrencyId,
+        bool expected)
+    {
+        var service = RecommendationService(Assessment(faceUnit: actualFaceUnit, currencyId: actualCurrencyId), Settings() with
+        {
+            FaceUnit = faceUnit,
+            CurrencyId = currencyId
+        });
+
+        var recommendations = await service.GetRecommendations();
+
+        Assert.That(recommendations, Has.Count.EqualTo(expected ? 1 : 0));
+    }
+
+    private static IEnumerable<TestCaseData> MinimumRatingCases()
+    {
+        foreach (var minimum in Enum.GetValues<CreditRating>())
+        foreach (var candidate in Enum.GetValues<CreditRating>())
+            yield return new TestCaseData(minimum, candidate, candidate >= minimum)
+                .SetName($"MinimumRating_{minimum}_Candidate_{candidate}_Expected_{candidate >= minimum}");
+    }
+
+    private static InvestmentStrategySettings Settings() => new(
+        CreditRating.D, null, null, 0d, 0, 100d, 0d);
+
+    private static BondAssessment Assessment(
+        CreditRating rating = CreditRating.AAA,
+        double? ytm = 20d,
+        double? medianDailyVolume = 1_000d,
+        bool meetsMaturityRange = true,
+        bool meetsOfferWindow = true,
+        bool meetsInstrumentType = true,
+        string? faceUnit = "RUB",
+        string? currencyId = "RUB")
+    {
+        var candidate = new BondCandidate(
+            "SEC", "TQCB", 1, "Issuer", currencyId ?? "RUB", ytm ?? 20d, 100d,
+            rating, new DateOnly(2027, 1, 1), null, BondCouponType.Fixed,
+            medianDailyVolume ?? 1_000d, new DateOnly(2027, 1, 1), BondYieldDateType.Maturity,
+            new BondYieldCalculationDetails(new DateOnly(2026, 1, 1), 100d, 1_000d, 0d, 1_000d, 1_000d, []));
+        return new BondAssessment(
+            "SEC", "TQCB", "Name", currencyId, faceUnit, candidate.YieldDate,
+            ytm, rating, medianDailyVolume, medianDailyVolume,
+            meetsMaturityRange, meetsOfferWindow, meetsInstrumentType, candidate, []);
+    }
+
+    private static FakeCashRecommendationService RecommendationService(
+        BondAssessment assessment,
+        InvestmentStrategySettings settings) => new(assessment, settings);
+
+    private sealed class FakeCashRecommendationService(BondAssessment assessment, InvestmentStrategySettings settings)
+        : CashRecommendationService(new SettingsStore(settings), new AssessmentService(assessment))
+    {
+        public Task<List<BondCandidate>> GetRecommendations() => base.GetRecommendations(CancellationToken.None);
+    }
+
+    private sealed class SettingsStore(InvestmentStrategySettings? settings = null)
+        : ICashInvestmentRecommendationStore
+    {
+        public Task<InvestmentStrategySettings> GetSettingsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(settings ?? Settings());
+
+        public Task<IReadOnlyList<InvestmentStrategyPreset>> GetPresetsAsync(CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+        public Task<InvestmentStrategyPreset?> GetPresetAsync(int id, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+        public Task<InvestmentStrategyPreset> SavePresetAsync(InvestmentStrategyPreset preset, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+        public Task<bool> DeletePresetAsync(int id, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+        public Task<bool> ActivatePresetAsync(int id, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+        public Task<bool> SaveSettingsAsync(InvestmentStrategySettings value, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+    }
+
+    private sealed class AssessmentService(BondAssessment assessment) : IBondAssessmentService
+    {
+        public Task<IReadOnlyList<BondAssessment>> GetAssessmentsAsync(
+            InvestmentStrategySettings settings,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BondAssessment>>([assessment]);
     }
 
     private static BondSecurityDto Security(

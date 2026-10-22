@@ -80,4 +80,34 @@ public sealed class CashRecommendationApiMapperTests
             Assert.That(response.CurrencyId, Is.EqualTo("RUB"));
         });
     }
+
+    [Test]
+    public void RequestToDomain_PreservesEveryPresetFilter()
+    {
+        var settings = new InvestmentStrategySettingsRequest(
+            CreditRating.BB_plus,
+            21,
+            640,
+            1_234d,
+            45,
+            32d,
+            12d,
+            BondInstrumentType.Floating,
+            " usd ",
+            " rub ").ToDomain();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(settings.MinimumRating, Is.EqualTo(CreditRating.BB_plus));
+            Assert.That(settings.MinimumMaturityDays, Is.EqualTo(21));
+            Assert.That(settings.MaximumMaturityDays, Is.EqualTo(640));
+            Assert.That(settings.MinimumMedianDailyVolume, Is.EqualTo(1_234d));
+            Assert.That(settings.OfferWindowDays, Is.EqualTo(45));
+            Assert.That(settings.MaximumYtm, Is.EqualTo(32d));
+            Assert.That(settings.MinimumYtm, Is.EqualTo(12d));
+            Assert.That(settings.InstrumentType, Is.EqualTo(BondInstrumentType.Floating));
+            Assert.That(settings.FaceUnit, Is.EqualTo("USD"));
+            Assert.That(settings.CurrencyId, Is.EqualTo("RUB"));
+        });
+    }
 }
