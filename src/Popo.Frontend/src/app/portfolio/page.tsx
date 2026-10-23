@@ -10,7 +10,9 @@ import {
   Card,
   Collapse,
   DatePicker,
+  Descriptions,
   Form,
+  Grid,
   Input,
   InputNumber,
   Layout,
@@ -292,6 +294,7 @@ function BenchmarkChart({
 }) {
   const [brushRange, setBrushRange] = useState<{ startIndex: number; endIndex: number }>();
   const [hasChartLayout, setHasChartLayout] = useState(false);
+  const isCompactChart = !Grid.useBreakpoint().md;
   const endLabels = [
     { key: "portfolio", name: "Портфель", color: "#1677ff", point: result.portfolioPoints.at(-1), visible: true },
     { key: "lqdt", name: "LQDT", color: "#52c41a", point: result.lqdtPoints.at(-1), visible: visibleIndexes.includes("lqdt") },
@@ -358,6 +361,19 @@ function BenchmarkChart({
   const isZoomed = selectedStartIndex > 0 || selectedEndIndex < chartData.length - 1;
   const selectedStartTimestamp = chartData[selectedStartIndex]?.timestamp ?? 0;
   const selectedEndTimestamp = chartData[selectedEndIndex]?.timestamp ?? selectedStartTimestamp;
+  const summaryEntries = [
+    { key: "indexedBond", name: "ВЭБ-58", color: "#faad14", points: indexedBondSeriesData, visible: visibleIndexes.includes("indexedBond") },
+    { key: "lqdt", name: "LQDT", color: "#52c41a", points: lqdtSeriesData, visible: visibleIndexes.includes("lqdt") },
+    { key: "portfolio", name: "Портфель", color: "#1677ff", points: portfolioSeriesData, visible: true }
+  ].flatMap((series): BenchmarkEndLabel[] => {
+    if (!series.visible) return [];
+    const point = series.points.findLast((item) =>
+      item.timestamp >= selectedStartTimestamp && item.timestamp <= selectedEndTimestamp && item.profitPercent != null
+    );
+    return point?.profitPercent == null
+      ? []
+      : [{ key: series.key, name: series.name, color: series.color, value: point.profitPercent, timestamp: point.timestamp }];
+  });
   const sliceSeriesToBrush = (points: BenchmarkSeriesPoint[]) => {
     if (!isZoomed || points.length < 2) return points;
     let firstVisibleIndex = points.findIndex((point) => point.timestamp >= selectedStartTimestamp);
@@ -413,7 +429,6 @@ function BenchmarkChart({
           ]}
           onChange={onVisibleIndexesChange}
           maxTagCount={2}
-          style={{ minWidth: 240, maxWidth: "100%" }}
         />
       </div>
       <div className="portfolio-chart-recharts">
@@ -424,7 +439,9 @@ function BenchmarkChart({
             setHasChartLayout(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
           }}
         >
-          <LineChart key={chartTimelineKey} data={chartData} margin={{ top: 18, right: 170, bottom: 10, left: 8 }}>
+          <LineChart key={chartTimelineKey} data={chartData} margin={isCompactChart
+            ? { top: 12, right: 12, bottom: 8, left: 4 }
+            : { top: 18, right: 170, bottom: 10, left: 8 }}>
             <CartesianGrid className="portfolio-chart-grid" vertical={false} />
             <XAxis
               dataKey="timestamp"
@@ -487,7 +504,7 @@ function BenchmarkChart({
               connectNulls={false}
               isAnimationActive={false}
             />}
-            <BenchmarkEndLabels entries={endLabels} from={selectedStartTimestamp} to={selectedEndTimestamp} />
+            {!isCompactChart && <BenchmarkEndLabels entries={endLabels} from={selectedStartTimestamp} to={selectedEndTimestamp} />}
             {hasChartLayout && chartData.length > 2 && <Brush
               dataKey="date"
               ariaLabel="Перетащите границы, чтобы выбрать период графика"
@@ -511,6 +528,23 @@ function BenchmarkChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <Descriptions className="portfolio-benchmark-mobile-summary" column={1} size="small" bordered>
+        {summaryEntries.map((entry) => (
+          <Descriptions.Item
+            key={entry.key}
+            label={(
+              <Space size={10}>
+                <span className="portfolio-benchmark-summary-dot" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+                <Typography.Text>{entry.name}</Typography.Text>
+              </Space>
+            )}
+          >
+            <Typography.Text className="portfolio-benchmark-summary-value" style={{ color: entry.color }}>
+              {formatBenchmarkPercent(entry.value)}
+            </Typography.Text>
+          </Descriptions.Item>
+        ))}
+      </Descriptions>
       {chartData.length > 2 && <div className="portfolio-chart-help">Тяните края выделения, чтобы менять даты; середину — чтобы прокручивать период</div>}
       {isZoomed && <Button
         type="link"
@@ -864,18 +898,24 @@ export default function PortfolioPage() {
                       <div className="portfolio-benchmark-content">
                       <Space wrap className="portfolio-benchmark-controls">
                         {benchmarkPeriod && <>
-                          <DatePicker
-                            aria-label="Начало периода сравнения"
-                            value={benchmarkPeriod[0]}
-                            disabledDate={(value) => isBenchmarkStartDateDisabled(value, benchmarkPeriod[1])}
-                            onChange={(value) => changeBenchmarkPeriod(value, benchmarkPeriod[1])}
-                          />
-                          <DatePicker
-                            aria-label="Конец периода сравнения"
-                            value={benchmarkPeriod[1]}
-                            disabledDate={(value) => isBenchmarkEndDateDisabled(value, benchmarkPeriod[0])}
-                            onChange={(value) => changeBenchmarkPeriod(benchmarkPeriod[0], value)}
-                          />
+                          <div className="portfolio-benchmark-date">
+                            <Typography.Text type="secondary">С</Typography.Text>
+                            <DatePicker
+                              aria-label="Начало периода сравнения"
+                              value={benchmarkPeriod[0]}
+                              disabledDate={(value) => isBenchmarkStartDateDisabled(value, benchmarkPeriod[1])}
+                              onChange={(value) => changeBenchmarkPeriod(value, benchmarkPeriod[1])}
+                            />
+                          </div>
+                          <div className="portfolio-benchmark-date">
+                            <Typography.Text type="secondary">По</Typography.Text>
+                            <DatePicker
+                              aria-label="Конец периода сравнения"
+                              value={benchmarkPeriod[1]}
+                              disabledDate={(value) => isBenchmarkEndDateDisabled(value, benchmarkPeriod[0])}
+                              onChange={(value) => changeBenchmarkPeriod(benchmarkPeriod[0], value)}
+                            />
+                          </div>
                         </>}
                         <Button
                           type="primary"

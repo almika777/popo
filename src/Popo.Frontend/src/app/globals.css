@@ -347,6 +347,14 @@ body {
   margin: 16px 0 4px;
 }
 
+.portfolio-benchmark-series-select .ant-select {
+  min-width: 240px;
+}
+
+.portfolio-benchmark-mobile-summary {
+  display: none;
+}
+
 .portfolio-benchmark-content .recharts-brush-traveller {
   cursor: ew-resize;
 }
@@ -532,6 +540,73 @@ body {
   color: rgba(255, 255, 255, 0.92);
 }
 
+.mobile-bottom-navigation {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .app-header {
+    min-height: 52px;
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .app-title {
+    font-size: 20px;
+  }
+
+  .app-header > .ant-menu,
+  .app-header > .app-network-link {
+    display: none;
+  }
+
+  .mobile-bottom-navigation {
+    position: fixed;
+    z-index: 1051;
+    left: var(--mobile-viewport-left-offset, 0px);
+    right: auto;
+    top: var(--mobile-viewport-top, auto);
+    bottom: var(--mobile-viewport-bottom, 0px);
+    display: block;
+    width: var(--mobile-viewport-width, 100dvw);
+    min-height: 64px;
+    padding: 2px 4px 0;
+    border-top: 1px solid #263746;
+    background: #001529;
+    --adm-color-primary: #1677ff;
+    --adm-color-text-secondary: rgba(255, 255, 255, 0.65);
+    --adm-font-size-2: clamp(7.5px, 2.3vw, 10px);
+  }
+
+  .mobile-bottom-navigation .adm-tab-bar-wrap {
+    min-height: 60px;
+  }
+
+  .mobile-bottom-navigation .adm-tab-bar-item {
+    padding: 4px 1px;
+  }
+
+  .mobile-bottom-navigation .adm-tab-bar-item-icon {
+    height: 20px;
+    font-size: 20px;
+  }
+
+  .mobile-bottom-navigation .adm-tab-bar-item-title {
+    font-family: inherit;
+    line-height: 12px;
+    white-space: nowrap;
+  }
+
+  .app-content {
+    width: 100%;
+    padding: 24px 16px calc(24px + 68px + env(safe-area-inset-bottom));
+  }
+
+  .recommendations-page {
+    width: 100%;
+  }
+}
+
 @media (max-width: 800px) {
   .positions-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -619,5 +694,150 @@ body {
 
   .portfolio-benchmark-metrics .portfolio-metric-card:last-child {
     border-bottom: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .portfolio-benchmark-content {
+    padding: 12px;
+  }
+
+  .portfolio-benchmark-controls {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px !important;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .portfolio-benchmark-controls > .ant-space-item,
+  .portfolio-benchmark-date {
+    min-width: 0;
+  }
+
+  .portfolio-benchmark-date {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .portfolio-benchmark-date > .ant-typography {
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .portfolio-benchmark-date .ant-picker {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .portfolio-benchmark-date .ant-picker-input > input {
+    font-size: 12px;
+  }
+
+  .portfolio-benchmark-controls > .ant-space-item:last-child {
+    display: flex;
+    align-items: end;
+  }
+
+  .portfolio-benchmark-controls > .ant-space-item:last-child .ant-btn {
+    min-width: 96px;
+    height: 40px;
+    padding-inline: 12px;
+  }
+
+  .portfolio-benchmark-series-select {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0 4px;
+  }
+
+  .portfolio-benchmark-series-select .ant-select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .portfolio-benchmark-content .portfolio-chart-recharts {
+    height: 360px;
+  }
+
+  .portfolio-benchmark-mobile-summary {
+    display: block;
+    margin: 12px 0;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  .portfolio-benchmark-mobile-summary .ant-descriptions-view {
+    border-color: #303030;
+    background: #141414;
+  }
+
+  .portfolio-benchmark-mobile-summary .ant-descriptions-row > th,
+  .portfolio-benchmark-mobile-summary .ant-descriptions-row > td {
+    min-height: 42px;
+    padding: 9px 12px;
+    border-color: #303030;
+  }
+
+  .portfolio-benchmark-mobile-summary .ant-descriptions-item-label {
+    background: #141414;
+    font-weight: 400;
+  }
+
+  .portfolio-benchmark-mobile-summary .ant-descriptions-item-content {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .portfolio-benchmark-mobile-summary .ant-space {
+    min-width: 0;
+  }
+
+  .portfolio-benchmark-summary-dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border-radius: 50%;
+  }
+
+  .portfolio-benchmark-summary-value {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .portfolio-benchmark-chart-caption {
+    font-size: 10px;
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  .portfolio-benchmark-content .portfolio-chart-help {
+    margin-top: 8px;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 420px) {
+  .portfolio-benchmark-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-benchmark-controls > .ant-space-item:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .portfolio-benchmark-controls > .ant-space-item:last-child .ant-btn {
+    width: 100%;
+  }
+
+  .portfolio-benchmark-content .portfolio-chart-recharts {
+    height: 320px;
   }
 }
