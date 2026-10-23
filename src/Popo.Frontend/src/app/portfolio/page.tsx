@@ -37,6 +37,7 @@ import {
   isBenchmarkStartDateDisabled
 } from "../../lib/portfolio-benchmark-presentation";
 import type { PortfolioSummary } from "../../lib/portfolio-ledger-api";
+import PortfolioCurrencyAnalyticsTab from "./currency-analytics-tab";
 import {
   Bar,
   BarChart,
@@ -858,6 +859,8 @@ export default function PortfolioPage() {
           <Tabs
             className="portfolio-main-tabs"
               defaultActiveKey="value"
+              destroyOnHidden={false}
+              tabBarGutter={8}
               onChange={(activeKey) => {
                 if (activeKey === "benchmark") {
                   setBenchmarkTabOpened(true);
@@ -967,6 +970,11 @@ export default function PortfolioPage() {
                       </div>
                     </Card>
                   )
+                },
+                {
+                  key: "analytics",
+                  label: "Аналитика",
+                  children: <PortfolioCurrencyAnalyticsTab />
                 }
               ]}
           />

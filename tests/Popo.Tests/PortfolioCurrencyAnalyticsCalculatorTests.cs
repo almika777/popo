@@ -111,6 +111,16 @@ public sealed class PortfolioCurrencyAnalyticsCalculatorTests
     }
 
     [Test]
+    public void UnvaluedAssetSeparatesFaceCurrencyGroupFromTradingCurrencyRate()
+    {
+        var result = Calculate(
+            [Asset("bond", "USD", faceUnit: "CNY", quantity: 2, marketPrice: null, rateToRub: null)]);
+
+        Assert.That(result.UnvaluedAssets.Single().CurrencyId, Is.EqualTo("CNY"));
+        Assert.That(result.UnvaluedAssets.Single().RateCurrencyId, Is.EqualTo("USD"));
+    }
+
+    [Test]
     public void ManualPriceAndRateResolveUnvaluedAsset()
     {
         var result = _calculator.Calculate(new PortfolioCurrencyAnalyticsInput(

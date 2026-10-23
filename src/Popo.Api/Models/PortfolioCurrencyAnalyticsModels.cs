@@ -40,6 +40,7 @@ public sealed record PortfolioCurrencyAnalyticsSliceResponse(
 /// <param name="Kind">Тип актива.</param>
 /// <param name="Name">Название актива.</param>
 /// <param name="CurrencyId">Код валютной группы.</param>
+/// <param name="RateCurrencyId">Код валюты, курс которой требуется для рублёвой оценки.</param>
 /// <param name="MissingPrice">Не хватает цены одной бумаги или пая.</param>
 /// <param name="MissingRate">Не хватает курса валюты к рублю.</param>
 public sealed record PortfolioCurrencyAnalyticsUnvaluedAssetResponse(
@@ -47,6 +48,7 @@ public sealed record PortfolioCurrencyAnalyticsUnvaluedAssetResponse(
     PortfolioCurrencyAnalyticsAssetKind Kind,
     string Name,
     string CurrencyId,
+    string RateCurrencyId,
     bool MissingPrice,
     bool MissingRate);
 

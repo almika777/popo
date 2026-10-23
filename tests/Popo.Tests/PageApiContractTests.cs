@@ -43,6 +43,7 @@ public sealed class PageApiContractTests
             PortfolioCurrencyAnalyticsAssetKind.Position,
             "Bond",
             "CNY",
+            "USD",
             MissingPrice: true,
             MissingRate: false);
         var response = new PortfolioCurrencyAnalyticsResponse(asOf, 1_000, ["RUB", "CNY"], [slice], [unvalued]);
@@ -54,6 +55,7 @@ public sealed class PageApiContractTests
             Assert.That(response.AvailableCurrencies, Is.EqualTo(new[] { "RUB", "CNY" }));
             Assert.That(response.Slices.Single(), Is.SameAs(slice));
             Assert.That(response.UnvaluedAssets.Single(), Is.SameAs(unvalued));
+            Assert.That(response.UnvaluedAssets.Single().RateCurrencyId, Is.EqualTo("USD"));
         });
     }
 

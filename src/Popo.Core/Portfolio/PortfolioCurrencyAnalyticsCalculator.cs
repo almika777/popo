@@ -47,6 +47,7 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
                     asset.Kind,
                     asset.Name,
                     groupingCurrencyId,
+                    tradingCurrencyId,
                     price is null,
                     rate is null));
                 continue;
@@ -79,6 +80,7 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
                     $"cash:{currencyId}",
                     PortfolioCurrencyAnalyticsAssetKind.Cash,
                     $"Денежные средства {currencyId}",
+                    currencyId,
                     currencyId,
                     MissingPrice: false,
                     MissingRate: true));

@@ -95,6 +95,7 @@ public sealed class PortfolioCurrencyAnalyticsService(
                 asset.Kind,
                 asset.Name,
                 asset.CurrencyId,
+                asset.RateCurrencyId,
                 asset.MissingPrice,
                 asset.MissingRate)).ToArray());
     }

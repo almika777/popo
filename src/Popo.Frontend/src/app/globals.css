@@ -302,6 +302,221 @@ body {
   padding: 24px;
 }
 
+.portfolio-analytics-content {
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+}
+
+.portfolio-analytics-heading,
+.portfolio-analytics-section-heading,
+.portfolio-analytics-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.portfolio-analytics-heading .ant-typography,
+.portfolio-analytics-section-heading .ant-typography,
+.portfolio-analytics-input-section > .ant-typography {
+  margin-bottom: 0;
+}
+
+.portfolio-analytics-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.portfolio-analytics-input-section {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #141414;
+}
+
+.portfolio-analytics-section-heading > .ant-typography {
+  margin: 0;
+}
+
+.portfolio-analytics-cash-list,
+.portfolio-analytics-rates-list {
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-analytics-rates-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portfolio-analytics-cash-row {
+  display: grid;
+  grid-template-columns: minmax(105px, 0.7fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-analytics-cash-row .ant-select,
+.portfolio-analytics-cash-row .ant-input-number,
+.portfolio-analytics-rate-row .ant-input-number,
+.portfolio-analytics-manual-input .ant-input-number {
+  width: 100%;
+  min-width: 0;
+}
+
+.portfolio-analytics-rate-row,
+.portfolio-analytics-manual-input {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.portfolio-analytics-results {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+  gap: 28px;
+  padding-top: 8px;
+  border-top: 1px solid #303030;
+}
+
+.portfolio-analytics-chart-panel {
+  position: relative;
+  display: grid;
+  min-height: 340px;
+  place-items: center;
+}
+
+.portfolio-analytics-total {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  width: 68%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  text-align: center;
+}
+
+.portfolio-analytics-total .ant-typography {
+  margin: 0;
+}
+
+.portfolio-analytics-total h2.ant-typography {
+  margin-block: 4px;
+  font-size: clamp(20px, 2vw, 30px);
+}
+
+.portfolio-analytics-donut {
+  width: min(100%, 360px);
+  height: 340px;
+}
+
+.portfolio-analytics-chart-empty {
+  display: grid;
+  min-height: 250px;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.portfolio-analytics-chart-panel-empty {
+  min-height: 160px;
+}
+
+.portfolio-analytics-breakdown {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  min-width: 0;
+  padding-top: 18px;
+}
+
+.portfolio-analytics-slices {
+  display: grid;
+  gap: 2px;
+}
+
+.portfolio-analytics-slice {
+  display: grid;
+  grid-template-columns: 10px minmax(48px, 0.55fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #303030;
+}
+
+.portfolio-analytics-slice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.portfolio-analytics-slice-currency {
+  font-weight: 600;
+}
+
+.portfolio-analytics-slice-value,
+.portfolio-analytics-slice-share {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.portfolio-analytics-slice-share {
+  min-width: 58px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.portfolio-analytics-unvalued {
+  display: grid;
+  gap: 12px;
+}
+
+.portfolio-analytics-unvalued > .ant-typography {
+  margin: 0;
+}
+
+.portfolio-analytics-unvalued-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.65fr);
+  align-items: start;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #141414;
+}
+
+.portfolio-analytics-unvalued-description {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-analytics-dirty-alert,
+.portfolio-analytics-error {
+  margin: 0;
+}
+
+.portfolio-analytics-empty {
+  min-height: 100px;
+}
+
+.portfolio-analytics-actions {
+  padding-top: 16px;
+  border-top: 1px solid #303030;
+}
+
 .portfolio-benchmark-controls {
   margin-bottom: 20px;
 }
@@ -698,6 +913,98 @@ body {
 }
 
 @media (max-width: 767px) {
+  .portfolio-main-tabs .ant-tabs-nav-wrap {
+    overflow-x: auto !important;
+    scrollbar-width: none;
+  }
+
+  .portfolio-main-tabs .ant-tabs-nav-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  .portfolio-main-tabs .ant-tabs-nav-list {
+    min-width: max-content;
+  }
+
+  .portfolio-main-tabs .ant-tabs-nav-operations {
+    display: none !important;
+  }
+
+  .portfolio-main-tabs .ant-tabs-tab {
+    margin-inline: 0 10px;
+    padding-inline: 4px;
+    font-size: 12px;
+  }
+
+  .portfolio-analytics-content {
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .portfolio-analytics-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .portfolio-analytics-inputs,
+  .portfolio-analytics-results {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .portfolio-analytics-input-section {
+    padding: 14px;
+  }
+
+  .portfolio-analytics-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .portfolio-analytics-cash-row {
+    grid-template-columns: minmax(90px, 0.65fr) minmax(0, 1fr) 32px;
+  }
+
+  .portfolio-analytics-results {
+    gap: 4px;
+  }
+
+  .portfolio-analytics-chart-panel {
+    min-height: 300px;
+  }
+
+  .portfolio-analytics-chart-panel-empty {
+    min-height: 120px;
+  }
+
+  .portfolio-analytics-donut {
+    width: min(100%, 320px);
+    height: 300px;
+  }
+
+  .portfolio-analytics-breakdown {
+    gap: 14px;
+    padding-top: 4px;
+  }
+
+  .portfolio-analytics-unvalued-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .portfolio-analytics-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .portfolio-analytics-actions .ant-btn {
+    min-height: 40px;
+  }
+
   .portfolio-benchmark-content {
     padding: 12px;
   }
