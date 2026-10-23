@@ -20,6 +20,12 @@ public interface IPortfolioPositionsService
     /// <param name="cancellationToken">Токен отмены загрузки данных.</param>
     /// <returns>Позиции фондов; при недоступной котировке сохранённые данные позиции остаются в ответе.</returns>
     Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Возвращает исходные цены, количества и валюты позиций для аналитики портфеля.</summary>
+    /// <param name="cancellationToken">Токен отмены загрузки данных.</param>
+    /// <returns>Позиции с ценой в валюте торгов и отдельной валютой номинала.</returns>
+    Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
+        CancellationToken cancellationToken);
 }
 
 public sealed class PortfolioPositionsService(
@@ -61,6 +67,55 @@ public sealed class PortfolioPositionsService(
     {
         var valuedPositions = await LoadPositionsAsync(cancellationToken);
         return valuedPositions.Select(x => x.Position).ToArray();
+    }
+
+    public async Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
+        CancellationToken cancellationToken)
+    {
+        var asOf = MoscowTime.Today;
+        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
+        if (positions.Count == 0)
+        {
+            return [];
+        }
+
+        var marketdataTask = moexHttpClient.GetActiveBondsMarketdataAsync(cancellationToken);
+        var securitiesTask = moexHttpClient.GetActiveBondsSecuritiesAsync(cancellationToken);
+        await Task.WhenAll(marketdataTask, securitiesTask);
+        var positionData = ResolvePositionData(new PositionSourceData(
+            positions,
+            [],
+            (await marketdataTask).SelectMany(item => item.Value).ToArray(),
+            (await securitiesTask).SelectMany(item => item.Value).ToArray(),
+            new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
+        var currencies = positionData
+            .SelectMany(item => HasCurrentMarketPrice(item) && item.Security is not null
+                ? new[] { item.Position.CurrencyId, item.Security.FaceUnit }
+                : [item.Position.CurrencyId])
+            .Where(currency => !IsRubleCurrency(currency))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var rates = currencies.Length == 0 ? [] : await LoadCurrencyRatesAsync(currencies, cancellationToken);
+
+        return positionData.Select(item =>
+        {
+            var pricing = CalculateMarketPrice(item, rates, asOf);
+            var name = !string.IsNullOrWhiteSpace(item.Security?.ShortName)
+                ? item.Security.ShortName
+                : !string.IsNullOrWhiteSpace(item.Position.ShortName)
+                    ? item.Position.ShortName
+                    : item.Position.SecId;
+
+            return new PortfolioCurrencyAnalyticsAsset(
+                $"position:{item.Position.SecId}:{item.Position.BoardId}:{item.Position.CurrencyId}",
+                PortfolioCurrencyAnalyticsAssetKind.Position,
+                name,
+                item.Position.CurrencyId,
+                item.Security?.FaceUnit,
+                item.Position.Quantity,
+                pricing.MarketPrice,
+                pricing.TradingCurrencyRateToRub);
+        }).ToArray();
     }
 
     public async Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken)
@@ -363,6 +418,9 @@ public sealed class PortfolioPositionsService(
             faceCurrencyRateToRub,
             marketPrice);
     }
+
+    private static bool HasCurrentMarketPrice(PositionData data) =>
+        data.Marketdata?.CurrentPrice is { } price && double.IsFinite(price) && price > 0;
 
     private double? GetPositionCouponValue(
         PositionData data,

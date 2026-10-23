@@ -34,6 +34,43 @@ public sealed class PageApiContractTests
     }
 
     [Test]
+    public void PortfolioCurrencyAnalyticsResponseContainsSummarySlicesAndUnvaluedAssets()
+    {
+        var asOf = new DateOnly(2026, 10, 24);
+        var slice = new PortfolioCurrencyAnalyticsSliceResponse("CNY", 1_000, 1);
+        var unvalued = new PortfolioCurrencyAnalyticsUnvaluedAssetResponse(
+            "position:BOND:TQCB:RUB",
+            PortfolioCurrencyAnalyticsAssetKind.Position,
+            "Bond",
+            "CNY",
+            MissingPrice: true,
+            MissingRate: false);
+        var response = new PortfolioCurrencyAnalyticsResponse(asOf, 1_000, ["RUB", "CNY"], [slice], [unvalued]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.AsOf, Is.EqualTo(asOf));
+            Assert.That(response.TotalValueRub, Is.EqualTo(1_000));
+            Assert.That(response.AvailableCurrencies, Is.EqualTo(new[] { "RUB", "CNY" }));
+            Assert.That(response.Slices.Single(), Is.SameAs(slice));
+            Assert.That(response.UnvaluedAssets.Single(), Is.SameAs(unvalued));
+        });
+    }
+
+    [Test]
+    public void PortfolioController_ExposesCurrencyAnalyticsEndpoint()
+    {
+        var endpoints = typeof(PortfolioController)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+            .SelectMany(method => method.GetCustomAttributes<HttpMethodAttribute>()
+                .SelectMany(attribute => attribute.HttpMethods.Select(httpMethod =>
+                    $"{httpMethod} {attribute.Template}")))
+            .ToArray();
+
+        Assert.That(endpoints, Does.Contain("POST analytics/currency"));
+    }
+
+    [Test]
     public void CashRecommendationsPageResponse_ContainsPresetsAndCurrencyFilters()
     {
         var response = new CashRecommendationsPageResponse([], ["RUB"], ["RUB", "USD"]);

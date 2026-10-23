@@ -14,6 +14,46 @@ namespace Popo.Tests;
 public sealed class PortfolioPositionsServiceTests
 {
     [Test]
+    public async Task CurrencyAnalyticsSourceReturnsPositionWithSeparateNominalAndTradingCurrencyFields()
+    {
+        const string secId = "CURRENCY-ANALYTICS-SOURCE";
+        const string boardId = "TQCB";
+        var position = new PortfolioPositionRecord(secId, boardId, "RUB", 2, 2, 0, 900, 900, 0, 450);
+        var security = new MoexBond
+        {
+            SecId = secId,
+            BoardId = boardId,
+            Isin = secId,
+            ShortName = "Юаневая облигация",
+            InitialFaceValue = 1_000,
+            FaceValue = 1_000,
+            FaceUnit = "CNY",
+            CouponPeriod = 182
+        };
+        var service = new PortfolioPositionsService(
+            new FakeMoneyMarketFundsProvider(),
+            new FakeTradesProvider([]),
+            new FakePositionsProvider(position),
+            new FakeMoexHttpClient(security, null),
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider());
+
+        var result = (await service.GetCurrencyAnalyticsAssetsAsync(CancellationToken.None)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.AssetId, Is.EqualTo($"position:{secId}:{boardId}:RUB"));
+            Assert.That(result.Kind, Is.EqualTo(PortfolioCurrencyAnalyticsAssetKind.Position));
+            Assert.That(result.TradingCurrencyId, Is.EqualTo("RUB"));
+            Assert.That(result.FaceUnit, Is.EqualTo("CNY"));
+            Assert.That(result.Quantity, Is.EqualTo(2));
+            Assert.That(result.MarketPrice, Is.Null);
+            Assert.That(result.TradingCurrencyRateToRub, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task OverviewTotal_EqualsPositionsAndMoneyMarketFunds()
     {
         const string secId = "OVERVIEW-POSITION";
@@ -422,18 +462,22 @@ public sealed class PortfolioPositionsServiceTests
         public Task<bool> DeleteTradeAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class FakeMoexHttpClient(MoexBond security, MoexMarketdata quote) : IMoexHttpClient
+    private sealed class FakeMoexHttpClient(MoexBond security, MoexMarketdata? quote) : IMoexHttpClient
     {
         public Task<Dictionary<string, List<MoexBond>>> GetActiveBondsSecuritiesAsync(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, List<MoexBond>> { [security.BoardId] = [security] });
 
         public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
-            Task.FromResult(new Dictionary<string, List<MoexMarketdata>> { [quote.BoardId] = [quote] });
+            Task.FromResult(new Dictionary<string, List<MoexMarketdata>>
+            {
+                [security.BoardId] = quote is null ? [] : [quote]
+            });
 
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
+            quote is null ? throw new NotSupportedException() :
             Task.FromResult(new MoexMarketdata
             {
                 SecId = secId,

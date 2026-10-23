@@ -76,6 +76,44 @@ public sealed class ApiRequestValidatorsTests
     }
 
     [Test]
+    public async Task PortfolioCurrencyAnalyticsRequestValidatorRejectsNegativeCashAndNonPositiveManualPriceOrRate()
+    {
+        var result = await new PortfolioCurrencyAnalyticsRequestValidator().ValidateAsync(
+            new PortfolioCurrencyAnalyticsRequest(
+                [new PortfolioCurrencyAnalyticsCashBalanceRequest("RUB", -1)],
+                [new PortfolioCurrencyAnalyticsManualPriceRequest("bond", 0)],
+                [new PortfolioCurrencyAnalyticsManualRateRequest("USD", 0)]));
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Errors, Has.Count.GreaterThanOrEqualTo(3));
+    }
+
+    [Test]
+    public async Task PortfolioCurrencyAnalyticsRequestValidatorRejectsNonFiniteAndBlankOrDuplicateIdentifiers()
+    {
+        var result = await new PortfolioCurrencyAnalyticsRequestValidator().ValidateAsync(
+            new PortfolioCurrencyAnalyticsRequest(
+                [
+                    new PortfolioCurrencyAnalyticsCashBalanceRequest(" ", double.NaN),
+                    new PortfolioCurrencyAnalyticsCashBalanceRequest("rub", 1),
+                    new PortfolioCurrencyAnalyticsCashBalanceRequest("RUB", 2)
+                ],
+                [
+                    new PortfolioCurrencyAnalyticsManualPriceRequest("", 10),
+                    new PortfolioCurrencyAnalyticsManualPriceRequest("bond", double.PositiveInfinity),
+                    new PortfolioCurrencyAnalyticsManualPriceRequest("BOND", 10)
+                ],
+                [
+                    new PortfolioCurrencyAnalyticsManualRateRequest("", 90),
+                    new PortfolioCurrencyAnalyticsManualRateRequest("USD", double.NaN),
+                    new PortfolioCurrencyAnalyticsManualRateRequest("usd", 91)
+                ]));
+
+        Assert.That(result.IsValid, Is.False);
+        Assert.That(result.Errors, Has.Count.GreaterThanOrEqualTo(9));
+    }
+
+    [Test]
     public async Task Recommendation_preset_validator_validates_nested_settings()
     {
         var settingsValidator = new InvestmentStrategySettingsRequestValidator();

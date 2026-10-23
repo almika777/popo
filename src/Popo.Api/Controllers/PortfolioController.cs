@@ -9,13 +9,20 @@ namespace Popo.Api.Controllers;
 [Route("api/portfolio")]
 public sealed class PortfolioController(
     PortfolioDataService dataService,
-    PortfolioPageService pageService) : ControllerBase
+    PortfolioPageService pageService,
+    PortfolioCurrencyAnalyticsService currencyAnalyticsService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<PortfolioPageResponse>> GetPage(
         [FromQuery] DateOnly asOf,
         CancellationToken cancellationToken) =>
         Ok(await pageService.GetAsync(asOf, cancellationToken));
+
+    [HttpPost("analytics/currency")]
+    public async Task<ActionResult<PortfolioCurrencyAnalyticsResponse>> CalculateCurrencyAnalytics(
+        [FromBody] PortfolioCurrencyAnalyticsRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await currencyAnalyticsService.CalculateAsync(request, cancellationToken));
 
     [HttpPost("valuations")]
     public async Task<ActionResult<PortfolioValuationRecord>> AddValuation(

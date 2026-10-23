@@ -463,7 +463,8 @@ public sealed class PortfolioReturnsApiContractTests
             benchmarkCalculator);
         return new PortfolioController(
             new PortfolioDataService(provider, provider, returnCalculator, benchmarkService),
-            new PortfolioPageService(provider, provider, positionsService));
+            new PortfolioPageService(provider, provider, positionsService),
+            null!);
     }
 
     private static PortfolioDataService CreateDataService(
@@ -584,6 +585,10 @@ public sealed class PortfolioReturnsApiContractTests
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
+            CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 
