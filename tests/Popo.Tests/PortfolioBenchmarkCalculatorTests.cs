@@ -954,6 +954,70 @@ public sealed class PortfolioBenchmarkCalculatorTests
     }
 
     [Test]
+    public void Calculate_adds_tmon_to_the_shared_comparison_period()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        var valuations = new PortfolioValuationInput[]
+        {
+            new(from, 100),
+            new(new DateOnly(2026, 1, 2), 100),
+            new(to, 110)
+        };
+        var lqdtHistory = new[]
+        {
+            Point("LQDT", from, 100m),
+            Point("LQDT", to, 120m)
+        };
+        var tmonHistory = new[]
+        {
+            Point("TMON", new DateOnly(2026, 1, 2), 100m),
+            Point("TMON", to, 110m)
+        };
+
+        var result = new PortfolioBenchmarkCalculator().Calculate(
+            from, to, valuations, [], lqdtHistory,
+            includeIndexedBond: false,
+            tmonPriceHistory: tmonHistory,
+            includeTmon: true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ComparisonStartDate, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.TmonStartObservationDate, Is.EqualTo(new DateOnly(2026, 1, 2)));
+            Assert.That(result.TmonProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+            Assert.That(result.TmonPoints![0].ProfitPercent, Is.Zero.Within(0.000001));
+            Assert.That(result.TmonPoints![^1].ProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+        });
+    }
+
+    [Test]
+    public void Calculate_ignores_invalid_tmon_history_when_tmon_is_not_selected()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 2, 1);
+        var valuations = new PortfolioValuationInput[] { new(from, 100), new(to, 110) };
+        var history = new[]
+        {
+            Point("LQDT", from, 100m),
+            Point("LQDT", to, 110m),
+            Point("TMON", from, 100m),
+            Point("TMON", from, 101m)
+        };
+
+        var result = new PortfolioBenchmarkCalculator().Calculate(
+            from, to, valuations, [], history, includeIndexedBond: false, includeTmon: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.TmonPoints, Is.Empty);
+            Assert.That(result.TmonReturn, Is.Null);
+            Assert.That(result.TmonUnavailableReason, Is.Null);
+            Assert.That(result.LqdtProfitPercent, Is.EqualTo(0.1).Within(0.000001));
+        });
+    }
+
+    [Test]
     public void Calculate_throws_when_moex_has_no_trading_price_inside_period()
     {
         var from = new DateOnly(2026, 1, 1);

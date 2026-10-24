@@ -58,6 +58,12 @@ export type PortfolioBenchmarkResult = {
   portfolioProfitPercent?: number | null;
   lqdtProfitPercent?: number | null;
   indexedBondProfitPercent?: number | null;
+  tmonReturn: number | null;
+  tmonStartObservationDate: string | null;
+  tmonEndObservationDate: string | null;
+  tmonPoints: PortfolioBenchmarkPoint[];
+  tmonUnavailableReason: string | null;
+  tmonProfitPercent: number | null;
   portfolioUnavailableReason: string | null;
   comparisonStartDate: string | null;
 };
@@ -67,6 +73,16 @@ const isFiniteBenchmarkPercent = (value: number | null | undefined): value is nu
 
 export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): boolean {
   const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key);
+  const hasTmonContract = hasOwn(result, "tmonReturn") &&
+    hasOwn(result, "tmonProfitPercent") &&
+    hasOwn(result, "tmonPoints") && Array.isArray(result.tmonPoints) &&
+    hasOwn(result, "tmonUnavailableReason") &&
+    hasOwn(result, "tmonStartObservationDate") &&
+    hasOwn(result, "tmonEndObservationDate");
+  if (!hasTmonContract) {
+    return false;
+  }
+
   const hasPointMetrics = (points: PortfolioBenchmarkResult["portfolioPoints"]) =>
     points.every((point) => hasOwn(point, "profitPercent") && isFiniteBenchmarkPercent(point.profitPercent));
   const hasBondSeries = (result.indexedBondPoints?.length ?? 0) > 0;
@@ -74,6 +90,14 @@ export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): b
   const bondSeriesIsConsistent = hasBondSeries
     ? hasBondTotals && hasPointMetrics(result.indexedBondPoints ?? [])
     : result.indexedBondProfitPercent == null;
+  const hasTmonSeries = result.tmonPoints.length > 0;
+  const tmonSeriesIsConsistent = hasTmonSeries
+    ? isFiniteBenchmarkPercent(result.tmonReturn) &&
+      isFiniteBenchmarkPercent(result.tmonProfitPercent) &&
+      Math.abs(result.tmonReturn - result.tmonProfitPercent) < 0.000001 &&
+      Math.abs(result.tmonPoints.at(-1)!.profitPercent! - result.tmonProfitPercent) < 0.000001 &&
+      hasPointMetrics(result.tmonPoints)
+    : result.tmonReturn == null && result.tmonProfitPercent == null;
   const portfolioAvailable = isFiniteBenchmarkPercent(result.portfolioReturn) &&
     isFiniteBenchmarkPercent(result.portfolioProfitPercent) &&
     hasPointMetrics(result.portfolioPoints) &&
@@ -87,11 +111,17 @@ export function hasCurrentBenchmarkContract(result: PortfolioBenchmarkResult): b
     hasOwn(result, "comparisonStartDate") &&
     (result.comparisonStartDate === null || typeof result.comparisonStartDate === "string") &&
     hasOwn(result, "portfolioProfitPercent") && hasOwn(result, "lqdtProfitPercent") &&
-    hasOwn(result, "indexedBondProfitPercent") &&
+    hasOwn(result, "indexedBondProfitPercent") && hasOwn(result, "tmonReturn") &&
+    hasOwn(result, "tmonProfitPercent") && hasOwn(result, "tmonPoints") &&
+    hasOwn(result, "tmonUnavailableReason") && hasOwn(result, "tmonStartObservationDate") &&
+    hasOwn(result, "tmonEndObservationDate") &&
+    (result.tmonUnavailableReason === null || typeof result.tmonUnavailableReason === "string") &&
+    (result.tmonStartObservationDate === null || typeof result.tmonStartObservationDate === "string") &&
+    (result.tmonEndObservationDate === null || typeof result.tmonEndObservationDate === "string") &&
     (portfolioAvailable || portfolioUnavailable) &&
     isFiniteBenchmarkPercent(result.lqdtProfitPercent) &&
     hasPointMetrics(result.lqdtPoints) &&
-    bondSeriesIsConsistent;
+    bondSeriesIsConsistent && tmonSeriesIsConsistent;
 }
 
 export type PortfolioPage = {
@@ -153,8 +183,8 @@ export const portfolioReturnApi = {
   deleteCashFlow: (id: string) => request<void>(`/portfolio/cash-flows/${id}`, { method: "DELETE" }),
   calculate: (from: string, to: string) =>
     request<PortfolioReturn>(`/portfolio/return?from=${from}&to=${to}`),
-  calculateBenchmark: (from: string, to: string, includeLqdt = true, includeIndexedBond = true) =>
+  calculateBenchmark: (from: string, to: string, includeLqdt = true, includeIndexedBond = true, includeTmon = true) =>
     request<PortfolioBenchmarkResult>(
-      `/portfolio/benchmark?from=${from}&to=${to}&includeLqdt=${includeLqdt}&includeIndexedBond=${includeIndexedBond}`
+      `/portfolio/benchmark?from=${from}&to=${to}&includeLqdt=${includeLqdt}&includeIndexedBond=${includeIndexedBond}&includeTmon=${includeTmon}`
     )
 };

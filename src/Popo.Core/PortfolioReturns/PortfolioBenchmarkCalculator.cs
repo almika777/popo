@@ -7,6 +7,7 @@ public sealed class PortfolioBenchmarkCalculator
 {
     private readonly PortfolioBenchmarkSeriesCalculator _portfolioCalculator = new();
     private readonly LqdtBenchmarkSeriesCalculator _lqdtCalculator = new();
+    private readonly MoneyMarketFundBenchmarkSeriesCalculator _tmonCalculator = new("TMON");
     private readonly Ru000A10F504BenchmarkSeriesCalculator _indexedBondCalculator = new();
 
     public PortfolioBenchmarkResult Calculate(
@@ -17,7 +18,9 @@ public sealed class PortfolioBenchmarkCalculator
         IReadOnlyCollection<MoexIndexHistory> lqdtPriceHistory,
         PortfolioBondBenchmarkHistory? indexedBondHistory = null,
         bool includeLqdt = true,
-        bool includeIndexedBond = true)
+        bool includeIndexedBond = true,
+        IReadOnlyCollection<MoexIndexHistory>? tmonPriceHistory = null,
+        bool includeTmon = false)
     {
         ArgumentNullException.ThrowIfNull(valuations);
         ArgumentNullException.ThrowIfNull(cashFlows);
@@ -28,30 +31,70 @@ public sealed class PortfolioBenchmarkCalculator
         }
 
         var lqdt = _lqdtCalculator.Calculate(from, to, lqdtPriceHistory);
+        MoneyMarketFundBenchmarkSeriesCalculation? tmon = null;
+        string? tmonUnavailableReason = null;
+        if (includeTmon)
+        {
+            try
+            {
+                tmon = _tmonCalculator.Calculate(from, to, tmonPriceHistory ?? []);
+            }
+            catch (PortfolioBenchmarkHistoryUnavailableException exception)
+            {
+                tmonUnavailableReason = exception.Message;
+            }
+        }
+
         var indexedBondFirstObservationDate = _indexedBondCalculator
             .FindFirstObservationDate(from, to, indexedBondHistory);
 
-        DateOnly? candidateComparisonStartDate = indexedBondFirstObservationDate.HasValue
-            ? LaterOf(lqdt.StartPriceDate, indexedBondFirstObservationDate.Value)
-            : null;
-        candidateComparisonStartDate = (includeLqdt, includeIndexedBond) switch
+        var selectedComparisonStartDates = new List<DateOnly>();
+        var hasAvailableSelectedIndexes = true;
+        if (includeLqdt)
         {
-            (true, true) => candidateComparisonStartDate,
-            (true, false) => lqdt.StartPriceDate,
-            (false, true) => indexedBondFirstObservationDate,
-            _ => null
-        };
+            selectedComparisonStartDates.Add(lqdt.StartPriceDate);
+        }
+
+        if (includeTmon)
+        {
+            if (tmon is null)
+            {
+                hasAvailableSelectedIndexes = false;
+            }
+            else
+            {
+                selectedComparisonStartDates.Add(tmon.StartPriceDate);
+            }
+        }
+
+        if (includeIndexedBond)
+        {
+            if (indexedBondFirstObservationDate.HasValue)
+            {
+                selectedComparisonStartDates.Add(indexedBondFirstObservationDate.Value);
+            }
+            else
+            {
+                hasAvailableSelectedIndexes = false;
+            }
+        }
+
+        DateOnly? candidateComparisonStartDate = hasAvailableSelectedIndexes && selectedComparisonStartDates.Count > 0
+            ? selectedComparisonStartDates.Max()
+            : null;
 
         var indexedBond = _indexedBondCalculator
             .Calculate(from, to, indexedBondHistory, includeIndexedBond ? candidateComparisonStartDate : null);
-        var hasAvailableSelectedIndexes = (!includeLqdt || candidateComparisonStartDate.HasValue) &&
-            (!includeIndexedBond || indexedBond.Series is not null);
-        var comparisonStartDate = hasAvailableSelectedIndexes && (includeLqdt || includeIndexedBond)
+        hasAvailableSelectedIndexes &= !includeIndexedBond || indexedBond.Series is not null;
+        var comparisonStartDate = hasAvailableSelectedIndexes && (includeLqdt || includeTmon || includeIndexedBond)
             ? candidateComparisonStartDate
             : null;
-        var lqdtSeries = comparisonStartDate.HasValue
-            ? RebaseSeries(lqdt.Series, comparisonStartDate.Value)
+        var lqdtSeries = includeLqdt && comparisonStartDate.HasValue
+            ? RebaseSeries(lqdt.Series, comparisonStartDate.Value, "LQDT")
             : lqdt.Series;
+        var tmonSeries = includeTmon && comparisonStartDate.HasValue && tmon is not null
+            ? RebaseSeries(tmon.Series, comparisonStartDate.Value, "TMON")
+            : tmon?.Series;
         BenchmarkSeriesCalculation? portfolio = null;
         string? portfolioUnavailableReason = null;
         try
@@ -98,7 +141,7 @@ public sealed class PortfolioBenchmarkCalculator
             portfolioUnavailableReason = exception.Message;
         }
 
-        double? excessReturn = portfolio is not null &&
+        double? excessReturn = includeLqdt && portfolio is not null &&
             (comparisonStartDate.HasValue || lqdt.StartPriceDate == from)
             ? portfolio.ProfitPercent - lqdtSeries.ProfitPercent
             : null;
@@ -118,24 +161,29 @@ public sealed class PortfolioBenchmarkCalculator
             lqdtSeries.ProfitPercent,
             indexedBond.Series?.ProfitPercent,
             portfolioUnavailableReason,
-            comparisonStartDate);
+            comparisonStartDate,
+            tmonSeries?.ProfitPercent,
+            tmon?.StartPriceDate,
+            tmon?.EndPriceDate,
+            tmonSeries?.Points ?? [],
+            tmonUnavailableReason,
+            tmonSeries?.ProfitPercent);
     }
-
-    private static DateOnly LaterOf(DateOnly first, DateOnly second) => first >= second ? first : second;
 
     private static BenchmarkSeriesCalculation RebaseSeries(
         BenchmarkSeriesCalculation series,
-        DateOnly startDate)
+        DateOnly startDate,
+        string secId)
     {
         var anchor = series.Points.SingleOrDefault(point => point.Date == startDate)
             ?? throw new InvalidPortfolioBenchmarkHistoryException(
-                $"В истории LQDT нет расчётной цены на общую дату {startDate:yyyy-MM-dd}.");
+                $"В истории {secId} нет расчётной цены на общую дату {startDate:yyyy-MM-dd}.");
         var anchorReturn = anchor.ProfitPercent
-            ?? throw new InvalidPortfolioBenchmarkHistoryException("В истории LQDT отсутствует доходность на общую дату сравнения.");
+            ?? throw new InvalidPortfolioBenchmarkHistoryException($"В истории {secId} отсутствует доходность на общую дату сравнения.");
         var anchorValue = 1d + anchorReturn;
         if (!double.IsFinite(anchorValue) || anchorValue <= 0)
         {
-            throw new InvalidPortfolioBenchmarkHistoryException("Невозможно пересчитать LQDT от общей даты сравнения.");
+            throw new InvalidPortfolioBenchmarkHistoryException($"Невозможно пересчитать {secId} от общей даты сравнения.");
         }
 
         var points = series.Points
@@ -143,7 +191,7 @@ public sealed class PortfolioBenchmarkCalculator
             .Select(point =>
             {
                 var value = point.ProfitPercent
-                    ?? throw new InvalidPortfolioBenchmarkHistoryException("В истории LQDT отсутствует значение доходности.");
+                    ?? throw new InvalidPortfolioBenchmarkHistoryException($"В истории {secId} отсутствует значение доходности.");
                 var rebasedReturn = (1d + value) / anchorValue - 1d;
                 return point with { ReturnPercent = rebasedReturn, ProfitPercent = rebasedReturn };
             })
@@ -151,7 +199,7 @@ public sealed class PortfolioBenchmarkCalculator
 
         if (points.Length == 0)
         {
-            throw new InvalidPortfolioBenchmarkHistoryException("В истории LQDT нет точек от общей даты сравнения.");
+            throw new InvalidPortfolioBenchmarkHistoryException($"В истории {secId} нет точек от общей даты сравнения.");
         }
 
         return new BenchmarkSeriesCalculation(points[^1].ProfitPercent!.Value, points);

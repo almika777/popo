@@ -9,6 +9,11 @@ internal sealed record LqdtBenchmarkSeriesCalculation(
     DateOnly EndPriceDate,
     BenchmarkSeriesCalculation Series);
 
+internal sealed record MoneyMarketFundBenchmarkSeriesCalculation(
+    DateOnly StartPriceDate,
+    DateOnly EndPriceDate,
+    BenchmarkSeriesCalculation Series);
+
 internal sealed record IndexedBondBenchmarkSeriesCalculation(
     DateOnly? ComparisonStartDate,
     DateOnly? StartObservationDate,

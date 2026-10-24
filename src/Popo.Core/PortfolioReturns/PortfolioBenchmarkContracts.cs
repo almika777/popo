@@ -35,4 +35,10 @@ public sealed record PortfolioBenchmarkResult(
     double? LqdtProfitPercent = null,
     double? IndexedBondProfitPercent = null,
     string? PortfolioUnavailableReason = null,
-    DateOnly? ComparisonStartDate = null);
+    DateOnly? ComparisonStartDate = null,
+    double? TmonReturn = null,
+    DateOnly? TmonStartObservationDate = null,
+    DateOnly? TmonEndObservationDate = null,
+    IReadOnlyList<PortfolioBenchmarkPoint>? TmonPoints = null,
+    string? TmonUnavailableReason = null,
+    double? TmonProfitPercent = null);

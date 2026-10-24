@@ -1,3 +1,5 @@
+using System.Net.Http;
+using System.Text.Json;
 using Popo.Core.Contracts.Iss;
 using Popo.Core.Common;
 using Popo.Core.HttpClients;
@@ -21,7 +23,8 @@ public sealed class PortfolioBenchmarkService(
         DateOnly to,
         CancellationToken cancellationToken,
         bool includeLqdt = true,
-        bool includeIndexedBond = true)
+        bool includeIndexedBond = true,
+        bool includeTmon = false)
     {
         var valuationsTask = valuationsProvider.GetValuationsAsync(cancellationToken);
         var cashFlowsTask = cashFlowsProvider.GetCashFlowsAsync(cancellationToken);
@@ -34,6 +37,28 @@ public sealed class PortfolioBenchmarkService(
         if (!lqdtPriceHistory.Any(value => value.TradeDate.HasValue && value.Close is > 0))
         {
             throw new InvalidApplicationRequestException("MOEX не вернул торговые цены LQDT.");
+        }
+
+        MoexIndexHistory[] tmonPriceHistory = [];
+        string? tmonUnavailableReason = null;
+        if (includeTmon)
+        {
+            try
+            {
+                tmonPriceHistory = (await moexHttpClient.GetMoneyMarketFundPriceHistoryAsync("TMON", cancellationToken))
+                    .Where(value => string.Equals(value.SecId, "TMON", StringComparison.Ordinal))
+                    .ToArray();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or IOException or
+                                                   InvalidOperationException or JsonException or
+                                                   OperationCanceledException)
+            {
+                tmonUnavailableReason = "Не удалось загрузить историю TMON с MOEX. Повторите расчёт позже.";
+            }
         }
 
         PortfolioBenchmarkResult result;
@@ -58,7 +83,9 @@ public sealed class PortfolioBenchmarkService(
                 lqdtPriceHistory,
                 indexedBondHistory,
                 includeLqdt,
-                includeIndexedBond);
+                includeIndexedBond,
+                tmonPriceHistory,
+                includeTmon);
         }
         catch (PortfolioBenchmarkHistoryUnavailableException exception)
         {
@@ -85,7 +112,9 @@ public sealed class PortfolioBenchmarkService(
             throw new InvalidApplicationRequestException(exception.Message, exception);
         }
 
-        await indexHistoryStore.UpsertAsync(lqdtPriceHistory, cancellationToken);
-        return result;
+        await indexHistoryStore.UpsertAsync(lqdtPriceHistory.Concat(tmonPriceHistory).ToArray(), cancellationToken);
+        return tmonUnavailableReason is null
+            ? result
+            : result with { TmonUnavailableReason = tmonUnavailableReason };
     }
 }

@@ -488,6 +488,7 @@ public sealed class PortfolioPositionsServiceTests
 
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct) => throw new NotSupportedException();

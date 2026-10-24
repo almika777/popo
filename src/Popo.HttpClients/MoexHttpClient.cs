@@ -37,6 +37,9 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
     public async Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) =>
         (await client.GetLqdtPriceHistoryAsync(ct)).Select(value => value.ToContract()).ToList();
 
+    public async Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) =>
+        (await client.GetMoneyMarketFundPriceHistoryAsync(secId, ct)).Select(value => value.ToContract()).ToList();
+
     public async Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>
         (await client.GetBondTradesAsync(secId, boardId, ct)).Select(value => value.ToContract()).ToList();
 

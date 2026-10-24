@@ -4,9 +4,22 @@ namespace Popo.Core.PortfolioReturns;
 
 internal sealed class LqdtBenchmarkSeriesCalculator
 {
-    private const string SecId = "LQDT";
+    private readonly MoneyMarketFundBenchmarkSeriesCalculator _calculator = new("LQDT");
 
     public LqdtBenchmarkSeriesCalculation Calculate(
+        DateOnly from,
+        DateOnly to,
+        IReadOnlyCollection<MoexIndexHistory> history)
+    {
+        var result = _calculator.Calculate(from, to, history);
+        return new LqdtBenchmarkSeriesCalculation(result.StartPriceDate, result.EndPriceDate, result.Series);
+    }
+}
+
+internal sealed class MoneyMarketFundBenchmarkSeriesCalculator(string secId)
+{
+
+    public MoneyMarketFundBenchmarkSeriesCalculation Calculate(
         DateOnly from,
         DateOnly to,
         IReadOnlyCollection<MoexIndexHistory> history)
@@ -18,7 +31,7 @@ internal sealed class LqdtBenchmarkSeriesCalculator
         }
 
         var rows = history
-            .Where(value => string.Equals(value.SecId, SecId, StringComparison.Ordinal) && value.TradeDate.HasValue)
+            .Where(value => string.Equals(value.SecId, secId, StringComparison.Ordinal) && value.TradeDate.HasValue)
             .OrderBy(value => value.TradeDate)
             .ToArray();
         var periodRows = rows
@@ -27,7 +40,7 @@ internal sealed class LqdtBenchmarkSeriesCalculator
         if (periodRows.Length == 0)
         {
             throw new PortfolioBenchmarkHistoryUnavailableException(
-                $"Нет торговых цен {SecId} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
+                $"Нет торговых цен {secId} в периоде с {from:yyyy-MM-dd} по {to:yyyy-MM-dd}.");
         }
 
         var hasQuoteOnEndDate = periodRows.Any(value => value.TradeDate!.Value == to);
@@ -48,17 +61,17 @@ internal sealed class LqdtBenchmarkSeriesCalculator
         if (duplicate is not null)
         {
             throw new InvalidPortfolioBenchmarkHistoryException(
-                $"В истории {SecId} несколько цен за {duplicate.Key:yyyy-MM-dd}.");
+                $"В истории {secId} несколько цен за {duplicate.Key:yyyy-MM-dd}.");
         }
 
-        var periodPrices = periodRows.Select(ToPrice).ToArray();
+        var periodPrices = periodRows.Select(value => ToPrice(value, secId)).ToArray();
         var startPrice = periodPrices[0];
         var endPrice = periodPrices[^1];
         var actualPrices = periodPrices
-            .Concat(nextQuoteRows.Select(ToPrice))
+            .Concat(nextQuoteRows.Select(value => ToPrice(value, secId)))
             .OrderBy(value => value.Date)
             .ToArray();
-        var priorPrice = previousQuoteRows.Select(ToPrice).SingleOrDefault();
+        var priorPrice = previousQuoteRows.Select(value => ToPrice(value, secId)).SingleOrDefault();
         PriceValue[] extrapolationPrices = priorPrice is null
             ? actualPrices
             : [priorPrice, .. actualPrices];
@@ -81,10 +94,10 @@ internal sealed class LqdtBenchmarkSeriesCalculator
         if (!double.IsFinite(returnPercent) || returnPercent < -1d)
         {
             throw new InvalidPortfolioBenchmarkHistoryException(
-                $"Невозможно рассчитать доходность {SecId} по историческим ценам.");
+                $"Невозможно рассчитать доходность {secId} по историческим ценам.");
         }
 
-        return new LqdtBenchmarkSeriesCalculation(
+        return new MoneyMarketFundBenchmarkSeriesCalculation(
             startPrice.Date,
             endPrice.Date,
             new BenchmarkSeriesCalculation(returnPercent, points));
@@ -148,11 +161,11 @@ internal sealed class LqdtBenchmarkSeriesCalculator
         return previous.Value * Math.Pow(dailyFactor, elapsedDays);
     }
 
-    private static PriceValue ToPrice(MoexIndexHistory value)
+    private static PriceValue ToPrice(MoexIndexHistory value, string secId)
     {
         if (value.TradeDate is null || value.Close is null || value.Close <= 0)
         {
-            throw new InvalidPortfolioBenchmarkHistoryException("В истории MOEX найдено некорректное значение цены LQDT.");
+            throw new InvalidPortfolioBenchmarkHistoryException($"В истории MOEX найдено некорректное значение цены {secId}.");
         }
 
         return new PriceValue(value.TradeDate.Value, (double)value.Close.Value, true);
