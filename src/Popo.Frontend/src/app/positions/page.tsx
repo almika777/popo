@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { InfoCircleOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Space, Table, Tabs, Tooltip, Typography } from "antd";
+import { DownOutlined, InfoCircleOutlined, RightOutlined } from "@ant-design/icons";
+import { App as AntdApp, Card, Select, Space, Spin, Table, Tabs, Tooltip, Typography } from "antd";
+import { Popup } from "antd-mobile";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
+import type { ReactNode } from "react";
 import { portfolioLedgerApi, type PortfolioPosition, type PositionTotals } from "../../lib/portfolio-ledger-api";
 import { getPositionAverageBuyPrice } from "../../lib/position-average-price";
 import { positionDetailsPath } from "../../lib/position-details";
@@ -19,10 +21,90 @@ const liquidityTextType: Record<PositionLiquidityLevel, "success" | "warning" | 
   medium: "warning",
   high: "danger"
 };
+
+type MobilePositionSortKey = "marketValue" | "result" | "quantity" | "name";
+
+function MobilePositionDetailRow({ label, value, separated = false }: { label: ReactNode; value: ReactNode; separated?: boolean }) {
+  return <div className={`position-mobile-detail-row${separated ? " position-mobile-detail-row--separated" : ""}`}>
+    <div className="position-mobile-detail-row__main">
+      <span className="position-mobile-detail-row__label">{label}</span>
+      <span className="position-mobile-detail-row__value">{value}</span>
+    </div>
+  </div>;
+}
+
+function MobilePositionSheetContent({ row }: { row: PortfolioPosition }) {
+  const bondName = row.shortName || row.secId;
+  const averagePrice = getPositionAverageBuyPrice(row);
+  const costBasis = row.marketValue == null || row.unrealizedPnl == null ? null : row.marketValue - row.unrealizedPnl;
+  const totalPnlType = row.approximateTotalPnl == null ? undefined : row.approximateTotalPnl >= 0 ? "success" : "danger";
+  const formatResult = (value: number) => `${value >= 0 ? "+" : ""}${number.format(value)}`;
+  const resultExplanation = "Итого, оценка = переоценка тела + приблизительный купонный результат − комиссия покупки. Не учитываются будущие купоны, налоги и будущая комиссия продажи.";
+
+  return <section className="position-mobile-sheet__content" role="dialog" aria-modal="true" aria-labelledby="position-mobile-sheet-title">
+    <div className="position-mobile-sheet__handle" aria-hidden="true" />
+    <header className="position-mobile-sheet__header">
+      <div className="position-mobile-sheet__identity">
+        <Typography.Title id="position-mobile-sheet-title" level={4}>{bondName}</Typography.Title>
+        <Typography.Text type="secondary">{row.secId}</Typography.Text>
+      </div>
+    </header>
+    <section className="position-mobile-sheet__section">
+      <Typography.Title level={5}>Позиция</Typography.Title>
+      <MobilePositionDetailRow label="Количество" value={`${integer.format(row.quantity)} шт.`} />
+      <MobilePositionDetailRow
+        label="Средняя цена"
+        value={averagePrice.value == null ? "Нет данных" : `${number.format(averagePrice.value)} ${row.currencyId}`}
+      />
+      <MobilePositionDetailRow label="Текущая цена" value={row.marketPrice == null ? "Нет данных" : `${number.format(row.marketPrice)} ${row.currencyId}`} />
+      <MobilePositionDetailRow
+        label="Стоимость покупки"
+        value={costBasis == null ? "Нет данных" : `${number.format(costBasis)} ${row.currencyId}`}
+        separated
+      />
+      <MobilePositionDetailRow label="Рыночная стоимость" value={row.marketValue == null ? "Нет данных" : `${number.format(row.marketValue)} ${row.currencyId}`} />
+    </section>
+    <section className="position-mobile-sheet__section">
+      <Typography.Title level={5}>Результат <Tooltip title={resultExplanation}><InfoCircleOutlined aria-label="Пояснение к результату" /></Tooltip></Typography.Title>
+      <MobilePositionDetailRow
+        label="Тело, без купонов"
+        value={row.unrealizedPnl == null
+          ? "Нет данных"
+          : <Typography.Text type={row.unrealizedPnl >= 0 ? "success" : "danger"}>
+              {formatResult(row.unrealizedPnl)} {row.currencyId}{row.unrealizedPnlPercent == null ? "" : ` (${formatResult(row.unrealizedPnlPercent)}%)`}
+            </Typography.Text>}
+      />
+      <MobilePositionDetailRow label="Купоны, оценка" value={row.approximateCouponIncome == null ? "Нет данных" : `${formatResult(row.approximateCouponIncome)} ${row.currencyId}`} />
+      <MobilePositionDetailRow
+        label="Итого, оценка"
+        value={row.approximateTotalPnl == null
+          ? "Нет данных"
+          : <Typography.Text strong type={totalPnlType}>
+              {formatResult(row.approximateTotalPnl)} {row.currencyId}{row.approximateTotalPnlPercent == null ? "" : ` (${formatResult(row.approximateTotalPnlPercent)}%)`}
+            </Typography.Text>}
+        separated
+      />
+      <MobilePositionDetailRow
+        label="Годовых, оценка"
+        value={row.approximateAnnualizedTotalPnlPercent == null
+          ? "Нет данных"
+          : <Typography.Text type={row.approximateAnnualizedTotalPnlPercent >= 0 ? "success" : "danger"}>{formatResult(row.approximateAnnualizedTotalPnlPercent)}%</Typography.Text>}
+      />
+    </section>
+    <Link className="position-mobile-sheet__link" href={positionDetailsPath(row.secId, row.boardId)}>
+      Подробнее <RightOutlined aria-hidden="true" />
+    </Link>
+  </section>;
+}
+
 export default function PositionsPage() {
   const [rows, setRows] = useState<PortfolioPosition[]>([]);
   const [totals, setTotals] = useState<PositionTotals>();
   const [loading, setLoading] = useState(true);
+  const [mobilePosition, setMobilePosition] = useState<PortfolioPosition | null>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobileSortKey, setMobileSortKey] = useState<MobilePositionSortKey>("marketValue");
+  const [activeTabKey, setActiveTabKey] = useState("open");
   const { message } = AntdApp.useApp();
 
   useEffect(() => {
@@ -37,6 +119,22 @@ export default function PositionsPage() {
 
   const resultType = totals?.unrealizedPnlRub == null ? undefined : totals.unrealizedPnlRub >= 0 ? "success" : "danger";
   const formatResult = (value: number) => `${value >= 0 ? "+" : ""}${number.format(value)}`;
+  const mobileRows = [...rows].sort((left, right) => {
+    if (mobileSortKey === "name") {
+      return (left.shortName || left.secId).localeCompare(right.shortName || right.secId, "ru-RU");
+    }
+
+    const getValue = (row: PortfolioPosition) => mobileSortKey === "marketValue"
+      ? row.marketValue
+      : mobileSortKey === "result"
+        ? row.approximateTotalPnl
+        : row.quantity;
+    const leftValue = getValue(left);
+    const rightValue = getValue(right);
+    if (leftValue == null) return rightValue == null ? 0 : 1;
+    if (rightValue == null) return -1;
+    return rightValue - leftValue;
+  });
 
   const columns: ColumnsType<PortfolioPosition> = [
     { title: "Облигация", dataIndex: "shortName", width: 190, render: (value: string, row) => {
@@ -162,18 +260,37 @@ export default function PositionsPage() {
   };
 
   return <main className="app-content">
-    <Typography.Title level={1}>Позиции</Typography.Title>
+    <div className="positions-page-heading">
+      <div>
+        <Typography.Title level={1}>Позиции</Typography.Title>
+        <Typography.Text className="positions-mobile-subtitle" type="secondary">Облигации Popo°</Typography.Text>
+      </div>
+      {activeTabKey === "open" && <Select<MobilePositionSortKey>
+        className="positions-mobile-sort"
+        aria-label="Сортировка позиций"
+        value={mobileSortKey}
+        suffixIcon={<DownOutlined aria-hidden="true" />}
+        onChange={setMobileSortKey}
+        options={[
+          { value: "marketValue", label: "Рыночная стоимость" },
+          { value: "result", label: "Результат" },
+          { value: "quantity", label: "Количество" },
+          { value: "name", label: "Название" }
+        ]}
+      />}
+    </div>
     <Tabs
       className="portfolio-main-tabs"
-      defaultActiveKey="open"
+      activeKey={activeTabKey}
+      onChange={setActiveTabKey}
       items={[
         {
           key: "open",
           label: "Открытые позиции",
           children: <>
-            <Typography.Paragraph type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
-            <Card>
-              <div className="positions-summary">
+            <Typography.Paragraph className="positions-page-description" type="secondary">Средняя цена покупки показывает фактическую чистую цену сделок. Ценовой результат рассчитывается относительно текущего номинала; купонный результат и его годовая экстраполяция остаются приблизительной оценкой.</Typography.Paragraph>
+            <Card className="positions-open-card">
+              <div className="positions-summary positions-summary-desktop">
                 <div className="position-summary-item">
                   <Typography.Text type="secondary">Итого</Typography.Text>
                   <Typography.Text className="position-summary-value">{rows.length} позиций</Typography.Text>
@@ -202,6 +319,71 @@ export default function PositionsPage() {
                 expandable={{ expandedRowRender, columnWidth: 40, rowExpandable: () => true }}
                 pagination={{ pageSize: 20 }}
               />
+              <section className="positions-mobile-list" aria-label="Открытые позиции">
+                {loading && rows.length === 0 ? <div className="positions-mobile-loading"><Spin /></div> : null}
+                {!loading && rows.length === 0 ? <Typography.Text type="secondary">Открытых позиций нет</Typography.Text> : null}
+                {mobileRows.map((row) => {
+                  const bondName = row.shortName || row.secId;
+                  const totalPnlType = row.approximateTotalPnl == null ? undefined : row.approximateTotalPnl >= 0 ? "success" : "danger";
+                  const isSelected = mobilePosition?.secId === row.secId
+                    && mobilePosition.boardId === row.boardId
+                    && mobilePosition.currencyId === row.currencyId;
+                  return <article
+                    className={`position-mobile-card${isSelected ? " position-mobile-card--selected" : ""}`}
+                    key={`${row.secId}-${row.boardId}-${row.currencyId}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-haspopup="dialog"
+                    aria-label={`Открыть состав позиции ${bondName}`}
+                    onClick={() => {
+                      setMobilePosition(row);
+                      setMobileSheetOpen(true);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setMobilePosition(row);
+                        setMobileSheetOpen(true);
+                      }
+                    }}
+                  >
+                    <div className="position-mobile-card__header">
+                      <div className="position-mobile-card__identity">
+                        <span className="position-mobile-card__name">{bondName}</span>
+                        <Typography.Text className="position-mobile-card__subtitle" type="secondary">{row.secId}</Typography.Text>
+                        <div className="position-mobile-card__summary">
+                          <Typography.Text className="position-mobile-card__quantity">{integer.format(row.quantity)} шт.</Typography.Text>
+                          <span className="position-mobile-card__separator" aria-hidden="true">•</span>
+                          <Typography.Text className="position-mobile-card__percent" type={totalPnlType}>
+                            {row.approximateTotalPnlPercent == null ? "Нет данных" : `${formatResult(row.approximateTotalPnlPercent)}%`}
+                          </Typography.Text>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="position-mobile-card__values">
+                      <Typography.Text className="position-mobile-card__value" strong>
+                        {row.marketValue == null ? "Нет данных" : `${number.format(row.marketValue)} ${row.currencyId}`}
+                      </Typography.Text>
+                      <Typography.Text className="position-mobile-card__result" type={totalPnlType}>
+                        {row.approximateTotalPnl == null ? "Нет данных" : `${formatResult(row.approximateTotalPnl)} ${row.currencyId}`}
+                      </Typography.Text>
+                    </div>
+                  </article>;
+                })}
+              </section>
+              <Popup
+                visible={mobileSheetOpen}
+                position="bottom"
+                closeOnSwipe
+                closeOnMaskClick
+                showCloseButton
+                bodyClassName="position-mobile-sheet"
+                bodyStyle={{ bottom: "calc(64px + env(safe-area-inset-bottom))", maxHeight: "calc(100dvh - 64px - env(safe-area-inset-bottom))", overflowY: "auto" }}
+                onClose={() => setMobileSheetOpen(false)}
+                afterClose={() => setMobilePosition(null)}
+              >
+                {mobilePosition == null ? null : <MobilePositionSheetContent row={mobilePosition} />}
+              </Popup>
             </Card>
           </>
         },
