@@ -15,6 +15,7 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
         ArgumentNullException.ThrowIfNull(input.ManualRatesByCurrencyId);
 
         var currencyValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        var items = new List<PortfolioCurrencyAnalyticsItem>();
         var unvaluedAssets = new List<PortfolioCurrencyAnalyticsUnvaluedAsset>();
 
         foreach (var asset in input.Assets)
@@ -42,6 +43,15 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
 
             if (price is null || rate is null)
             {
+                items.Add(new PortfolioCurrencyAnalyticsItem(
+                    asset.AssetId,
+                    asset.Kind,
+                    asset.Name,
+                    groupingCurrencyId,
+                    tradingCurrencyId,
+                    ValueRub: null,
+                    MissingPrice: price is null,
+                    MissingRate: rate is null));
                 unvaluedAssets.Add(new PortfolioCurrencyAnalyticsUnvaluedAsset(
                     asset.AssetId,
                     asset.Kind,
@@ -53,7 +63,17 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
                 continue;
             }
 
-            AddValue(currencyValues, groupingCurrencyId, asset.Quantity * price.Value * rate.Value);
+            var valueRub = asset.Quantity * price.Value * rate.Value;
+            AddValue(currencyValues, groupingCurrencyId, valueRub);
+            items.Add(new PortfolioCurrencyAnalyticsItem(
+                asset.AssetId,
+                asset.Kind,
+                asset.Name,
+                groupingCurrencyId,
+                tradingCurrencyId,
+                valueRub,
+                MissingPrice: false,
+                MissingRate: false));
         }
 
         foreach (var cashBalance in input.CashBalances)
@@ -76,6 +96,15 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
 
             if (rate is null)
             {
+                items.Add(new PortfolioCurrencyAnalyticsItem(
+                    $"cash:{currencyId}",
+                    PortfolioCurrencyAnalyticsAssetKind.Cash,
+                    $"Денежные средства {currencyId}",
+                    currencyId,
+                    currencyId,
+                    ValueRub: null,
+                    MissingPrice: false,
+                    MissingRate: true));
                 unvaluedAssets.Add(new PortfolioCurrencyAnalyticsUnvaluedAsset(
                     $"cash:{currencyId}",
                     PortfolioCurrencyAnalyticsAssetKind.Cash,
@@ -87,7 +116,17 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
                 continue;
             }
 
-            AddValue(currencyValues, currencyId, cashBalance.Amount * rate.Value);
+            var valueRub = cashBalance.Amount * rate.Value;
+            AddValue(currencyValues, currencyId, valueRub);
+            items.Add(new PortfolioCurrencyAnalyticsItem(
+                $"cash:{currencyId}",
+                PortfolioCurrencyAnalyticsAssetKind.Cash,
+                $"Денежные средства {currencyId}",
+                currencyId,
+                currencyId,
+                valueRub,
+                MissingPrice: false,
+                MissingRate: false));
         }
 
         var totalValueRub = currencyValues.Values.Sum();
@@ -107,7 +146,7 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
                     pair.Value / totalValueRub))
                 .ToArray();
 
-        return new PortfolioCurrencyAnalyticsResult(totalValueRub, slices, unvaluedAssets);
+        return new PortfolioCurrencyAnalyticsResult(totalValueRub, slices, items, unvaluedAssets);
     }
 
     private static void AddValue(IDictionary<string, double> currencyValues, string currencyId, double valueRub)
@@ -133,7 +172,11 @@ public sealed class PortfolioCurrencyAnalyticsCalculator
             throw new ArgumentException("Код валюты не может быть пустым.", nameof(currencyId));
         }
 
-        return currencyId.Trim().ToUpperInvariant();
+        return currencyId.Trim().ToUpperInvariant() switch
+        {
+            "SUR" or "RUR" => "RUB",
+            var normalized => normalized
+        };
     }
 
     private static double? TryGetPositiveFinite(

@@ -25,6 +25,23 @@ public sealed class PortfolioLedgerTests
     }
 
     [Test]
+    public void MarketPrice_CanBeCalculatedWithoutFxWhenTradingAndFaceCurrenciesMatch()
+    {
+        var price = PortfolioMarketPriceCalculator.Calculate(1_000, "USD", "USD", 95, null, null);
+
+        Assert.That(price, Is.EqualTo(950).Within(0.001));
+    }
+
+    [Test]
+    public void MarketPricePercent_CanBeCalculatedWithoutFxWhenTradingAndFaceCurrenciesMatch()
+    {
+        var pricePercent = PortfolioMarketPriceCalculator.CalculatePricePercent(
+            950, 1_000, "USD", "USD", null, null);
+
+        Assert.That(pricePercent, Is.EqualTo(95).Within(0.001));
+    }
+
+    [Test]
     public void MarketPrice_TreatsMoexSurAsRuble()
     {
         var price = PortfolioMarketPriceCalculator.Calculate(1_000, "SUR", "RUB", 99.7, null, null);

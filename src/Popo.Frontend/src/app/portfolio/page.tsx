@@ -32,6 +32,7 @@ import {
   type PortfolioReturn,
   type PortfolioValuation
 } from "../../lib/portfolio-return-api";
+import { getHorizontalScrollAdjustment } from "../../lib/portfolio-tab-navigation";
 import {
   isBenchmarkEndDateDisabled,
   isBenchmarkStartDateDisabled
@@ -860,8 +861,18 @@ export default function PortfolioPage() {
             className="portfolio-main-tabs"
               defaultActiveKey="value"
               destroyOnHidden={false}
-              tabBarGutter={8}
+              tabBarGutter={16}
               onChange={(activeKey) => {
+                window.requestAnimationFrame(() => {
+                  const tabs = document.querySelector(".portfolio-main-tabs");
+                  const navWrap = tabs?.querySelector(".ant-tabs-nav-wrap");
+                  const activeTab = tabs?.querySelector(".ant-tabs-tab-active");
+                  if (navWrap instanceof HTMLElement && activeTab instanceof HTMLElement) {
+                    const container = navWrap.getBoundingClientRect();
+                    const selected = activeTab.getBoundingClientRect();
+                    navWrap.scrollLeft += getHorizontalScrollAdjustment(container, selected);
+                  }
+                });
                 if (activeKey === "benchmark") {
                   setBenchmarkTabOpened(true);
                 }

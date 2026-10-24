@@ -90,6 +90,15 @@ public sealed class PortfolioCurrencyAnalyticsService(
                 slice.CurrencyId,
                 slice.ValueRub,
                 slice.Share)).ToArray(),
+            calculation.Items.Select(item => new PortfolioCurrencyAnalyticsItemResponse(
+                item.AssetId,
+                item.Kind,
+                item.Name,
+                item.CurrencyId,
+                item.TradingCurrencyId,
+                item.ValueRub,
+                item.MissingPrice,
+                item.MissingRate)).ToArray(),
             calculation.UnvaluedAssets.Select(asset => new PortfolioCurrencyAnalyticsUnvaluedAssetResponse(
                 asset.AssetId,
                 asset.Kind,
@@ -121,8 +130,8 @@ public sealed class PortfolioCurrencyAnalyticsService(
 
         return rates
             .FirstOrDefault(rate => string.Equals(
-                rate.CurrencyId,
-                currencyId,
+                NormalizeCurrencyId(rate.CurrencyId),
+                NormalizeCurrencyId(currencyId),
                 StringComparison.OrdinalIgnoreCase))
             ?.RateToRub;
     }

@@ -6,6 +6,8 @@ import {
   Button,
   Card,
   InputNumber,
+  Modal,
+  Segmented,
   Select,
   Typography
 } from "antd";
@@ -16,7 +18,16 @@ import {
   type PortfolioCurrencyAnalyticsResponse,
   type PortfolioCurrencyAnalyticsUnvaluedAsset
 } from "../../lib/portfolio-currency-analytics-api";
-import { buildPortfolioCurrencyAnalyticsPresentation } from "../../lib/portfolio-currency-analytics-presentation";
+import {
+  buildPortfolioCurrencyAnalyticsPresentation,
+  filterPortfolioCurrencyAnalyticsItems
+} from "../../lib/portfolio-currency-analytics-presentation";
+import {
+  buildManualPriceRows,
+  hasAnalyticsInputsChanged,
+  getManualRateCurrencies,
+  type ManualPriceAsset
+} from "../../lib/portfolio-currency-analytics-inputs";
 import {
   Cell,
   Pie,
@@ -29,6 +40,27 @@ type CashBalanceInput = {
   currencyId: string;
   amount?: number;
 };
+
+type SegmentItemFilter = "all" | "position" | "cash" | "fund";
+
+const segmentItemFilterOptions: { label: string; value: SegmentItemFilter }[] = [
+  { label: "Все активы", value: "all" },
+  { label: "Позиции", value: "position" },
+  { label: "Деньги", value: "cash" },
+  { label: "Фонды", value: "fund" }
+];
+
+const segmentCategories = [
+  { kind: "Position", label: "Позиции" },
+  { kind: "Cash", label: "Денежные средства" },
+  { kind: "MoneyMarketFund", label: "Фонды ликвидности" }
+] as const;
+
+const segmentItemFilterKinds = {
+  position: "Position",
+  cash: "Cash",
+  fund: "MoneyMarketFund"
+} as const;
 
 const money = new Intl.NumberFormat("ru-RU", {
   style: "currency",
@@ -46,10 +78,16 @@ const emptyPayload: PortfolioCurrencyAnalyticsRequest = {
   manualRates: []
 };
 
-function getAssetKindLabel(asset: PortfolioCurrencyAnalyticsUnvaluedAsset): string {
-  if (asset.kind === 1) return "Фонд ликвидности";
-  if (asset.kind === 2) return "Денежный остаток";
+function getAssetKindLabel(asset: { kind: string }): string {
+  if (asset.kind === "MoneyMarketFund") return "Фонд ликвидности";
+  if (asset.kind === "Cash") return "Денежные средства";
   return "Позиция";
+}
+
+function getMissingValueLabel(asset: { missingPrice: boolean; missingRate: boolean; tradingCurrencyId: string }): string {
+  return [asset.missingPrice && "нет цены", asset.missingRate && `нет курса ${asset.tradingCurrencyId}/RUB`]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export default function PortfolioCurrencyAnalyticsTab() {
@@ -57,19 +95,29 @@ export default function PortfolioCurrencyAnalyticsTab() {
   const [cashBalances, setCashBalances] = useState<CashBalanceInput[]>([]);
   const [manualPrices, setManualPrices] = useState<Record<string, number | undefined>>({});
   const [manualRates, setManualRates] = useState<Record<string, number | undefined>>({});
+  const [manualPriceAssets, setManualPriceAssets] = useState<Record<string, ManualPriceAsset>>({});
   const [response, setResponse] = useState<PortfolioCurrencyAnalyticsResponse>();
+  const [selectedCurrencyId, setSelectedCurrencyId] = useState<string>();
+  const [segmentModalOpen, setSegmentModalOpen] = useState(false);
+  const [segmentItemFilter, setSegmentItemFilter] = useState<SegmentItemFilter>("all");
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const inputRevision = useRef(0);
+
+  const markDirty = () => {
+    inputRevision.current += 1;
+    setDirty(true);
+  };
 
   const calculate = async (payload: PortfolioCurrencyAnalyticsRequest) => {
+    const requestRevision = inputRevision.current;
     setLoading(true);
     setError(undefined);
     try {
       setResponse(await portfolioCurrencyAnalyticsApi.calculate(payload));
-      setDirty(false);
+      setDirty(hasAnalyticsInputsChanged(requestRevision, inputRevision.current));
     } catch (reason) {
-      setResponse(undefined);
       setError(reason instanceof Error ? reason.message : "Не удалось рассчитать валютный состав портфеля");
     } finally {
       setLoading(false);
@@ -81,17 +129,40 @@ export default function PortfolioCurrencyAnalyticsTab() {
   }, []);
 
   const availableCurrencies = response?.availableCurrencies ?? [];
+  const unvaluedAssets = response?.unvaluedAssets ?? [];
   const presentation = response
     ? buildPortfolioCurrencyAnalyticsPresentation(response)
     : undefined;
+  const selectedGroup = presentation?.groups.find((group) => group.currencyId === selectedCurrencyId)
+    ?? presentation?.groups[0];
+  const openSegmentDetails = (currencyId: string) => {
+    setSelectedCurrencyId(currencyId);
+    setSegmentItemFilter("all");
+    setSegmentModalOpen(true);
+  };
+  const detailItems = selectedGroup
+    ? filterPortfolioCurrencyAnalyticsItems(selectedGroup.items, segmentItemFilter)
+    : [];
+  const filteredCategoryKind = segmentItemFilter === "all"
+    ? undefined
+    : segmentItemFilterKinds[segmentItemFilter];
+  const getCurrencyColor = (currencyId: string) => {
+    const groupIndex = presentation?.groups.findIndex((group) => group.currencyId === currencyId) ?? 0;
+    return chartColors[Math.max(0, groupIndex) % chartColors.length];
+  };
   const usedCashCurrencies = new Set(cashBalances.map((balance) => balance.currencyId));
-  const missingRateCurrencies = [...new Set((response?.unvaluedAssets ?? [])
-    .filter((asset) => asset.missingRate)
-    .map((asset) => asset.rateCurrencyId))];
+  const manualPriceRows = buildManualPriceRows(unvaluedAssets, Object.values(manualPriceAssets));
+  const manualRateCurrencies = getManualRateCurrencies(unvaluedAssets, manualRates);
+
+  const updateManualPrice = (asset: ManualPriceAsset, price?: number) => {
+    setManualPriceAssets((current) => ({ ...current, [asset.assetId]: asset }));
+    setManualPrices((current) => ({ ...current, [asset.assetId]: price }));
+    markDirty();
+  };
 
   const updateCashBalance = (key: number, update: Partial<CashBalanceInput>) => {
     setCashBalances((current) => current.map((balance) => balance.key === key ? { ...balance, ...update } : balance));
-    setDirty(true);
+    markDirty();
   };
 
   const addCashBalance = () => {
@@ -101,7 +172,7 @@ export default function PortfolioCurrencyAnalyticsTab() {
       currencyId,
       amount: undefined
     }]);
-    setDirty(true);
+    markDirty();
   };
 
   const calculateInputs = () => {
@@ -175,7 +246,7 @@ export default function PortfolioCurrencyAnalyticsTab() {
                         icon={<DeleteOutlined />}
                         onClick={() => {
                           setCashBalances((current) => current.filter((item) => item.key !== balance.key));
-                          setDirty(true);
+                          markDirty();
                         }}
                       />
                     </div>;
@@ -183,26 +254,73 @@ export default function PortfolioCurrencyAnalyticsTab() {
                 </div>}
           </div>
 
-          {response && missingRateCurrencies.length > 0 && <div className="portfolio-analytics-input-section">
+          {response && manualRateCurrencies.length > 0 && <div className="portfolio-analytics-input-section">
             <Typography.Title level={5}>Курс валюты к рублю</Typography.Title>
             <Typography.Paragraph type="secondary">
-              Заполните курс только для валют, по которым нет актуального значения.
+              Курсы временные: можно изменить или сбросить их и пересчитать портфель.
             </Typography.Paragraph>
             <div className="portfolio-analytics-rates-list">
-              {missingRateCurrencies.map((currencyId) => <label className="portfolio-analytics-rate-row" key={currencyId}>
+              {manualRateCurrencies.map((currencyId) => <div className="portfolio-analytics-rate-row" key={currencyId}>
                 <span>{currencyId} → RUB</span>
-                <InputNumber
-                  aria-label={`Курс ${currencyId} к рублю`}
-                  min={0.000001}
-                  precision={6}
-                  value={manualRates[currencyId]}
-                  placeholder="₽ за 1 единицу"
-                  onChange={(rateToRub) => {
-                    setManualRates((current) => ({ ...current, [currencyId]: rateToRub ?? undefined }));
-                    setDirty(true);
-                  }}
-                />
-              </label>)}
+                <div className="portfolio-analytics-input-with-reset">
+                  <InputNumber
+                    aria-label={`Курс ${currencyId} к рублю`}
+                    min={0.000001}
+                    precision={6}
+                    value={manualRates[currencyId]}
+                    placeholder="₽ за 1 единицу"
+                    onChange={(rateToRub) => {
+                      setManualRates((current) => ({ ...current, [currencyId]: rateToRub ?? undefined }));
+                      markDirty();
+                    }}
+                  />
+                  <Button
+                    aria-label={`Сбросить ручной курс ${currencyId}`}
+                    danger
+                    type="text"
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      setManualRates((current) => ({ ...current, [currencyId]: undefined }));
+                      markDirty();
+                    }}
+                  />
+                </div>
+              </div>)}
+            </div>
+          </div>}
+
+          {response && manualPriceRows.length > 0 && <div className="portfolio-analytics-input-section">
+            <Typography.Title level={5}>Цена активов</Typography.Title>
+            <Typography.Paragraph type="secondary">
+              Укажите цену за одну бумагу или пай в валюте торгов. Ручные значения остаются доступны для изменения.
+            </Typography.Paragraph>
+            <div className="portfolio-analytics-unvalued">
+              {manualPriceRows.map((asset) => <div className="portfolio-analytics-unvalued-item" key={asset.assetId}>
+                <div className="portfolio-analytics-unvalued-description">
+                  <Typography.Text strong>{asset.name}</Typography.Text>
+                  <Typography.Text type="secondary">{getAssetKindLabel(asset)} · группа {asset.currencyId}</Typography.Text>
+                </div>
+                <div className="portfolio-analytics-manual-input">
+                  <span>Цена за бумагу, {asset.rateCurrencyId}</span>
+                  <div className="portfolio-analytics-input-with-reset">
+                    <InputNumber
+                      aria-label={`Цена одной бумаги ${asset.name}`}
+                      min={0.000001}
+                      precision={6}
+                      value={manualPrices[asset.assetId]}
+                      placeholder="Цена в валюте торгов"
+                      onChange={(price) => updateManualPrice(asset, price ?? undefined)}
+                    />
+                    <Button
+                      aria-label={`Сбросить ручную цену ${asset.name}`}
+                      danger
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      onClick={() => updateManualPrice(asset, undefined)}
+                    />
+                  </div>
+                </div>
+              </div>)}
             </div>
           </div>}
         </section>
@@ -242,10 +360,14 @@ export default function PortfolioCurrencyAnalyticsTab() {
                         paddingAngle={2}
                         stroke="none"
                         isAnimationActive={false}
+                        onClick={(_, index) => {
+                          const currencyId = presentation.slices[index]?.currencyId;
+                          if (currencyId) openSegmentDetails(currencyId);
+                        }}
                       >
-                        {presentation.slices.map((slice, index) => <Cell
+                        {presentation.slices.map((slice) => <Cell
                           key={slice.currencyId}
-                          fill={chartColors[index % chartColors.length]}
+                          fill={getCurrencyColor(slice.currencyId)}
                         />)}
                       </Pie>
                     </PieChart>
@@ -268,14 +390,29 @@ export default function PortfolioCurrencyAnalyticsTab() {
               showIcon
               title={`Не оценено активов: ${presentation.unvaluedAssets.length}. Они не входят в сумму и доли.`}
             />}
-            {presentation?.slices.length ? <div className="portfolio-analytics-slices">
-              {presentation.slices.map((slice, index) => <div className="portfolio-analytics-slice" key={slice.currencyId}>
-                <span className="portfolio-analytics-slice-dot" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
-                <span className="portfolio-analytics-slice-currency">{slice.currencyId}</span>
-                <span className="portfolio-analytics-slice-value">{money.format(slice.valueRub)}</span>
-                <span className="portfolio-analytics-slice-share">{percent.format(slice.share)}</span>
-              </div>)}
-            </div> : presentation?.isEmpty
+            {presentation?.groups.length ? <>
+              <Typography.Text className="portfolio-analytics-breakdown-hint" type="secondary">
+                Нажмите на валюту, чтобы открыть состав сегмента.
+              </Typography.Text>
+              <div className="portfolio-analytics-slices" aria-label="Валютные сегменты">
+              {presentation.groups.map((group) => <button
+                className={`portfolio-analytics-slice${selectedCurrencyId === group.currencyId ? " portfolio-analytics-slice-selected" : ""}`}
+                key={group.currencyId}
+                type="button"
+                aria-pressed={selectedCurrencyId === group.currencyId}
+                onClick={() => openSegmentDetails(group.currencyId)}
+              >
+                <span className="portfolio-analytics-slice-dot" style={{ backgroundColor: getCurrencyColor(group.currencyId) }} />
+                <span className="portfolio-analytics-slice-currency">{group.currencyId}</span>
+                <span className="portfolio-analytics-slice-value">
+                  {group.valueRub > 0 ? money.format(group.valueRub) : "Не оценено"}
+                </span>
+                <span className="portfolio-analytics-slice-share">
+                  {group.valueRub > 0 ? percent.format(group.share) : "—"}
+                </span>
+              </button>)}
+              </div>
+            </> : presentation?.isEmpty
               ? <div className="portfolio-chart-empty portfolio-analytics-empty">Добавьте активы и денежные остатки — здесь появится распределение.</div>
               : null}
 
@@ -291,24 +428,91 @@ export default function PortfolioCurrencyAnalyticsTab() {
                       .join(" · ")}
                   </Typography.Text>
                 </div>
-                {asset.missingPrice && <label className="portfolio-analytics-manual-input">
-                  <span>Цена за бумагу, {asset.rateCurrencyId}</span>
-                  <InputNumber
-                    aria-label={`Цена одной бумаги ${asset.name}`}
-                    min={0.000001}
-                    precision={6}
-                    value={manualPrices[asset.assetId]}
-                    placeholder="Цена в валюте торгов"
-                    onChange={(price) => {
-                      setManualPrices((current) => ({ ...current, [asset.assetId]: price ?? undefined }));
-                      setDirty(true);
-                    }}
-                  />
-                </label>}
               </div>)}
             </div> : null}
           </div>
         </div>
+
+        <Modal
+          className="portfolio-analytics-segment-modal"
+          title={selectedGroup ? `Состав сегмента ${selectedGroup.currencyId}` : "Состав сегмента"}
+          open={segmentModalOpen && Boolean(selectedGroup)}
+          onCancel={() => setSegmentModalOpen(false)}
+          footer={null}
+          width={1040}
+          destroyOnHidden
+        >
+          {selectedGroup && <section className="portfolio-analytics-segment-details" aria-label={`Состав сегмента ${selectedGroup.currencyId}`}>
+          <div className="portfolio-analytics-detail-main">
+            <div className="portfolio-analytics-detail-heading">
+              <Typography.Text type="secondary">Группа определяется валютой номинала; денежные суммы показаны в рублях.</Typography.Text>
+            </div>
+            <Segmented
+              aria-label="Фильтр состава сегмента"
+              options={segmentItemFilterOptions}
+              value={segmentItemFilter}
+              onChange={(value) => setSegmentItemFilter(value as SegmentItemFilter)}
+            />
+            <div className="portfolio-analytics-detail-sections">
+              {segmentCategories.map((category) => {
+                const categoryItems = detailItems.filter((item) => item.kind === category.kind);
+                if (filteredCategoryKind && category.kind !== filteredCategoryKind) return null;
+                if (segmentItemFilter === "all" && categoryItems.length === 0) return null;
+                const categoryValueRub = categoryItems.reduce(
+                  (total, item) => total + (item.valueRub ?? 0),
+                  0
+                );
+                const unvaluedCount = categoryItems.filter((item) => item.valueRub === null).length;
+
+                return <section className="portfolio-analytics-detail-section" key={category.kind}>
+                  <div className="portfolio-analytics-detail-section-heading">
+                    <Typography.Title level={5}>{category.label}</Typography.Title>
+                    <Typography.Text>
+                      {categoryValueRub > 0 ? money.format(categoryValueRub) : categoryItems.length ? "Не оценено" : "0 ₽"}
+                    </Typography.Text>
+                  </div>
+                  {unvaluedCount > 0 && <Typography.Text type="warning">Не оценено активов: {unvaluedCount}</Typography.Text>}
+                  {categoryItems.length > 0 ? categoryItems.map((item) => <div
+                    className="portfolio-analytics-detail-item"
+                    key={`${item.kind}:${item.assetId}`}
+                  >
+                    <span className="portfolio-analytics-slice-dot" style={{ backgroundColor: getCurrencyColor(item.currencyId) }} />
+                    <div className="portfolio-analytics-detail-description">
+                      <Typography.Text strong>{item.name}</Typography.Text>
+                      <Typography.Text type="secondary">{item.tradingCurrencyId} · {getAssetKindLabel(item)}</Typography.Text>
+                      {item.valueRub === null && <Typography.Text type="warning">Не включено в сумму: {getMissingValueLabel(item)}</Typography.Text>}
+                    </div>
+                    <Typography.Text className="portfolio-analytics-detail-item-value">
+                      {item.valueRub === null ? "Не оценено" : money.format(item.valueRub)}
+                    </Typography.Text>
+                  </div>) : <Typography.Text type="secondary">В этом сегменте нет активов этой категории.</Typography.Text>}
+                </section>;
+              })}
+              {detailItems.length === 0 && <Typography.Text type="secondary">В этом сегменте пока нет активов.</Typography.Text>}
+            </div>
+          </div>
+
+          <aside className="portfolio-analytics-segment-summary">
+            <Typography.Title level={4}>Сегмент {selectedGroup.currencyId}</Typography.Title>
+            <Typography.Title level={2} className="portfolio-analytics-segment-total">
+              {selectedGroup.valueRub > 0 ? money.format(selectedGroup.valueRub) : "Не оценено"}
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              {selectedGroup.valueRub > 0 ? `${percent.format(selectedGroup.share)} портфеля` : "Нет оценённых активов"}
+            </Typography.Text>
+            <div className="portfolio-analytics-segment-metrics">
+              <div className="portfolio-analytics-segment-metric portfolio-analytics-segment-metric-total">
+                <Typography.Text>Количество активов</Typography.Text>
+                <Typography.Text strong>{selectedGroup.items.length}</Typography.Text>
+              </div>
+              {segmentCategories.map((category) => <div className="portfolio-analytics-segment-metric" key={category.kind}>
+                <Typography.Text type="secondary">{category.label}</Typography.Text>
+                <Typography.Text>{selectedGroup.items.filter((item) => item.kind === category.kind).length}</Typography.Text>
+              </div>)}
+            </div>
+          </aside>
+          </section>}
+        </Modal>
 
         <div className="portfolio-analytics-actions">
           <Typography.Text type="secondary">

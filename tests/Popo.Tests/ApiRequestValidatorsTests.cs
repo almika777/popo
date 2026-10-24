@@ -114,6 +114,29 @@ public sealed class ApiRequestValidatorsTests
     }
 
     [Test]
+    public async Task PortfolioCurrencyAnalyticsRequestValidatorTreatsRubleAliasesAsDuplicateCurrencies()
+    {
+        var result = await new PortfolioCurrencyAnalyticsRequestValidator().ValidateAsync(
+            new PortfolioCurrencyAnalyticsRequest(
+                [
+                    new PortfolioCurrencyAnalyticsCashBalanceRequest("RUB", 1),
+                    new PortfolioCurrencyAnalyticsCashBalanceRequest("SUR", 2)
+                ],
+                [],
+                [
+                    new PortfolioCurrencyAnalyticsManualRateRequest("RUR", 90),
+                    new PortfolioCurrencyAnalyticsManualRateRequest("RUB", 91)
+                ]));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors.Any(error => error.PropertyName == "CashBalances"), Is.True);
+            Assert.That(result.Errors.Any(error => error.PropertyName == "ManualRates"), Is.True);
+        });
+    }
+
+    [Test]
     public async Task Recommendation_preset_validator_validates_nested_settings()
     {
         var settingsValidator = new InvestmentStrategySettingsRequestValidator();

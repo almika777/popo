@@ -41,8 +41,9 @@ public static class PortfolioMarketPriceCalculator
             return null;
         }
 
-        var faceRate = IsRubleCurrency(faceUnit) ? 1 : faceCurrencyRateToRub;
-        var tradingRate = IsRubleCurrency(tradingCurrency) ? 1 : tradingCurrencyRateToRub;
+        var currenciesMatch = NormalizeCurrency(faceUnit) == NormalizeCurrency(tradingCurrency);
+        var faceRate = currenciesMatch || IsRubleCurrency(faceUnit) ? 1 : faceCurrencyRateToRub;
+        var tradingRate = currenciesMatch || IsRubleCurrency(tradingCurrency) ? 1 : tradingCurrencyRateToRub;
         if (!IsPositiveFinite(faceRate) || !IsPositiveFinite(tradingRate))
         {
             return null;
@@ -70,10 +71,11 @@ public static class PortfolioMarketPriceCalculator
             return null;
         }
 
-        var faceRate = IsRubleCurrency(faceUnit)
+        var currenciesMatch = NormalizeCurrency(faceUnit) == NormalizeCurrency(tradingCurrency);
+        var faceRate = currenciesMatch || IsRubleCurrency(faceUnit)
             ? 1
             : faceCurrencyRateToRub;
-        var tradingRate = IsRubleCurrency(tradingCurrency)
+        var tradingRate = currenciesMatch || IsRubleCurrency(tradingCurrency)
             ? 1
             : tradingCurrencyRateToRub;
 
@@ -87,9 +89,13 @@ public static class PortfolioMarketPriceCalculator
         return faceValue * currentPricePercent.Value / 100 * faceRate.Value / tradingRate.Value;
     }
 
-    private static bool IsRubleCurrency(string currency) =>
-        string.Equals(currency, "RUB", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(currency, "SUR", StringComparison.OrdinalIgnoreCase);
+    private static bool IsRubleCurrency(string currency) => NormalizeCurrency(currency) == "RUB";
+
+    private static string NormalizeCurrency(string currency) => currency.Trim().ToUpperInvariant() switch
+    {
+        "SUR" or "RUR" => "RUB",
+        var normalized => normalized
+    };
 
     private static bool IsPositiveFinite(double? value) =>
         value.HasValue && double.IsFinite(value.Value) && value.Value > 0;

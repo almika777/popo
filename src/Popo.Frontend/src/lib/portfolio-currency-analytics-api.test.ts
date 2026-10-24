@@ -22,6 +22,7 @@ test("posts transient inputs to the portfolio currency analytics endpoint", asyn
       totalValueRub: 14880,
       availableCurrencies: ["RUB", "CNY"],
       slices: [{ currencyId: "CNY", valueRub: 14880, share: 1 }],
+      items: [],
       unvaluedAssets: []
     }), { status: 200 });
   };

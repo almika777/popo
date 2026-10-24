@@ -207,6 +207,25 @@ public sealed class PortfolioCurrencyAnalyticsCalculatorTests
         Assert.That(result.Slices[0].Share, Is.EqualTo(1));
     }
 
+    [Test]
+    public void RubleCurrencyAliasesAreGroupedWithRubleFundsAndCash()
+    {
+        var result = _calculator.Calculate(new PortfolioCurrencyAnalyticsInput(
+            [
+                Asset("bond", "RUB", faceUnit: "SUR", quantity: 1, marketPrice: 100, rateToRub: 1),
+                Asset("legacy-bond", "RUB", faceUnit: "RUR", quantity: 1, marketPrice: 100, rateToRub: 1),
+                Asset("fund", "RUB", faceUnit: "RUB", quantity: 1, marketPrice: 100, rateToRub: 1,
+                    kind: PortfolioCurrencyAnalyticsAssetKind.MoneyMarketFund)
+            ],
+            [new PortfolioCurrencyAnalyticsCashBalance("RUB", 100, 1)],
+            EmptyValues(),
+            EmptyValues()));
+
+        Assert.That(result.Slices, Has.Count.EqualTo(1));
+        Assert.That(result.Slices.Single().CurrencyId, Is.EqualTo("RUB"));
+        Assert.That(result.Slices.Single().ValueRub, Is.EqualTo(400));
+    }
+
     private PortfolioCurrencyAnalyticsResult Calculate(
         IReadOnlyList<PortfolioCurrencyAnalyticsAsset> assets) => _calculator.Calculate(
         new PortfolioCurrencyAnalyticsInput(assets, [], EmptyValues(), EmptyValues()));

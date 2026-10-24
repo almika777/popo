@@ -26,6 +26,10 @@ Popo.Storage содержит EF Core-модель PostgreSQL, справочн�
 Правила редактирования записей при `NoTracking` и контракт `PUT /resource/{id}` описаны в
 [ADR-0003](../adr/0003-edit-records-with-no-tracking.md).
 
+`PortfolioCurrencyRatesProvider` только читает последние курсы из `CurrencyRates` на дату расчёта и перечисляет валюты,
+для которых курс уже доступен. Он не сохраняет ручные курсы аналитики: введённые пользователем значения передаются
+только в запросе расчёта.
+
 `MoexIndexHistories` хранит дневные значения индексов MOEX с точностью `numeric(28,12)` и уникальным ключом
 `SecId + TradeDate`. `MoexIndexHistoryStore` идемпотентно добавляет новые даты и обновляет уже сохранённые значения.
 Первичная и ежедневная синхронизация истории LQDTM выполняется `MoexIndexHistoryUpdateJob`.

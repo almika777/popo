@@ -119,7 +119,7 @@ namespace Popo.HttpClients
                 var url = $"engines/stock/markets/shares/boards/{encodedBoardId}/securities/{encodedSecId}.json" +
                           $"?iss.meta=off&iss.only=marketdata&marketdata.columns={columns}";
                 var quote = (await GetCollectionAsync<MoexMarketdata>(url, "marketdata", ct)).FirstOrDefault();
-                return quote ?? throw new InvalidOperationException($"MOEX не вернул котировку для {secId}/{boardId}.");
+                return quote ?? new MoexMarketdata { SecId = secId, BoardId = boardId };
             }, ct, MoneyMarketFundCacheDuration);
         }
 

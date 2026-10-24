@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Text.Json;
 using Popo.Api.Models;
 using Popo.Api.Services;
 using Popo.Api.Services.Position;
@@ -27,6 +28,17 @@ public sealed class PortfolioCurrencyAnalyticsServiceTests
         Assert.That(result.Slices.Single(x => x.CurrencyId == "RUB").ValueRub, Is.EqualTo(10_500));
         Assert.That(result.Slices.Sum(x => x.Share), Is.EqualTo(1).Within(0.000001));
         Assert.That(result.UnvaluedAssets, Is.Empty);
+
+        var serialized = JsonSerializer.SerializeToElement(result);
+        var items = serialized.GetProperty("Items").EnumerateArray().ToArray();
+        Assert.That(items, Has.Length.EqualTo(3));
+        Assert.That(items.Select(item => item.GetProperty("Kind").GetInt32()), Is.EquivalentTo(new[] { 0, 1, 2 }));
+        Assert.That(items.Single(item => item.GetProperty("AssetId").GetString() == "position:bond:TQCB:RUB")
+            .GetProperty("CurrencyId").GetString(), Is.EqualTo("CNY"));
+        Assert.That(items.Single(item => item.GetProperty("AssetId").GetString() == "position:bond:TQCB:RUB")
+            .GetProperty("ValueRub").GetDouble(), Is.EqualTo(1_000));
+        Assert.That(items.Single(item => item.GetProperty("Kind").GetInt32() == 2)
+            .GetProperty("ValueRub").GetDouble(), Is.EqualTo(10_000));
     }
 
     [Test]
@@ -41,6 +53,38 @@ public sealed class PortfolioCurrencyAnalyticsServiceTests
             CancellationToken.None);
 
         Assert.That(result.TotalValueRub, Is.EqualTo(900));
+        Assert.That(result.Slices.Single().CurrencyId, Is.EqualTo("USD"));
+        Assert.That(result.UnvaluedAssets, Is.Empty);
+    }
+
+    [Test]
+    public async Task CalculateAsyncTrimsCashCurrencyBeforeChoosingCurrentOrManualRate()
+    {
+        var service = CreateService(new FakePositionsService(), [Rate("USD", 90)]);
+
+        var result = await service.CalculateAsync(
+            Request(
+                cash: [new(" USD ", 1)],
+                manualRates: [new("USD", 100)]),
+            CancellationToken.None);
+
+        Assert.That(result.TotalValueRub, Is.EqualTo(90));
+        Assert.That(result.Slices.Single().CurrencyId, Is.EqualTo("USD"));
+        Assert.That(result.UnvaluedAssets, Is.Empty);
+    }
+
+    [Test]
+    public async Task CalculateAsyncUsesManualRateToValuePositionWithKnownPrice()
+    {
+        var positions = new FakePositionsService(
+            [Asset("position:bond:TQCB:USD", "USD", "USD", 1, 950, null)]);
+        var service = CreateService(positions, []);
+
+        var result = await service.CalculateAsync(
+            Request(manualRates: [new("USD", 90)]),
+            CancellationToken.None);
+
+        Assert.That(result.TotalValueRub, Is.EqualTo(85_500));
         Assert.That(result.Slices.Single().CurrencyId, Is.EqualTo("USD"));
         Assert.That(result.UnvaluedAssets, Is.Empty);
     }

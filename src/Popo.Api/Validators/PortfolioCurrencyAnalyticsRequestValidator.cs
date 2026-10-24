@@ -55,7 +55,7 @@ public sealed class PortfolioCurrencyAnalyticsRequestValidator : AbstractValidat
         IReadOnlyList<PortfolioCurrencyAnalyticsCashBalanceRequest>? balances) =>
         balances is not null
         && balances.All(balance => balance is not null && IsNotBlank(balance.CurrencyId))
-        && balances.Select(balance => balance.CurrencyId.Trim())
+        && balances.Select(balance => NormalizeCurrencyId(balance.CurrencyId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count() == balances.Count;
 
@@ -71,9 +71,15 @@ public sealed class PortfolioCurrencyAnalyticsRequestValidator : AbstractValidat
         IReadOnlyList<PortfolioCurrencyAnalyticsManualRateRequest>? rates) =>
         rates is not null
         && rates.All(rate => rate is not null && IsNotBlank(rate.CurrencyId))
-        && rates.Select(rate => rate.CurrencyId.Trim())
+        && rates.Select(rate => NormalizeCurrencyId(rate.CurrencyId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count() == rates.Count;
+
+    private static string NormalizeCurrencyId(string currencyId) => currencyId.Trim().ToUpperInvariant() switch
+    {
+        "SUR" or "RUR" => "RUB",
+        var normalized => normalized
+    };
 
     private static bool IsNotBlank(string? value) => !string.IsNullOrWhiteSpace(value);
 

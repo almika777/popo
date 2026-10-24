@@ -27,9 +27,20 @@ export type PortfolioCurrencyAnalyticsSlice = {
   share: number;
 };
 
+export type PortfolioCurrencyAnalyticsItem = {
+  assetId: string;
+  kind: PortfolioCurrencyAnalyticsAssetKind;
+  name: string;
+  currencyId: string;
+  tradingCurrencyId: string;
+  valueRub: number | null;
+  missingPrice: boolean;
+  missingRate: boolean;
+};
+
 export type PortfolioCurrencyAnalyticsUnvaluedAsset = {
   assetId: string;
-  kind: 0 | 1 | 2;
+  kind: PortfolioCurrencyAnalyticsAssetKind;
   name: string;
   currencyId: string;
   rateCurrencyId: string;
@@ -37,11 +48,14 @@ export type PortfolioCurrencyAnalyticsUnvaluedAsset = {
   missingRate: boolean;
 };
 
+export type PortfolioCurrencyAnalyticsAssetKind = "Position" | "MoneyMarketFund" | "Cash";
+
 export type PortfolioCurrencyAnalyticsResponse = {
   asOf: string;
   totalValueRub: number;
   availableCurrencies: string[];
   slices: PortfolioCurrencyAnalyticsSlice[];
+  items: PortfolioCurrencyAnalyticsItem[];
   unvaluedAssets: PortfolioCurrencyAnalyticsUnvaluedAsset[];
 };
 

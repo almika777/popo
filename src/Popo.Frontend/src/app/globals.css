@@ -377,6 +377,19 @@ body {
   min-width: 0;
 }
 
+.portfolio-analytics-input-with-reset {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.portfolio-analytics-input-with-reset .ant-input-number {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
 .portfolio-analytics-results {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
@@ -452,7 +465,25 @@ body {
   gap: 12px;
   min-height: 50px;
   padding: 8px 10px;
+  border: 1px solid transparent;
   border-bottom: 1px solid #303030;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portfolio-analytics-slice:hover,
+.portfolio-analytics-slice-selected {
+  border-color: #243247;
+  background: #182231;
+}
+
+.portfolio-analytics-slice:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }
 
 .portfolio-analytics-slice-dot {
@@ -474,6 +505,160 @@ body {
 .portfolio-analytics-slice-share {
   min-width: 58px;
   color: rgba(255, 255, 255, 0.65);
+}
+
+.portfolio-analytics-breakdown-hint {
+  display: block;
+}
+
+.portfolio-analytics-segment-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr);
+  align-items: start;
+  gap: 28px;
+  padding: 22px 0 4px;
+  border-top: 1px solid #303030;
+}
+
+.portfolio-analytics-detail-main,
+.portfolio-analytics-detail-sections {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.portfolio-analytics-detail-heading .ant-typography,
+.portfolio-analytics-detail-section-heading .ant-typography,
+.portfolio-analytics-segment-summary .ant-typography {
+  margin-bottom: 0;
+}
+
+.portfolio-analytics-detail-heading h3.ant-typography {
+  margin-bottom: 4px;
+}
+
+.portfolio-analytics-detail-main > .ant-segmented {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.portfolio-analytics-detail-section {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.portfolio-analytics-detail-section-heading,
+.portfolio-analytics-segment-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.portfolio-analytics-detail-section-heading {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #303030;
+}
+
+.portfolio-analytics-detail-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.portfolio-analytics-detail-description {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-analytics-detail-item-value {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.portfolio-analytics-segment-summary {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 100%;
+  padding: 8px 0 0 28px;
+  border-left: 1px solid #303030;
+}
+
+.portfolio-analytics-segment-total.ant-typography {
+  margin-block: 0;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+}
+
+.portfolio-analytics-segment-metrics {
+  display: grid;
+  gap: 0;
+  margin-top: 12px;
+  border-top: 1px solid #303030;
+}
+
+.portfolio-analytics-segment-metric {
+  min-height: 38px;
+  padding: 8px 0;
+  border-bottom: 1px solid #303030;
+}
+
+.portfolio-analytics-segment-metric-total {
+  min-height: 48px;
+}
+
+.ant-modal.portfolio-analytics-segment-modal {
+  top: 16px;
+  max-width: calc(100vw - 32px);
+}
+
+.ant-modal.portfolio-analytics-segment-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+.ant-modal.portfolio-analytics-segment-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ant-modal.portfolio-analytics-segment-modal .portfolio-analytics-segment-details {
+  padding: 0;
+  border-top: 0;
+}
+
+@media (max-width: 575px) {
+  .ant-modal.portfolio-analytics-segment-modal {
+    top: 8px;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px);
+    margin: 0 auto;
+  }
+
+  .ant-modal.portfolio-analytics-segment-modal .ant-modal-content {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .ant-modal.portfolio-analytics-segment-modal .ant-modal-header {
+    padding-right: 28px;
+  }
+
+  .ant-modal.portfolio-analytics-segment-modal .ant-modal-body {
+    padding: 12px;
+  }
 }
 
 .portfolio-analytics-unvalued {
@@ -957,6 +1142,10 @@ body {
     padding: 14px;
   }
 
+  .portfolio-analytics-rates-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .portfolio-analytics-section-heading {
     align-items: flex-start;
     flex-direction: column;
@@ -987,6 +1176,36 @@ body {
   .portfolio-analytics-breakdown {
     gap: 14px;
     padding-top: 4px;
+  }
+
+  .portfolio-analytics-segment-details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding-top: 18px;
+  }
+
+  .portfolio-analytics-detail-main {
+    gap: 12px;
+  }
+
+  .portfolio-analytics-detail-main > .ant-segmented {
+    width: 100%;
+  }
+
+  .portfolio-analytics-segment-summary {
+    min-height: auto;
+    padding: 16px 0 0;
+    border-top: 1px solid #303030;
+    border-left: 0;
+  }
+
+  .portfolio-analytics-detail-item {
+    grid-template-columns: 10px minmax(0, 1fr) minmax(70px, auto);
+    gap: 8px;
+  }
+
+  .portfolio-analytics-detail-item-value {
+    font-size: 12px;
   }
 
   .portfolio-analytics-unvalued-item {

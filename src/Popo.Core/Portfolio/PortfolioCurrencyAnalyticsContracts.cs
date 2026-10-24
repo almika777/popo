@@ -61,6 +61,25 @@ public sealed record PortfolioCurrencyAnalyticsSlice(
     double ValueRub,
     double Share);
 
+/// <summary>Актив в валютной группе с его оценкой на текущем расчёте.</summary>
+/// <param name="AssetId">Стабильный идентификатор актива.</param>
+/// <param name="Kind">Тип актива.</param>
+/// <param name="Name">Название актива для отображения.</param>
+/// <param name="CurrencyId">Валюта группы: номинала позиции или остатка.</param>
+/// <param name="TradingCurrencyId">Валюта цены и курса для оценки.</param>
+/// <param name="ValueRub">Рублёвая стоимость либо null, если актив не оценён.</param>
+/// <param name="MissingPrice">Признак отсутствующей цены одной бумаги.</param>
+/// <param name="MissingRate">Признак отсутствующего курса валюты.</param>
+public sealed record PortfolioCurrencyAnalyticsItem(
+    string AssetId,
+    PortfolioCurrencyAnalyticsAssetKind Kind,
+    string Name,
+    string CurrencyId,
+    string TradingCurrencyId,
+    double? ValueRub,
+    bool MissingPrice,
+    bool MissingRate);
+
 /// <summary>Актив, для которого не хватает текущей оценки или курса.</summary>
 /// <param name="AssetId">Стабильный идентификатор актива.</param>
 /// <param name="Kind">Тип актива.</param>
@@ -81,8 +100,10 @@ public sealed record PortfolioCurrencyAnalyticsUnvaluedAsset(
 /// <summary>Результат текущего среза портфеля по валютам.</summary>
 /// <param name="TotalValueRub">Сумма оценённой части портфеля в рублях.</param>
 /// <param name="Slices">Оценённые группы с долями.</param>
+/// <param name="Items">Состав групп, включая неоценённые активы.</param>
 /// <param name="UnvaluedAssets">Активы, которые не вошли в оценённую сумму.</param>
 public sealed record PortfolioCurrencyAnalyticsResult(
     double TotalValueRub,
     IReadOnlyList<PortfolioCurrencyAnalyticsSlice> Slices,
+    IReadOnlyList<PortfolioCurrencyAnalyticsItem> Items,
     IReadOnlyList<PortfolioCurrencyAnalyticsUnvaluedAsset> UnvaluedAssets);

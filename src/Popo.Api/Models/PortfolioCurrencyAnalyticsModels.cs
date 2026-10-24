@@ -35,6 +35,25 @@ public sealed record PortfolioCurrencyAnalyticsSliceResponse(
     double ValueRub,
     double Share);
 
+/// <summary>Позиция валютной группы с оценкой для детализации сегмента.</summary>
+/// <param name="AssetId">Стабильный идентификатор актива.</param>
+/// <param name="Kind">Тип актива.</param>
+/// <param name="Name">Название актива.</param>
+/// <param name="CurrencyId">Валюта группы.</param>
+/// <param name="TradingCurrencyId">Валюта цены и курса.</param>
+/// <param name="ValueRub">Стоимость в рублях либо null для неоценённого актива.</param>
+/// <param name="MissingPrice">Не хватает цены одной бумаги или пая.</param>
+/// <param name="MissingRate">Не хватает курса валюты к рублю.</param>
+public sealed record PortfolioCurrencyAnalyticsItemResponse(
+    string AssetId,
+    PortfolioCurrencyAnalyticsAssetKind Kind,
+    string Name,
+    string CurrencyId,
+    string TradingCurrencyId,
+    double? ValueRub,
+    bool MissingPrice,
+    bool MissingRate);
+
 /// <summary>Актив, который пока не удалось оценить полностью.</summary>
 /// <param name="AssetId">Стабильный идентификатор актива.</param>
 /// <param name="Kind">Тип актива.</param>
@@ -57,10 +76,12 @@ public sealed record PortfolioCurrencyAnalyticsUnvaluedAssetResponse(
 /// <param name="TotalValueRub">Оценённая сумма портфеля в рублях.</param>
 /// <param name="AvailableCurrencies">Коды валют, доступные для ввода денежных остатков.</param>
 /// <param name="Slices">Оценённые валютные группы и их доли.</param>
+/// <param name="Items">Состав валютных групп, включая неоценённые активы.</param>
 /// <param name="UnvaluedAssets">Активы, исключённые из оценённой суммы.</param>
 public sealed record PortfolioCurrencyAnalyticsResponse(
     DateOnly AsOf,
     double TotalValueRub,
     IReadOnlyList<string> AvailableCurrencies,
     IReadOnlyList<PortfolioCurrencyAnalyticsSliceResponse> Slices,
+    IReadOnlyList<PortfolioCurrencyAnalyticsItemResponse> Items,
     IReadOnlyList<PortfolioCurrencyAnalyticsUnvaluedAssetResponse> UnvaluedAssets);

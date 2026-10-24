@@ -46,7 +46,16 @@ public sealed class PageApiContractTests
             "USD",
             MissingPrice: true,
             MissingRate: false);
-        var response = new PortfolioCurrencyAnalyticsResponse(asOf, 1_000, ["RUB", "CNY"], [slice], [unvalued]);
+        var item = new PortfolioCurrencyAnalyticsItemResponse(
+            "position:BOND:TQCB:RUB",
+            PortfolioCurrencyAnalyticsAssetKind.Position,
+            "Bond",
+            "CNY",
+            "RUB",
+            1_000,
+            MissingPrice: false,
+            MissingRate: false);
+        var response = new PortfolioCurrencyAnalyticsResponse(asOf, 1_000, ["RUB", "CNY"], [slice], [item], [unvalued]);
 
         Assert.Multiple(() =>
         {
@@ -54,6 +63,8 @@ public sealed class PageApiContractTests
             Assert.That(response.TotalValueRub, Is.EqualTo(1_000));
             Assert.That(response.AvailableCurrencies, Is.EqualTo(new[] { "RUB", "CNY" }));
             Assert.That(response.Slices.Single(), Is.SameAs(slice));
+            Assert.That(response.Items.Single(), Is.SameAs(item));
+            Assert.That(response.Items.Single().CurrencyId, Is.EqualTo("CNY"));
             Assert.That(response.UnvaluedAssets.Single(), Is.SameAs(unvalued));
             Assert.That(response.UnvaluedAssets.Single().RateCurrencyId, Is.EqualTo("USD"));
         });
