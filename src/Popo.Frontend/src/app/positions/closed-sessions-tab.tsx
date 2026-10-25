@@ -265,7 +265,7 @@ export default function ClosedPositionSessionsTab() {
       closeOnSwipe
       closeOnMaskClick
       showCloseButton
-      bodyClassName="closed-sessions-mobile-sheet"
+      bodyClassName={styles.popupBody}
       bodyStyle={{ bottom: "calc(64px + env(safe-area-inset-bottom))", maxHeight: "calc(100dvh - 64px - env(safe-area-inset-bottom))", overflowY: "auto" }}
       onClose={() => setMobileSheetOpen(false)}
       afterClose={() => setMobileSession(null)}

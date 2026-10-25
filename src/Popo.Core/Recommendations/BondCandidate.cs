@@ -24,4 +24,7 @@ public record struct BondCandidate(
     double MedianDailyVolume,
     DateOnly YieldDate,
     BondYieldDateType YieldDateType,
-    BondYieldCalculationDetails Calculation);
+    BondYieldCalculationDetails Calculation)
+{
+    public string? ShortName { get; init; }
+}

@@ -154,7 +154,7 @@
     text-align: center;
   }
 
-  :global(.adm-popup-body.closed-sessions-mobile-sheet) {
+  .popupBody {
     width: 100%;
     max-height: calc(100dvh - 64px - env(safe-area-inset-bottom));
     overflow-y: auto;
@@ -165,7 +165,7 @@
     color: rgba(255, 255, 255, 0.88);
   }
 
-  :global(.adm-popup-body.closed-sessions-mobile-sheet .adm-popup-close-icon) {
+  .popupBody :global(.adm-popup-close-icon) {
     top: 14px;
     right: 14px;
     padding: 8px;

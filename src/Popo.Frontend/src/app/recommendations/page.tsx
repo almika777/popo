@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Alert, App as AntdApp, Button, Card, Col, Collapse, Descriptions, Drawer, Empty, Form, Input, InputNumber, Modal, Row, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
-import { InfoCircleOutlined, SettingOutlined } from "@ant-design/icons";
+import { Popup } from "antd-mobile";
+import { CalculatorOutlined, InfoCircleOutlined, SettingOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import {
   cashInvestmentRecommendationsApi,
@@ -12,7 +13,8 @@ import {
   type CreditRating
 } from "../../lib/cash-investment-recommendations-api";
 import { fromStrategyFormValues, getPersistedPresetNameForCalculation, toStrategyFormValues, type StrategyFormValues } from "../../lib/cash-investment-recommendations-form";
-import { buildYieldCashFlowRows, recommendationColumnTitles, recommendationYtmActionLabel } from "../../lib/cash-investment-recommendations-table";
+import { buildRecommendationMobileDetails, buildYieldCashFlowRows, getRecommendationMobileBondName, recommendationColumnTitles, recommendationYtmActionLabel } from "../../lib/cash-investment-recommendations-table";
+import styles from "./recommendations-mobile.module.css";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fullWidth = { width: "100%" } as const;
@@ -127,6 +129,7 @@ export default function RecommendationsPage() {
   const [activatingPreset, setActivatingPreset] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedBond, setSelectedBond] = useState<CashRecommendationBond | null>(null);
+  const [mobileBond, setMobileBond] = useState<CashRecommendationBond | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [strategyName, setStrategyName] = useState<string>();
@@ -426,17 +429,86 @@ export default function RecommendationsPage() {
                     </Typography.Text>
                   </Typography.Text>
                 </Space>,
-                children: <Table
-                  rowKey={(row) => `${row.secId}-${row.boardId}`}
-                  columns={columns}
-                  dataSource={group.bonds}
-                  pagination={false}
-                  scroll={{ x: 1250 }}
-                />
+                children: <>
+                  <div className={styles.desktopTable}>
+                    <Table
+                      rowKey={(row) => `${row.secId}-${row.boardId}`}
+                      columns={columns}
+                      dataSource={group.bonds}
+                      pagination={false}
+                      scroll={{ x: 1250 }}
+                    />
+                  </div>
+                  <section className={styles.mobileList} aria-label={`Облигации с рейтингом ${formatRating(group.rating)}`}>
+                    {group.bonds.map((bond) => <article className={styles.mobileRow} key={`${bond.secId}-${bond.boardId}`}>
+                      <button
+                        type="button"
+                        className={styles.mobileDetailsTrigger}
+                        aria-label={`Открыть подробности ${bond.secId}`}
+                        onClick={() => setMobileBond(bond)}
+                      >
+                        <span className={styles.mobileIdentity}>
+                          <span className={styles.mobileBondLine}>
+                            <strong>{bond.secId}</strong>
+                            <Tag>{bond.boardId}</Tag>
+                          </span>
+                          <span className={styles.mobileIssuer}>{getRecommendationMobileBondName(bond)}</span>
+                          <span className={styles.mobileYieldDate}>
+                            YTM до ({bond.yieldDateType === "Offer" ? "Оферта" : "Погашение"}) · {formatDate(bond.yieldDate)}
+                          </span>
+                        </span>
+                      </button>
+                      <div className={styles.mobileActions}>
+                        <Typography.Text type="success" strong className={styles.mobileYtm}>
+                          {number.format(bond.ytm)}%
+                        </Typography.Text>
+                        <Tooltip title={recommendationYtmActionLabel}>
+                          <Button
+                            type="text"
+                            className={styles.mobileCalculatorButton}
+                            aria-label={`Показать расчёт YTM ${bond.secId}`}
+                            icon={<CalculatorOutlined />}
+                            onClick={() => setSelectedBond(bond)}
+                          />
+                        </Tooltip>
+                      </div>
+                    </article>)}
+                  </section>
+                </>
               }))}
             />}
       </Card>
     </Space>
+    <Popup
+      visible={mobileBond !== null}
+      position="bottom"
+      closeOnSwipe
+      closeOnMaskClick
+      showCloseButton
+      bodyClassName={styles.popupBody}
+      bodyStyle={{ bottom: "calc(64px + env(safe-area-inset-bottom))", maxHeight: "calc(100dvh - 64px - env(safe-area-inset-bottom))", overflowY: "auto" }}
+      onClose={() => setMobileBond(null)}
+    >
+      {mobileBond && <section className={styles.sheetContent} role="dialog" aria-modal="true" aria-labelledby="recommendation-mobile-sheet-title">
+        <div className={styles.sheetHandle} aria-hidden="true" />
+        <header className={styles.sheetHeader}>
+          <div className={styles.sheetIdentity}>
+            <div className={styles.sheetBondLine}>
+              <Typography.Title id="recommendation-mobile-sheet-title" level={4}>{mobileBond.secId}</Typography.Title>
+              <Tag>{mobileBond.boardId}</Tag>
+            </div>
+            <Typography.Text type="secondary">{getRecommendationMobileBondName(mobileBond)}</Typography.Text>
+          </div>
+        </header>
+        <div className={styles.sheetRows}>
+          {buildRecommendationMobileDetails(mobileBond).map((detail) => <div className={styles.sheetRow} key={detail.key}>
+            <span className={styles.sheetLabel}>{detail.label}</span>
+            <span className={`${styles.sheetValue} ${detail.key === "ytm" ? styles.sheetYtm : ""}`}>{detail.value}</span>
+          </div>)}
+        </div>
+        <Button className={styles.sheetCloseButton} block onClick={() => setMobileBond(null)}>Закрыть</Button>
+      </section>}
+    </Popup>
     <Modal
       title={selectedBond ? `Расчёт YTM: ${selectedBond.secId}` : "Расчёт YTM"}
       open={selectedBond !== null}
