@@ -69,7 +69,9 @@ public static class PortfolioPositionCalculator
         double currentCleanPrice,
         double couponValue,
         int couponPeriodDays,
-        bool includeIndexedNominalIncreaseInPnl = false)
+        bool includeIndexedNominalIncreaseInPnl = false,
+        DateOnly? valuationDate = null,
+        DateOnly? latestQuoteDate = null)
     {
         ArgumentNullException.ThrowIfNull(trades);
 
@@ -91,18 +93,17 @@ public static class PortfolioPositionCalculator
                        + couponIncome
                        - openLots.PaidBuyCommission;
         var totalPnlPercent = pnlCost == 0 ? 0 : totalPnl / pnlCost * 100;
-        var annualizedPnlAmount = openLots.Lots.Sum(lot =>
-        {
-            var lotCostPerUnit = includeIndexedNominalIncreaseInPnl ? lot.ActualCleanPrice : lot.CleanPrice;
-            var holdingDays = Math.Max(1, asOf.DayNumber - lot.TradeDate.DayNumber);
-            var lotPnl = lot.Quantity * (currentCleanPrice - lotCostPerUnit)
-                         + lot.Quantity * dailyCoupon * holdingDays
-                         - lot.Quantity * lot.CommissionPerUnit;
-            return lotPnl * 365 / holdingDays;
-        });
-        double? annualizedTotalPnlPercent = pnlCost <= 0
-            ? null
-            : annualizedPnlAmount / pnlCost * 100;
+        var annualizationDate = valuationDate ?? asOf;
+        var annualizedCouponIncome = openLots.Lots.Sum(lot =>
+            lot.Quantity * dailyCoupon * Math.Max(0, annualizationDate.DayNumber - lot.TradeDate.DayNumber));
+        var annualizedTotalPnl = unrealizedPnl
+                                 + annualizedCouponIncome
+                                 - openLots.PaidBuyCommission;
+        var annualizedReturnBreakdown = PositionAnnualizedReturnCalculator.Calculate(
+            annualizedTotalPnl,
+            openLots.Lots,
+            annualizationDate,
+            latestQuoteDate);
 
         return new PortfolioPositionIncome(
             openLots.RemainingCleanCost,
@@ -115,7 +116,8 @@ public static class PortfolioPositionCalculator
             unrealizedPnl,
             unrealizedPnlPercent,
             openLots.ActualRemainingCleanCost,
-            annualizedTotalPnlPercent);
+            annualizedReturnBreakdown?.AnnualizedPercent,
+            AnnualizedReturnBreakdown: annualizedReturnBreakdown);
     }
     public static PortfolioPositionValuation Calculate(
         PortfolioPositionRecord position,

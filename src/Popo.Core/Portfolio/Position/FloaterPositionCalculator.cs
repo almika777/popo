@@ -57,13 +57,8 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
         var totalPnlPercent = openLots.RemainingCleanCost <= 0
             ? 0
             : totalPnl / openLots.RemainingCleanCost * 100;
-        var annualizedPnlPercent = couponResult.IsComplete && valuation.MarketValue.HasValue
-            ? CalculateAnnualizedPnlPercent(
-                couponResult.PerLotIncome,
-                couponValuationDate,
-                input.CurrentCleanPrice!.Value,
-                input.CurrentAccruedInterest.Value,
-                openLots.RemainingCleanCost)
+        var annualizedReturnBreakdown = couponResult.IsComplete && valuation.MarketValue.HasValue
+            ? PositionAnnualizedReturnCalculator.Calculate(totalPnl, openLots.Lots, couponValuationDate)
             : null;
 
         var income = new PortfolioPositionIncome(
@@ -77,11 +72,12 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
             cleanPnl,
             valuation.UnrealizedPnlPercent,
             openLots.ActualRemainingCleanCost,
-            annualizedPnlPercent,
+            annualizedReturnBreakdown?.AnnualizedPercent,
             couponResult.HistoricalIncome,
             paidBuyAccruedInterest,
             currentAccruedInterest,
-            couponResult.IsComplete);
+            couponResult.IsComplete,
+            annualizedReturnBreakdown);
 
         return new PositionCalculationResult(income, valuation, averageBuyPrice, averageBuyPrice);
     }
@@ -137,31 +133,6 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
 
         return orderedSchedule.Any(x => x.Date > asOf)
                || couponFrequency == 0;
-    }
-
-    private static double? CalculateAnnualizedPnlPercent(
-        IReadOnlyList<OpenPositionLotCouponIncome> perLotIncome,
-        DateOnly asOf,
-        double currentCleanPrice,
-        double currentAccruedInterest,
-        double remainingCleanCost)
-    {
-        if (remainingCleanCost <= 0)
-            return null;
-
-        var annualizedAmount = perLotIncome.Sum(lotIncome =>
-        {
-            var lot = lotIncome.Lot;
-            var holdingDays = Math.Max(1, asOf.DayNumber - lot.TradeDate.DayNumber);
-            var totalPnl = lot.Quantity * (currentCleanPrice - lot.CleanPrice)
-                           + lotIncome.Amount
-                           + lot.Quantity * currentAccruedInterest
-                           - lot.Quantity * lot.PaidAccruedInterestPerUnit
-                           - lot.Quantity * lot.CommissionPerUnit;
-            return totalPnl * 365 / holdingDays;
-        });
-
-        return annualizedAmount / remainingCleanCost * 100;
     }
 
     private static double? GetCouponAmountInRub(PositionCouponPayment coupon)

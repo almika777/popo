@@ -33,7 +33,8 @@ public sealed class ClosedPositionSessionCalculatorTests
                 [FixedCoupon(annualStart, annualEnd, 365)]),
             calculatedAt,
             new ClosedPositionSession(annualBuyId, "RU000A000001", "TQCB", "RUB", "RU000A000001 bond",
-                annualStart, annualEnd, 365, 1, 1000, 1100, 50, 0, 100, 365, 415, 41.5d, 41.5d,
+                annualStart, annualEnd, 365, 1, 1000, 1100, 50, 0, 100, 365, 415, 41.5d,
+                (415d * 365 / (1025d * 365) * 100).Round(),
                 true, null, "Default", calculatedAt))
             .SetName("Complete_session_all_fields_annual_holding");
 
@@ -52,7 +53,8 @@ public sealed class ClosedPositionSessionCalculatorTests
                 [FixedCoupon(partialStart, partialEnd, 5)]),
             calculatedAt,
             new ClosedPositionSession(partialBuyId, "RU000A000011", "TQCB", "RUB", "RU000A000011 bond",
-                partialStart, partialEnd, 5, 5, 500, 550, 3, 0, 50, 20, 67, 13.4d, 978.2d,
+                partialStart, partialEnd, 5, 5, 500, 550, 3, 0, 50, 20, 67, 13.4d,
+                (67d * 365 / 2006.5d * 100).Round(),
                 true, null, "Default", calculatedAt))
             .SetName("Complete_session_all_fields_partial_sale_and_rebuy");
 
@@ -131,7 +133,24 @@ public sealed class ClosedPositionSessionCalculatorTests
             Assert.That(result.BodyPnl, Is.EqualTo(100d));
             Assert.That(result.TotalPnl, Is.EqualTo(476d));
             Assert.That(result.TotalPnlPercent, Is.EqualTo(47.6d).Within(0.000001));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(347.48d).Within(0.000001));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(456.3d));
+        });
+    }
+
+    [Test]
+    public void Calculate_AnnualizesAgainstCapitalDaysForEachPurchase()
+    {
+        var result = Calculate([
+            Trade(0, TradeSide.Buy, 2, 100, 2, 10),
+            Trade(10, TradeSide.Buy, 2, 200, 4, 5),
+            Trade(20, TradeSide.Sell, 4, 200)
+        ], [], frequency: 0).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.TotalPnl, Is.EqualTo(194d));
+            Assert.That(result.TotalPnlPercent, Is.EqualTo(32.33d));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(825.29d));
         });
     }
 
@@ -446,7 +465,7 @@ public sealed class ClosedPositionSessionCalculatorTests
         Assert.That(result.BoughtCleanAmount, Is.EqualTo(15000d));
         Assert.That(result.TotalPnl, Is.EqualTo(1500d));
         Assert.That(result.TotalPnlPercent, Is.EqualTo(10d));
-        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo((10d * 365 / 30).Round()));
+        Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(219d));
     }
 
     [Test]
@@ -466,7 +485,7 @@ public sealed class ClosedPositionSessionCalculatorTests
             Assert.That(result.BodyPnl, Is.EqualTo(-25d));
             Assert.That(result.TotalPnl, Is.EqualTo(-28.5d));
             Assert.That(result.TotalPnlPercent, Is.EqualTo(-11.4d));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(-416.1d));
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(-414.03d));
             Assert.That(result.IsComplete, Is.True);
         });
     }
@@ -603,7 +622,8 @@ public sealed class ClosedPositionSessionCalculatorTests
     }
 
     private static ClosedSessionTrade Trade(int day, TradeSide side, double quantity, double price = 100,
-        double commission = 0) => new(Guid.NewGuid(), Start.AddDays(day), side, quantity, price, commission);
+        double commission = 0, double accruedInterest = 0)
+        => new(Guid.NewGuid(), Start.AddDays(day), side, quantity, price, commission, accruedInterest);
 
     private static ClosedSessionCoupon Coupon(int from, int to, double? value) =>
         new(Start.AddDays(from), Start.AddDays(to), value, null, "RUB");

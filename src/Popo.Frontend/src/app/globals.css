@@ -168,8 +168,7 @@ body {
   display: none;
 }
 
-.positions-mobile-subtitle,
-.positions-mobile-sort {
+.positions-mobile-subtitle {
   display: none;
 }
 
@@ -264,6 +263,72 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.position-annualized-breakdown {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.position-annualized-breakdown .ant-typography {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.position-annualized-breakdown__details > summary {
+  color: #91caff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.position-annualized-breakdown__lots {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.position-annualized-breakdown__lot {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #303030;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.position-annualized-breakdown__lot-heading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.position-annualized-breakdown__lot-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.position-annualized-breakdown__lot-values > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.position-annualized-breakdown__lot-values dt {
+  color: #8c8c8c;
+}
+
+.position-annualized-breakdown__lot-values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .portfolio-valuation-edit-input .ant-input-number-handler-wrap {
@@ -1040,32 +1105,7 @@ body {
     line-height: 1.35;
   }
 
-  .positions-mobile-sort {
-    flex: 0 0 164px;
-    width: 164px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  }
-
-  .positions-mobile-sort .ant-select-selector {
-    height: 40px !important;
-    padding: 0 12px !important;
-    border: 1px solid #2b3441 !important;
-    border-radius: 22px !important;
-    background: #141a23 !important;
-    box-shadow: none !important;
-  }
-
-  .positions-mobile-sort .ant-select-selection-item {
-    line-height: 38px !important;
-    font-size: 12px;
-  }
-
-  .positions-mobile-sort .ant-select-arrow {
-    color: #a5afbd;
-  }
-
-  .positions-mobile-subtitle,
-  .positions-mobile-sort {
+  .positions-mobile-subtitle {
     display: block;
   }
 
@@ -1426,6 +1466,15 @@ body {
   .position-summary-item:first-child {
     padding-top: 0;
     border-top: 0;
+  }
+
+  .position-annualized-breakdown__lot-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .position-annualized-breakdown__lot-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .position-detail-metric:first-child {

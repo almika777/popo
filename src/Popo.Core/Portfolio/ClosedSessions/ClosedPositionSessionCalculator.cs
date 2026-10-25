@@ -120,7 +120,8 @@ public sealed class ClosedPositionSessionCalculator
     /// <summary>Рассчитывает купоны, амортизации, результат по телу и доходность закрытой сессии.</summary>
     /// <remarks>
     /// Итог равен чистой выручке плюс амортизации и купоны минус чистая стоимость покупок и комиссии.
-    /// Годовая доходность — линейная экстраполяция доходности за период; при нулевом сроке она отсутствует.
+    /// Годовая оценка — итог за период, делённый на капитал-дни вложений и умноженный на 365;
+    /// НКД и комиссия покупки входят во вложенный капитал. При нулевых капитал-днях оценка отсутствует.
     /// Неизвестный купон или амортизация оставляет зависящие от него показатели неизвестными.
     /// </remarks>
     /// <param name="instrument">Данные инструмента для выбора калькулятора и расчёта выплат.</param>
@@ -143,7 +144,9 @@ public sealed class ClosedPositionSessionCalculator
         var totalPnl = bodyPnl + coupon.Amount - session.Commission;
         var totalPnlPercent = session.BoughtCleanAmount > 0 ? totalPnl / session.BoughtCleanAmount * 100 : null;
         var holdingDays = endDate.DayNumber - session.StartDate.DayNumber;
-        var annualizedPnlPercent = holdingDays > 0 ? totalPnlPercent * 365 / holdingDays : null;
+        double? annualizedPnlPercent = session.InvestedCapitalDays > 0 && totalPnl.HasValue
+            ? totalPnl.Value * 365 / session.InvestedCapitalDays * 100
+            : null;
         var incompleteReason = string.Join(" ",
             new[] { coupon.IncompleteReason, amortization.IncompleteReason }
                 .Where(reason => !string.IsNullOrEmpty(reason)));
@@ -195,6 +198,12 @@ public sealed class ClosedPositionSessionCalculator
         /// <summary>Чистая стоимость всех покупок без НКД и комиссий.</summary>
         public double BoughtCleanAmount { get; private set; }
 
+        /// <summary>Вложенный капитал оставшегося количества, включая НКД и комиссию покупки.</summary>
+        private double InvestedCapital { get; set; }
+
+        /// <summary>Сумма вложенного капитала, взвешенная на дни его фактического удержания.</summary>
+        public double InvestedCapitalDays { get; private set; }
+
         /// <summary>Чистая выручка всех продаж без НКД и комиссий.</summary>
         public double SoldCleanAmount { get; private set; }
 
@@ -216,6 +225,7 @@ public sealed class ClosedPositionSessionCalculator
             BoughtQuantity += purchase.Quantity;
             BoughtCleanAmount += purchase.Quantity * purchase.Price;
             Commission += purchase.Commission;
+            InvestedCapital += purchase.Quantity * (purchase.Price + purchase.AccruedInterest) + purchase.Commission;
         }
 
         /// <summary>Уменьшает остаток и накапливает чистую выручку и комиссию продажи.</summary>
@@ -223,6 +233,8 @@ public sealed class ClosedPositionSessionCalculator
         public void AddSale(ClosedSessionTrade sale)
         {
             _trades.Add(sale);
+            if (Quantity > 0)
+                InvestedCapital *= (Quantity - sale.Quantity) / Quantity;
             Quantity -= sale.Quantity;
             SoldCleanAmount += sale.Quantity * sale.Price;
             Commission += sale.Commission;
@@ -237,7 +249,10 @@ public sealed class ClosedPositionSessionCalculator
         public void RecordHoldingUntil(DateOnly date)
         {
             if (date > _lastHoldingDate && Quantity > 0)
+            {
                 _holdings.Add(new ClosedSessionHolding(_lastHoldingDate, date, Quantity));
+                InvestedCapitalDays += InvestedCapital * (date.DayNumber - _lastHoldingDate.DayNumber);
+            }
             _lastHoldingDate = date;
         }
     }

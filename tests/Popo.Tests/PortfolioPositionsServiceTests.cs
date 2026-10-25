@@ -142,7 +142,62 @@ public sealed class PortfolioPositionsServiceTests
 
         var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
 
-        Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.AverageBuyPriceAtCurrentFaceValue, Is.Null);
+            Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.Null);
+            Assert.That(result.ApproximateAnnualizedReturnBreakdown, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task PositionWithPurchaseNewerThanQuote_ReportsMissingQuoteForAnnualizedReturn()
+    {
+        const string secId = "STALE-QUOTE-POSITION";
+        const string boardId = "TQCB";
+        var asOf = MoscowTime.Today;
+        var position = new PortfolioPositionRecord(secId, boardId, "RUB", 1, 1, 0, 900, 900, 0, 900);
+        var purchase = new PortfolioTradeRecord(
+            Guid.NewGuid(), secId, boardId, "RUB", asOf, TradeSide.Buy,
+            1, 900, 1_000, 0, 0, 0, 900);
+        var moex = new FakeMoexHttpClient(
+            new MoexBond
+            {
+                SecId = secId,
+                BoardId = boardId,
+                Isin = secId,
+                InitialFaceValue = 1_000,
+                FaceValue = 1_000,
+                FaceUnit = "RUB",
+                CouponFrequency = 0
+            },
+            new MoexMarketdata
+            {
+                SecId = secId,
+                BoardId = boardId,
+                LCurrentPrice = 99,
+                SysTime = asOf.AddDays(-1).ToDateTime(TimeOnly.MinValue)
+            });
+        var service = new PortfolioPositionsService(
+            new FakeMoneyMarketFundsProvider(),
+            new FakeTradesProvider([purchase]),
+            new FakePositionsProvider(position),
+            moex,
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider());
+
+        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        using var json = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(
+            result,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.Null);
+            Assert.That(json.RootElement.TryGetProperty("approximateAnnualizedReturnUnavailableReason", out var reason), Is.True);
+            Assert.That(reason.GetString(), Is.EqualTo("QuoteBeforeLatestOpenPurchase"));
+        });
     }
 
     [Test]
@@ -211,6 +266,10 @@ public sealed class PortfolioPositionsServiceTests
             Assert.That(result.ApproximateCouponIncome, Is.EqualTo(304));
             Assert.That(result.ApproximateTotalPnl, Is.EqualTo(244));
             Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.Not.Null);
+            Assert.That(result.ApproximateAnnualizedReturnBreakdown, Is.Not.Null);
+            Assert.That(result.ApproximateAnnualizedReturnBreakdown!.AnnualizedPercent,
+                Is.EqualTo(result.ApproximateAnnualizedTotalPnlPercent).Within(0.001));
+            Assert.That(result.ApproximateAnnualizedReturnBreakdown.Lots, Has.Count.EqualTo(1));
         });
     }
 

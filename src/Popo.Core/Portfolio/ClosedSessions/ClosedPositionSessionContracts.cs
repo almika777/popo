@@ -1,7 +1,8 @@
 namespace Popo.Core.Portfolio.ClosedSessions;
 
 public sealed record ClosedSessionTrade(
-    Guid Id, DateOnly Date, TradeSide Side, double Quantity, double Price, double Commission);
+    Guid Id, DateOnly Date, TradeSide Side, double Quantity, double Price, double Commission,
+    double AccruedInterest = 0);
 
 public sealed record ClosedSessionCoupon(
     DateOnly StartDate, DateOnly EndDate, double? Value, double? ValueInRub, string FaceUnit);

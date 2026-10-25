@@ -30,7 +30,9 @@ public sealed class DefaultPositionCalculator : IPositionCalculator
             input.CurrentCleanPrice.Value,
             input.CouponValue,
             input.CouponPeriodDays,
-            input.IncludeIndexedNominalIncreaseInPnl);
+            input.IncludeIndexedNominalIncreaseInPnl,
+            input.AsOf,
+            input.CouponValuationDate);
         var valuation = PortfolioPositionCalculator.Calculate(
             input.Position,
             input.CurrentCleanPrice,

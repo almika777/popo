@@ -129,7 +129,7 @@ public sealed class ClosedPositionSessionSourceProvider(IDbContextFactory<PopoDb
             bond?.BondSubType ?? security?.BondSubType ?? "",
             bond?.CouponFrequency, initial, bond?.MatDate ?? security?.MatDate,
             group.Select(x => new ClosedSessionTrade(x.Id, x.TradeDate, x.Side, x.Quantity,
-                x.Price, x.Commission)).ToArray(),
+                x.Price, x.Commission, x.AccruedInterest)).ToArray(),
             schedule.Select(x => new ClosedSessionCoupon(x.StartDate, x.CouponDate,
                 x.Value, x.ValueInRub, x.FaceUnit)).ToArray(),
             amortizations.Select(x => new ClosedSessionAmortization(x.AmortDate,

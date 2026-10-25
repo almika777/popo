@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DownOutlined, InfoCircleOutlined, RightOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Select, Space, Spin, Table, Tabs, Tooltip, Typography } from "antd";
+import { InfoCircleOutlined, RightOutlined } from "@ant-design/icons";
+import { App as AntdApp, Card, Space, Spin, Table, Tabs, Tooltip, Typography } from "antd";
 import { Popup } from "antd-mobile";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
@@ -11,18 +11,18 @@ import { portfolioLedgerApi, type PortfolioPosition, type PositionTotals } from 
 import { getPositionAverageBuyPrice } from "../../lib/position-average-price";
 import { positionDetailsPath } from "../../lib/position-details";
 import { getPositionLiquidityLevel, type PositionLiquidityLevel } from "../../lib/position-liquidity";
+import { buildPositionAnnualizedBreakdownView } from "../../lib/position-annualized-breakdown";
 import ClosedPositionSessionsTab from "./closed-sessions-tab";
 
 const number = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nominalNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 });
 const integer = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+const annualizedResultExplanation = "Оценка, % = 365 × результат позиции ÷ сумму капитал-дней всех открытых лотов × 100. Капитал лота — оставшееся количество бумаг × (чистая цена покупки + уплаченный НКД + комиссия); капитал-дни — капитал лота × дни владения. Частичные продажи уменьшают остаток лота. Результат и срок рассчитываются на одну дату. Это линейная оценка, не прогноз и не YTM; купонный результат может быть приблизительным.";
 const liquidityTextType: Record<PositionLiquidityLevel, "success" | "warning" | "danger"> = {
   low: "success",
   medium: "warning",
   high: "danger"
 };
-
-type MobilePositionSortKey = "marketValue" | "result" | "quantity" | "name";
 
 function MobilePositionDetailRow({ label, value, separated = false }: { label: ReactNode; value: ReactNode; separated?: boolean }) {
   return <div className={`position-mobile-detail-row${separated ? " position-mobile-detail-row--separated" : ""}`}>
@@ -31,6 +31,47 @@ function MobilePositionDetailRow({ label, value, separated = false }: { label: R
       <span className="position-mobile-detail-row__value">{value}</span>
     </div>
   </div>;
+}
+
+function AnnualizedReturnBreakdownDetails({ row }: { row: PortfolioPosition }) {
+  const view = buildPositionAnnualizedBreakdownView(row.approximateAnnualizedReturnBreakdown, row.currencyId);
+  if (view == null) return null;
+  const exampleLot = view.lots[0];
+
+  return <div className="position-annualized-breakdown">
+    <Typography.Text type="secondary">На {view.valuationDate}</Typography.Text>
+    <Typography.Text type="secondary">{view.formula}</Typography.Text>
+    {exampleLot == null ? null : <Typography.Text type="secondary">
+      Вложенный капитал лота — остаток бумаг × (чистая цена покупки + НКД при покупке + комиссия). Капитал-дни — этот капитал × дни владения: {exampleLot.investedCapital} × {exampleLot.holdingDays} = {exampleLot.capitalDays}. Это не денежный остаток, а мера вклада лота с учётом суммы и срока; капитал-дни всех лотов складываются в знаменатель.
+    </Typography.Text>}
+    <details className="position-annualized-breakdown__details">
+      <summary>Расшифровка по лотам ({view.lots.length})</summary>
+      <div className="position-annualized-breakdown__lots">
+        {view.lots.map((lot, index) => <article className="position-annualized-breakdown__lot" key={`${lot.tradeDate}-${index}`}>
+          <div className="position-annualized-breakdown__lot-heading">
+            <Typography.Text strong>Покупка {lot.tradeDate} · {lot.quantity} шт.</Typography.Text>
+            <Typography.Text strong>{lot.capitalDays}</Typography.Text>
+          </div>
+          <dl className="position-annualized-breakdown__lot-values">
+            <div><dt>Чистая цена</dt><dd>{lot.purchaseCleanPrice}</dd></div>
+            <div><dt>НКД за бумагу</dt><dd>{lot.paidAccruedInterest}</dd></div>
+            <div><dt>Комиссия за бумагу</dt><dd>{lot.commission}</dd></div>
+            <div><dt>Вложенный капитал</dt><dd>{lot.investedCapital}</dd></div>
+            <div><dt>Дней владения</dt><dd>{lot.holdingDays}</dd></div>
+            <div><dt>Капитал-дни</dt><dd>{lot.capitalDays}</dd></div>
+          </dl>
+        </article>)}
+      </div>
+    </details>
+  </div>;
+}
+
+function AnnualizedReturnUnavailableMessage({ row }: { row: PortfolioPosition }) {
+  if (row.approximateAnnualizedReturnUnavailableReason !== "QuoteBeforeLatestOpenPurchase") return null;
+
+  return <Typography.Text className="position-annualized-unavailable" type="secondary">
+    Не хватает актуальной котировки MOEX: последняя котировка раньше последней открытой покупки.
+  </Typography.Text>;
 }
 
 function MobilePositionSheetContent({ row }: { row: PortfolioPosition }) {
@@ -85,11 +126,13 @@ function MobilePositionSheetContent({ row }: { row: PortfolioPosition }) {
         separated
       />
       <MobilePositionDetailRow
-        label="Годовых, оценка"
+        label={<Tooltip title={annualizedResultExplanation} trigger={["hover", "click"]}><span>Годовых, оценка <InfoCircleOutlined aria-label="Пояснение к годовой оценке" /></span></Tooltip>}
         value={row.approximateAnnualizedTotalPnlPercent == null
           ? "Нет данных"
           : <Typography.Text type={row.approximateAnnualizedTotalPnlPercent >= 0 ? "success" : "danger"}>{formatResult(row.approximateAnnualizedTotalPnlPercent)}%</Typography.Text>}
       />
+      <AnnualizedReturnUnavailableMessage row={row} />
+      <AnnualizedReturnBreakdownDetails row={row} />
     </section>
     <Link className="position-mobile-sheet__link" href={positionDetailsPath(row.secId, row.boardId)}>
       Подробнее <RightOutlined aria-hidden="true" />
@@ -103,7 +146,6 @@ export default function PositionsPage() {
   const [loading, setLoading] = useState(true);
   const [mobilePosition, setMobilePosition] = useState<PortfolioPosition | null>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  const [mobileSortKey, setMobileSortKey] = useState<MobilePositionSortKey>("marketValue");
   const [activeTabKey, setActiveTabKey] = useState("open");
   const { message } = AntdApp.useApp();
 
@@ -119,22 +161,6 @@ export default function PositionsPage() {
 
   const resultType = totals?.unrealizedPnlRub == null ? undefined : totals.unrealizedPnlRub >= 0 ? "success" : "danger";
   const formatResult = (value: number) => `${value >= 0 ? "+" : ""}${number.format(value)}`;
-  const mobileRows = [...rows].sort((left, right) => {
-    if (mobileSortKey === "name") {
-      return (left.shortName || left.secId).localeCompare(right.shortName || right.secId, "ru-RU");
-    }
-
-    const getValue = (row: PortfolioPosition) => mobileSortKey === "marketValue"
-      ? row.marketValue
-      : mobileSortKey === "result"
-        ? row.approximateTotalPnl
-        : row.quantity;
-    const leftValue = getValue(left);
-    const rightValue = getValue(right);
-    if (leftValue == null) return rightValue == null ? 0 : 1;
-    if (rightValue == null) return -1;
-    return rightValue - leftValue;
-  });
 
   const columns: ColumnsType<PortfolioPosition> = [
     { title: "Облигация", dataIndex: "shortName", width: 190, render: (value: string, row) => {
@@ -251,9 +277,11 @@ export default function PositionsPage() {
         <Typography.Text type="secondary">Годовых, оценка</Typography.Text>
         {annualized == null
           ? <Typography.Text strong>Нет данных</Typography.Text>
-          : <Tooltip title="Линейная экстраполяция результата каждой оставшейся покупки на 365 дней с весом по её себестоимости. Для покупки сегодня принимается 1 день владения. Это не прогноз и не YTM; купонный результат приблизительный. Налоги, фактические амортизации и будущая комиссия продажи не учтены.">
+          : <Tooltip title={annualizedResultExplanation} trigger={["hover", "click"]}>
               <Typography.Text strong type={annualized >= 0 ? "success" : "danger"}>{formatResult(annualized)}%</Typography.Text>
             </Tooltip>}
+        <AnnualizedReturnUnavailableMessage row={row} />
+        <AnnualizedReturnBreakdownDetails row={row} />
         <Typography.Text type="secondary">Линейная оценка · не YTM</Typography.Text>
       </div>
     </div>;
@@ -265,19 +293,6 @@ export default function PositionsPage() {
         <Typography.Title level={1}>Позиции</Typography.Title>
         <Typography.Text className="positions-mobile-subtitle" type="secondary">Облигации Popo°</Typography.Text>
       </div>
-      {activeTabKey === "open" && <Select<MobilePositionSortKey>
-        className="positions-mobile-sort"
-        aria-label="Сортировка позиций"
-        value={mobileSortKey}
-        suffixIcon={<DownOutlined aria-hidden="true" />}
-        onChange={setMobileSortKey}
-        options={[
-          { value: "marketValue", label: "Рыночная стоимость" },
-          { value: "result", label: "Результат" },
-          { value: "quantity", label: "Количество" },
-          { value: "name", label: "Название" }
-        ]}
-      />}
     </div>
     <Tabs
       className="portfolio-main-tabs"
@@ -322,7 +337,7 @@ export default function PositionsPage() {
               <section className="positions-mobile-list" aria-label="Открытые позиции">
                 {loading && rows.length === 0 ? <div className="positions-mobile-loading"><Spin /></div> : null}
                 {!loading && rows.length === 0 ? <Typography.Text type="secondary">Открытых позиций нет</Typography.Text> : null}
-                {mobileRows.map((row) => {
+                {rows.map((row) => {
                   const bondName = row.shortName || row.secId;
                   const totalPnlType = row.approximateTotalPnl == null ? undefined : row.approximateTotalPnl >= 0 ? "success" : "danger";
                   const isSelected = mobilePosition?.secId === row.secId

@@ -306,6 +306,15 @@ public sealed class PortfolioPositionsService(
         var canNormalizeOpenCost = tradePricing
             .Where(x => x.Trade.Side == TradeSide.Buy)
             .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
+        var positionIncomeTrades = tradePricing.Select(x => new PositionIncomeTrade(
+            x.Trade.TradeDate,
+            x.Trade.Side,
+            x.Trade.Quantity,
+            x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
+            x.Trade.Commission,
+            x.PurchasePricePercent,
+            x.Trade.Price,
+            x.Trade.AccruedInterest)).ToArray();
         var positionCalculation = calculator is DefaultPositionCalculator
                                   && (!marketPricing.MarketPrice.HasValue
                                       || data.Marketdata?.CurrentPrice is null
@@ -318,15 +327,7 @@ public sealed class PortfolioPositionsService(
                 data.Position.AverageBuyPrice)
             : calculator.Calculate(new PositionCalculationInput(
                 data.Position,
-                tradePricing.Select(x => new PositionIncomeTrade(
-                    x.Trade.TradeDate,
-                    x.Trade.Side,
-                    x.Trade.Quantity,
-                    x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
-                    x.Trade.Commission,
-                    x.PurchasePricePercent,
-                    x.Trade.Price,
-                    x.Trade.AccruedInterest)).ToArray(),
+                positionIncomeTrades,
                 asOf,
                 marketPricing.MarketPrice,
                 couponValue.GetValueOrDefault(),
@@ -340,6 +341,13 @@ public sealed class PortfolioPositionsService(
         var income = positionCalculation.Income;
         var averageBuyPriceAtCurrentFaceValue = positionCalculation.AverageBuyPriceAtCurrentFaceValue;
         var valuation = positionCalculation.Valuation;
+        var annualizedReturnUnavailableReason = income is { IsCouponIncomeComplete: true }
+                                               && couponValue.HasValue
+                                               && income.AnnualizedTotalPnlPercent is null
+                                               && PositionOpenLotCalculator.Calculate(positionIncomeTrades, asOf)
+                                                   .Lots.Any(lot => lot.TradeDate > marketPricing.QuoteDate)
+            ? "QuoteBeforeLatestOpenPurchase"
+            : null;
 
         return CreateValuedPosition(
             data,
@@ -350,7 +358,8 @@ public sealed class PortfolioPositionsService(
             valuation,
             isNominalIndexed,
             positionCalculation.AverageBuyPrice,
-            calculator is FloaterPositionCalculator);
+            calculator is FloaterPositionCalculator,
+            annualizedReturnUnavailableReason);
     }
 
     private static bool HasOpenLotNominalGrowth(
@@ -525,7 +534,8 @@ public sealed class PortfolioPositionsService(
         PortfolioPositionValuation valuation,
         bool isNominalIndexed,
         double? averageBuyPrice,
-        bool isFloaterCalculator)
+        bool isFloaterCalculator,
+        string? annualizedReturnUnavailableReason)
     {
         var completeCouponIncome = income is { IsCouponIncomeComplete: true }
                                    && (isFloaterCalculator || couponValue.HasValue)
@@ -548,6 +558,10 @@ public sealed class PortfolioPositionsService(
             ApproximateTotalPnl = completeCouponIncome?.TotalPnl,
             ApproximateTotalPnlPercent = completeCouponIncome?.TotalPnlPercent,
             ApproximateAnnualizedTotalPnlPercent = completeCouponIncome?.AnnualizedTotalPnlPercent,
+            ApproximateAnnualizedReturnBreakdown = completeCouponIncome?.AnnualizedTotalPnlPercent is not null
+                ? completeCouponIncome.AnnualizedReturnBreakdown
+                : null,
+            ApproximateAnnualizedReturnUnavailableReason = annualizedReturnUnavailableReason,
             AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
             AverageBuyPricePercent = income?.AverageBuyPricePercent,
             CurrentFaceValue = data.Security?.FaceValue,
