@@ -356,6 +356,7 @@ export default function RecommendationsPage() {
         title="Параметры стратегии"
         placement="right"
         size={440}
+        zIndex={1100}
         open={settingsOpen}
         forceRender
         onClose={() => setSettingsOpen(false)}
