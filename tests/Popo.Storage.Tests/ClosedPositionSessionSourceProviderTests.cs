@@ -49,7 +49,8 @@ public sealed class ClosedPositionSessionSourceProviderTests
             Assert.That(result.CouponIncome, Is.EqualTo(155));
             Assert.That(result.TotalPnl, Is.EqualTo(450));
             Assert.That(result.TotalPnlPercent, Is.EqualTo(22.5));
-            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(264.92));
+            // 31 days × (2 × (1,000 + 77) + 2) = 66,836 capital-days; 450 × 365 / 66,836 × 100 = 245.75%.
+            Assert.That(result.AnnualizedPnlPercent, Is.EqualTo(245.75));
             Assert.That(result.IsComplete, Is.True);
         });
     }

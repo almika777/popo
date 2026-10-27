@@ -34,7 +34,7 @@ export function buildPositionAnnualizedBreakdownView(
   const money = (value: number) => `${number.format(value)} ${currencyId}`;
   return {
     valuationDate: date.format(new Date(`${breakdown.valuationDate}T00:00:00.000Z`)),
-    formula: `365 × ${money(breakdown.totalPnl)} ÷ ${number.format(breakdown.investedCapitalDays)} ${currencyId}·дней × 100 = ${percent.format(breakdown.annualizedPercent)}%`,
+    formula: `365 × ${money(breakdown.totalPnl)} ÷ ${number.format(breakdown.investedCapitalDays)} ${currencyId}·дней × 100 ≈ ${percent.format(breakdown.annualizedPercent)}%`,
     lots: breakdown.lots.map((lot) => ({
       tradeDate: date.format(new Date(`${lot.tradeDate}T00:00:00.000Z`)),
       quantity: quantity.format(lot.quantity),

@@ -36,14 +36,10 @@ function MobilePositionDetailRow({ label, value, separated = false }: { label: R
 function AnnualizedReturnBreakdownDetails({ row }: { row: PortfolioPosition }) {
   const view = buildPositionAnnualizedBreakdownView(row.approximateAnnualizedReturnBreakdown, row.currencyId);
   if (view == null) return null;
-  const exampleLot = view.lots[0];
 
   return <div className="position-annualized-breakdown">
     <Typography.Text type="secondary">На {view.valuationDate}</Typography.Text>
     <Typography.Text type="secondary">{view.formula}</Typography.Text>
-    {exampleLot == null ? null : <Typography.Text type="secondary">
-      Вложенный капитал лота — остаток бумаг × (чистая цена покупки + НКД при покупке + комиссия). Капитал-дни — этот капитал × дни владения: {exampleLot.investedCapital} × {exampleLot.holdingDays} = {exampleLot.capitalDays}. Это не денежный остаток, а мера вклада лота с учётом суммы и срока; капитал-дни всех лотов складываются в знаменатель.
-    </Typography.Text>}
     <details className="position-annualized-breakdown__details">
       <summary>Расшифровка по лотам ({view.lots.length})</summary>
       <div className="position-annualized-breakdown__lots">

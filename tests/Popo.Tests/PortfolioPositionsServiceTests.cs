@@ -201,6 +201,71 @@ public sealed class PortfolioPositionsServiceTests
     }
 
     [Test]
+    public async Task AnnualizedBreakdown_RoundsDisplayedValuesWithoutChangingPositionResult()
+    {
+        const string secId = "ROUND-ANNUALIZED";
+        const string boardId = "TQCB";
+        const double quantity = 1.333;
+        const double price = 900.1234;
+        const double accruedInterest = 5.1234;
+        const double commission = 0.23456;
+        var asOf = MoscowTime.Today;
+        var trade = new PortfolioTradeRecord(
+            Guid.NewGuid(), secId, boardId, "RUB", asOf.AddDays(-3), TradeSide.Buy,
+            quantity, price, 1_000, accruedInterest, commission, 0,
+            quantity * (price + accruedInterest) + commission);
+        var position = new PortfolioPositionRecord(
+            secId, boardId, "RUB", quantity, quantity, 0, quantity * price,
+            trade.Amount, 0, price);
+        var service = new PortfolioPositionsService(
+            new FakeMoneyMarketFundsProvider(),
+            new FakeTradesProvider([trade]),
+            new FakePositionsProvider(position),
+            new FakeMoexHttpClient(
+                new MoexBond
+                {
+                    SecId = secId,
+                    BoardId = boardId,
+                    Isin = secId,
+                    InitialFaceValue = 1_000,
+                    FaceValue = 1_000,
+                    FaceUnit = "RUB",
+                    CouponValue = 0,
+                    CouponPeriod = 182
+                },
+                new MoexMarketdata
+                {
+                    SecId = secId,
+                    BoardId = boardId,
+                    LCurrentPrice = 95.12345,
+                    SysTime = asOf.ToDateTime(TimeOnly.MinValue)
+                }),
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider());
+
+        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var breakdown = result.ApproximateAnnualizedReturnBreakdown!;
+        var lot = breakdown.Lots.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ApproximateTotalPnl, Is.EqualTo(67.8965363).Within(0.000001));
+            Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.EqualTo(684.44));
+            Assert.That(breakdown.TotalPnl, Is.EqualTo(67.90));
+            Assert.That(breakdown.InvestedCapitalDays, Is.EqualTo(3_620.79));
+            Assert.That(breakdown.AnnualizedPercent, Is.EqualTo(684.44));
+            Assert.That(lot.Quantity, Is.EqualTo(1.33));
+            Assert.That(lot.PurchaseCleanPricePerUnit, Is.EqualTo(900.12));
+            Assert.That(lot.PaidAccruedInterestPerUnit, Is.EqualTo(5.12));
+            Assert.That(lot.CommissionPerUnit, Is.EqualTo(0.18));
+            Assert.That(lot.InvestedCapital, Is.EqualTo(1_206.93));
+            Assert.That(lot.HoldingDays, Is.EqualTo(3));
+            Assert.That(lot.CapitalDays, Is.EqualTo(3_620.79));
+        });
+    }
+
+    [Test]
     public async Task Floater_UsesPublishedCouponScheduleAndCurrentAccruedInterestWithoutMoexCouponValue()
     {
         const string secId = "FLOAT-SERVICE";

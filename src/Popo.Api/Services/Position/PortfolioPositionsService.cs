@@ -3,6 +3,7 @@ using Popo.Api.Models;
 using Popo.Core;
 using Popo.Core.Common;
 using Popo.Core.Contracts.Iss;
+using Popo.Core.Extensions;
 using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Position;
@@ -557,9 +558,9 @@ public sealed class PortfolioPositionsService(
             ApproximateCouponIncome = completeCouponIncome?.CouponIncome,
             ApproximateTotalPnl = completeCouponIncome?.TotalPnl,
             ApproximateTotalPnlPercent = completeCouponIncome?.TotalPnlPercent,
-            ApproximateAnnualizedTotalPnlPercent = completeCouponIncome?.AnnualizedTotalPnlPercent,
+            ApproximateAnnualizedTotalPnlPercent = (completeCouponIncome?.AnnualizedTotalPnlPercent).Round(),
             ApproximateAnnualizedReturnBreakdown = completeCouponIncome?.AnnualizedTotalPnlPercent is not null
-                ? completeCouponIncome.AnnualizedReturnBreakdown
+                ? RoundAnnualizedBreakdown(completeCouponIncome.AnnualizedReturnBreakdown)
                 : null,
             ApproximateAnnualizedReturnUnavailableReason = annualizedReturnUnavailableReason,
             AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
@@ -572,6 +573,23 @@ public sealed class PortfolioPositionsService(
 
         return new ValuedPosition(position, marketPriceData.TradingCurrencyRateToRub);
     }
+
+    private static PositionAnnualizedReturnBreakdown? RoundAnnualizedBreakdown(
+        PositionAnnualizedReturnBreakdown? breakdown) => breakdown is null ? null : breakdown with
+    {
+        TotalPnl = breakdown.TotalPnl.Round(),
+        InvestedCapitalDays = breakdown.InvestedCapitalDays.Round(),
+        AnnualizedPercent = breakdown.AnnualizedPercent.Round(),
+        Lots = breakdown.Lots.Select(lot => lot with
+        {
+            Quantity = lot.Quantity.Round(),
+            PurchaseCleanPricePerUnit = lot.PurchaseCleanPricePerUnit.Round(),
+            PaidAccruedInterestPerUnit = lot.PaidAccruedInterestPerUnit.Round(),
+            CommissionPerUnit = lot.CommissionPerUnit.Round(),
+            InvestedCapital = lot.InvestedCapital.Round(),
+            CapitalDays = lot.CapitalDays.Round()
+        }).ToArray()
+    };
 
     private static MoexMarketdata? GetMarketdataValue(
         Dictionary<string, MoexMarketdata> marketdataByKey,

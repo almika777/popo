@@ -7,7 +7,7 @@ test("builds formula and per-lot rows from the API breakdown", () => {
     valuationDate: "2026-10-06",
     totalPnl: 480,
     investedCapitalDays: 45_020,
-    annualizedPercent: 389.16037316748113,
+    annualizedPercent: 389.16,
     lots: [
       {
         tradeDate: "2026-10-01",
@@ -33,7 +33,7 @@ test("builds formula and per-lot rows from the API breakdown", () => {
   }, "RUB");
 
   assert.equal(result.valuationDate, "06.10.2026");
-  assert.match(result.formula, /365 × \+?480,00 RUB ÷ 45\s*020,00 RUB·дней × 100 = 389,16%/);
+  assert.match(result.formula, /365 × \+?480,00 RUB ÷ 45\s*020,00 RUB·дней × 100 ≈ 389,16%/);
   assert.deepEqual(result.lots.map((lot) => ({
     tradeDate: lot.tradeDate,
     quantity: lot.quantity,
