@@ -31,6 +31,7 @@ export type BondYieldCalculation = {
 export type CashRecommendationBond = {
   secId: string;
   boardId: string;
+  shortName: string | null;
   issuerId: number;
   issuerName: string;
   currencyId: string;

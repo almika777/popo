@@ -21,4 +21,7 @@ public sealed class PortfolioReturnQuery
 
     [FromQuery(Name = "includeIndexedBond")]
     public bool IncludeIndexedBond { get; init; } = true;
+
+    [FromQuery(Name = "includeTmon")]
+    public bool IncludeTmon { get; init; }
 }

@@ -25,6 +25,23 @@ public sealed class PortfolioLedgerTests
     }
 
     [Test]
+    public void MarketPrice_CanBeCalculatedWithoutFxWhenTradingAndFaceCurrenciesMatch()
+    {
+        var price = PortfolioMarketPriceCalculator.Calculate(1_000, "USD", "USD", 95, null, null);
+
+        Assert.That(price, Is.EqualTo(950).Within(0.001));
+    }
+
+    [Test]
+    public void MarketPricePercent_CanBeCalculatedWithoutFxWhenTradingAndFaceCurrenciesMatch()
+    {
+        var pricePercent = PortfolioMarketPriceCalculator.CalculatePricePercent(
+            950, 1_000, "USD", "USD", null, null);
+
+        Assert.That(pricePercent, Is.EqualTo(95).Within(0.001));
+    }
+
+    [Test]
     public void MarketPrice_TreatsMoexSurAsRuble()
     {
         var price = PortfolioMarketPriceCalculator.Calculate(1_000, "SUR", "RUB", 99.7, null, null);
@@ -277,7 +294,7 @@ public sealed class PortfolioLedgerTests
     }
 
     [Test]
-    public void ApproximateAnnualizedIncome_WeightsEachOpenLotByItsCost()
+    public void ApproximateAnnualizedIncome_WeightsTotalPnlByInvestedCapitalDays()
     {
         var result = PortfolioPositionCalculator.Calculate(
         [
@@ -289,7 +306,84 @@ public sealed class PortfolioLedgerTests
         0,
         0);
 
-        Assert.That(result.AnnualizedTotalPnlPercent, Is.EqualTo(24.3333333333).Within(0.001));
+        Assert.That(result.AnnualizedTotalPnlPercent, Is.EqualTo(18.25).Within(0.001));
+    }
+
+    [Test]
+    public void ApproximateAnnualizedIncome_IncludesPurchaseAccruedInterestAndCommissionInInvestedCapital()
+    {
+        var result = PortfolioPositionCalculator.Calculate(
+        [
+            new PositionIncomeTrade(
+                new DateOnly(2026, 9, 1), TradeSide.Buy, 1, 1_000, 10,
+                AccruedInterest: 50)
+        ],
+        new DateOnly(2026, 10, 1),
+        1_062,
+        0,
+        0);
+
+        Assert.That(result.TotalPnl, Is.EqualTo(52).Within(0.001));
+        Assert.That(result.AnnualizedTotalPnlPercent,
+            Is.EqualTo(52 * 365d / (1_060 * 30) * 100).Within(0.001));
+    }
+
+    [Test]
+    public void ApproximateAnnualizedIncome_ExposesBreakdownForRemainingLotsAfterPartialSale()
+    {
+        var result = PortfolioPositionCalculator.Calculate(
+        [
+            new PositionIncomeTrade(new DateOnly(2026, 10, 1), TradeSide.Buy, 10, 1_000, 20, AccruedInterest: 10),
+            new PositionIncomeTrade(new DateOnly(2026, 10, 2), TradeSide.Sell, 5, 1_000, 0),
+            new PositionIncomeTrade(new DateOnly(2026, 10, 4), TradeSide.Buy, 10, 980, 10, AccruedInterest: 5)
+        ],
+        new DateOnly(2026, 10, 6),
+        1_020,
+        0,
+        0);
+
+        var breakdown = result.AnnualizedReturnBreakdown!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.TotalPnl, Is.EqualTo(480).Within(0.001));
+            Assert.That(breakdown.ValuationDate, Is.EqualTo(new DateOnly(2026, 10, 6)));
+            Assert.That(breakdown.TotalPnl, Is.EqualTo(480).Within(0.001));
+            Assert.That(breakdown.InvestedCapitalDays, Is.EqualTo(45_020).Within(0.001));
+            Assert.That(breakdown.AnnualizedPercent, Is.EqualTo(480 * 365d / 45_020 * 100).Within(0.001));
+            Assert.That(result.AnnualizedTotalPnlPercent, Is.EqualTo(breakdown.AnnualizedPercent).Within(0.001));
+            Assert.That(breakdown.Lots, Has.Count.EqualTo(2));
+            Assert.That(breakdown.Lots[0].Quantity, Is.EqualTo(5).Within(0.001));
+            Assert.That(breakdown.Lots[0].PurchaseCleanPricePerUnit, Is.EqualTo(1_000));
+            Assert.That(breakdown.Lots[0].PaidAccruedInterestPerUnit, Is.EqualTo(10));
+            Assert.That(breakdown.Lots[0].CommissionPerUnit, Is.EqualTo(2));
+            Assert.That(breakdown.Lots[0].InvestedCapital, Is.EqualTo(5_060).Within(0.001));
+            Assert.That(breakdown.Lots[0].HoldingDays, Is.EqualTo(5));
+            Assert.That(breakdown.Lots[0].CapitalDays, Is.EqualTo(25_300).Within(0.001));
+            Assert.That(breakdown.Lots[1].Quantity, Is.EqualTo(10).Within(0.001));
+            Assert.That(breakdown.Lots[1].InvestedCapital, Is.EqualTo(9_860).Within(0.001));
+            Assert.That(breakdown.Lots[1].HoldingDays, Is.EqualTo(2));
+            Assert.That(breakdown.Lots[1].CapitalDays, Is.EqualTo(19_720).Within(0.001));
+        });
+    }
+
+    [Test]
+    public void ApproximateAnnualizedIncome_UsesActualPurchasePriceForIndexedNominalBond()
+    {
+        var result = PortfolioPositionCalculator.Calculate(
+        [
+            new PositionIncomeTrade(
+                new DateOnly(2026, 9, 1), TradeSide.Buy, 1, 1_100, 10,
+                ActualCleanPrice: 1_000, AccruedInterest: 50)
+        ],
+        new DateOnly(2026, 10, 1),
+        1_022,
+        0,
+        0,
+        includeIndexedNominalIncreaseInPnl: true);
+
+        Assert.That(result.TotalPnl, Is.EqualTo(12).Within(0.001));
+        Assert.That(result.AnnualizedTotalPnlPercent,
+            Is.EqualTo(12 * 365d / (1_060 * 30) * 100).Within(0.001));
     }
 
       [Test]
@@ -310,6 +404,8 @@ public sealed class PortfolioLedgerTests
           Assert.That(result.PaidBuyCommission, Is.EqualTo(1.5).Within(0.001));
           Assert.That(result.CouponIncome, Is.EqualTo(22.5).Within(0.001));
           Assert.That(result.TotalPnl, Is.EqualTo(-39).Within(0.001));
+          Assert.That(result.AnnualizedTotalPnlPercent,
+              Is.EqualTo(-39 * 365d / (0.5 * 1_002 * 27 + 0.5 * 901 * 18) * 100).Within(0.001));
       }
 
 }

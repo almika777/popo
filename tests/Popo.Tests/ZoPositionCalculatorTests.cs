@@ -35,6 +35,124 @@ public sealed class ZoPositionCalculatorTests
     }
 
     [Test]
+    public void Calculator_AnnualizesTotalPnlOverCapitalIncludingPaidAccruedInterestAndCommission()
+    {
+        var tradeDate = new DateOnly(2026, 10, 5);
+        var input = Input(
+            [Trade(tradeDate, TradeSide.Buy, 1, 1_000, accruedInterest: 50, commission: 10)],
+            currentFaceValue: 1_000,
+            marketPricePercent: 101.2,
+            faceCurrencyRateToRub: 1,
+            currentAccruedInterest: 50,
+            couponPayments:
+            [
+                new PositionCouponPayment(new DateOnly(2026, 6, 30), new DateOnly(2026, 1, 1),
+                    100, "USD", 1)
+            ],
+            couponPeriodDays: 182,
+            asOf: tradeDate,
+            couponFrequency: 2);
+
+        var result = new ZoPositionCalculator().Calculate(input);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Income!.TotalPnl, Is.EqualTo(2).Within(0.001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent,
+                Is.EqualTo(2 * 365d / 1_060 * 100).Within(0.001));
+            Assert.That(result.Income.AnnualizedReturnBreakdown!.AnnualizedPercent,
+                Is.EqualTo(result.Income.AnnualizedTotalPnlPercent).Within(0.001));
+            Assert.That(result.Income.AnnualizedReturnBreakdown.InvestedCapitalDays, Is.EqualTo(1_060).Within(0.001));
+            Assert.That(result.Income.AnnualizedReturnBreakdown.Lots.Single().PaidAccruedInterestPerUnit, Is.EqualTo(50));
+        });
+    }
+
+    [Test]
+    public void DefaultCalculator_DoesNotAnnualizeAgainstQuoteOlderThanAnOpenPurchase()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 10, 5), TradeSide.Buy, 1, 1_000)],
+            currentFaceValue: 1_000,
+            marketPricePercent: 101.2,
+            faceCurrencyRateToRub: 1,
+            asOf: new DateOnly(2026, 10, 5),
+            couponFrequency: 0) with
+        {
+            CouponValuationDate = new DateOnly(2026, 10, 4)
+        };
+
+        var result = new DefaultPositionCalculator().Calculate(input);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Income!.TotalPnl, Is.EqualTo(12).Within(0.001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent, Is.Null);
+            Assert.That(result.Income.AnnualizedReturnBreakdown, Is.Null);
+        });
+    }
+
+    [Test]
+    public void DefaultCalculator_AnnualizesPnlAndHoldingDaysThroughAsOfWhenQuoteIsOlder()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 10, 1), TradeSide.Buy, 1, 1_000)],
+            currentFaceValue: 1_000,
+            marketPricePercent: 100.1,
+            faceCurrencyRateToRub: 1,
+            couponPeriodDays: 182,
+            couponValue: 182,
+            asOf: new DateOnly(2026, 10, 6)) with
+        {
+            CouponValuationDate = new DateOnly(2026, 10, 5)
+        };
+
+        var result = new DefaultPositionCalculator().Calculate(input);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Income!.TotalPnl, Is.EqualTo(6).Within(0.001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent,
+                Is.EqualTo(6 * 365d / (1_000 * 5) * 100).Within(0.001));
+            Assert.That(result.Income.AnnualizedReturnBreakdown!.ValuationDate,
+                Is.EqualTo(new DateOnly(2026, 10, 6)));
+        });
+    }
+
+    [Test]
+    public void ZoCalculator_AnnualizesPnlAndHoldingDaysThroughAsOfWhenQuoteIsOlder()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 10, 1), TradeSide.Buy, 1, 1_000)],
+            currentFaceValue: 1_000,
+            marketPricePercent: 100,
+            faceCurrencyRateToRub: 1,
+            couponPayments:
+            [
+                new PositionCouponPayment(new DateOnly(2026, 4, 7), new DateOnly(2025, 10, 7),
+                    100, "USD", 1, new DateOnly(2026, 4, 5)),
+                new PositionCouponPayment(new DateOnly(2026, 10, 6), new DateOnly(2026, 4, 8),
+                    100, "USD", 1, new DateOnly(2026, 10, 4))
+            ],
+            couponPeriodDays: 182,
+            couponValue: 100,
+            asOf: new DateOnly(2026, 10, 6),
+            couponFrequency: 2,
+            nextCouponDate: new DateOnly(2026, 10, 6)) with
+        {
+            CouponValuationDate = new DateOnly(2026, 10, 5)
+        };
+
+        var result = new ZoPositionCalculator().Calculate(input);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Income!.TotalPnl, Is.EqualTo(100).Within(0.001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent,
+                Is.EqualTo(100 * 365d / (1_000 * 5) * 100).Within(0.001));
+        });
+    }
+
+    [Test]
     public void Factory_SelectsZoCalculatorForForeignNominalAndRubleTradingCurrency()
     {
         var factory = new PositionCalculatorFactory();

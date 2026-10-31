@@ -211,6 +211,9 @@ public sealed class TradesControllerFaceValueTests
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>
             throw new NotSupportedException();
 

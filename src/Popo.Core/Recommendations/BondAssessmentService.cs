@@ -173,7 +173,10 @@ public sealed class BondAssessmentService(
             security.IsFloater ? BondCouponType.Floating : BondCouponType.Fixed,
             medianDailyVolume, schedule.YieldDate, schedule.YieldDateType,
             BondAssessmentRules.CreateCalculationDetails(
-                yieldRequest.SettlementDate, price, security.AccruedInterest!.Value, dirtyPrice.Value, schedule));
+                yieldRequest.SettlementDate, price, security.AccruedInterest!.Value, dirtyPrice.Value, schedule))
+        {
+            ShortName = security.ShortName
+        };
     }
 
     /// <summary>Загруженные источники одного запроса, общие для оценки всех облигаций.</summary>

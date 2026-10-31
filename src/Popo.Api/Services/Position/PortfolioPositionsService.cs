@@ -3,6 +3,7 @@ using Popo.Api.Models;
 using Popo.Core;
 using Popo.Core.Common;
 using Popo.Core.Contracts.Iss;
+using Popo.Core.Extensions;
 using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Portfolio.Position;
@@ -20,6 +21,12 @@ public interface IPortfolioPositionsService
     /// <param name="cancellationToken">Токен отмены загрузки данных.</param>
     /// <returns>Позиции фондов; при недоступной котировке сохранённые данные позиции остаются в ответе.</returns>
     Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Возвращает исходные цены, количества и валюты позиций для аналитики портфеля.</summary>
+    /// <param name="cancellationToken">Токен отмены загрузки данных.</param>
+    /// <returns>Позиции с ценой в валюте торгов и отдельной валютой номинала.</returns>
+    Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
+        CancellationToken cancellationToken);
 }
 
 public sealed class PortfolioPositionsService(
@@ -61,6 +68,55 @@ public sealed class PortfolioPositionsService(
     {
         var valuedPositions = await LoadPositionsAsync(cancellationToken);
         return valuedPositions.Select(x => x.Position).ToArray();
+    }
+
+    public async Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
+        CancellationToken cancellationToken)
+    {
+        var asOf = MoscowTime.Today;
+        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
+        if (positions.Count == 0)
+        {
+            return [];
+        }
+
+        var marketdataTask = moexHttpClient.GetActiveBondsMarketdataAsync(cancellationToken);
+        var securitiesTask = moexHttpClient.GetActiveBondsSecuritiesAsync(cancellationToken);
+        await Task.WhenAll(marketdataTask, securitiesTask);
+        var positionData = ResolvePositionData(new PositionSourceData(
+            positions,
+            [],
+            (await marketdataTask).SelectMany(item => item.Value).ToArray(),
+            (await securitiesTask).SelectMany(item => item.Value).ToArray(),
+            new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
+        var currencies = positionData
+            .SelectMany(item => HasCurrentMarketPrice(item) && item.Security is not null
+                ? new[] { item.Position.CurrencyId, item.Security.FaceUnit }
+                : [item.Position.CurrencyId])
+            .Where(currency => !IsRubleCurrency(currency))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var rates = currencies.Length == 0 ? [] : await LoadCurrencyRatesAsync(currencies, cancellationToken);
+
+        return positionData.Select(item =>
+        {
+            var pricing = CalculateMarketPrice(item, rates, asOf);
+            var name = !string.IsNullOrWhiteSpace(item.Security?.ShortName)
+                ? item.Security.ShortName
+                : !string.IsNullOrWhiteSpace(item.Position.ShortName)
+                    ? item.Position.ShortName
+                    : item.Position.SecId;
+
+            return new PortfolioCurrencyAnalyticsAsset(
+                $"position:{item.Position.SecId}:{item.Position.BoardId}:{item.Position.CurrencyId}",
+                PortfolioCurrencyAnalyticsAssetKind.Position,
+                name,
+                item.Position.CurrencyId,
+                item.Security?.FaceUnit,
+                item.Position.Quantity,
+                pricing.MarketPrice,
+                pricing.TradingCurrencyRateToRub);
+        }).ToArray();
     }
 
     public async Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken)
@@ -251,6 +307,15 @@ public sealed class PortfolioPositionsService(
         var canNormalizeOpenCost = tradePricing
             .Where(x => x.Trade.Side == TradeSide.Buy)
             .All(x => x.PurchasePricePercent.HasValue && x.PurchasePriceAtCurrentFaceValue.HasValue);
+        var positionIncomeTrades = tradePricing.Select(x => new PositionIncomeTrade(
+            x.Trade.TradeDate,
+            x.Trade.Side,
+            x.Trade.Quantity,
+            x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
+            x.Trade.Commission,
+            x.PurchasePricePercent,
+            x.Trade.Price,
+            x.Trade.AccruedInterest)).ToArray();
         var positionCalculation = calculator is DefaultPositionCalculator
                                   && (!marketPricing.MarketPrice.HasValue
                                       || data.Marketdata?.CurrentPrice is null
@@ -263,15 +328,7 @@ public sealed class PortfolioPositionsService(
                 data.Position.AverageBuyPrice)
             : calculator.Calculate(new PositionCalculationInput(
                 data.Position,
-                tradePricing.Select(x => new PositionIncomeTrade(
-                    x.Trade.TradeDate,
-                    x.Trade.Side,
-                    x.Trade.Quantity,
-                    x.PurchasePriceAtCurrentFaceValue ?? x.Trade.Price,
-                    x.Trade.Commission,
-                    x.PurchasePricePercent,
-                    x.Trade.Price,
-                    x.Trade.AccruedInterest)).ToArray(),
+                positionIncomeTrades,
                 asOf,
                 marketPricing.MarketPrice,
                 couponValue.GetValueOrDefault(),
@@ -285,6 +342,13 @@ public sealed class PortfolioPositionsService(
         var income = positionCalculation.Income;
         var averageBuyPriceAtCurrentFaceValue = positionCalculation.AverageBuyPriceAtCurrentFaceValue;
         var valuation = positionCalculation.Valuation;
+        var annualizedReturnUnavailableReason = income is { IsCouponIncomeComplete: true }
+                                               && couponValue.HasValue
+                                               && income.AnnualizedTotalPnlPercent is null
+                                               && PositionOpenLotCalculator.Calculate(positionIncomeTrades, asOf)
+                                                   .Lots.Any(lot => lot.TradeDate > marketPricing.QuoteDate)
+            ? "QuoteBeforeLatestOpenPurchase"
+            : null;
 
         return CreateValuedPosition(
             data,
@@ -295,7 +359,8 @@ public sealed class PortfolioPositionsService(
             valuation,
             isNominalIndexed,
             positionCalculation.AverageBuyPrice,
-            calculator is FloaterPositionCalculator);
+            calculator is FloaterPositionCalculator,
+            annualizedReturnUnavailableReason);
     }
 
     private static bool HasOpenLotNominalGrowth(
@@ -363,6 +428,9 @@ public sealed class PortfolioPositionsService(
             faceCurrencyRateToRub,
             marketPrice);
     }
+
+    private static bool HasCurrentMarketPrice(PositionData data) =>
+        data.Marketdata?.CurrentPrice is { } price && double.IsFinite(price) && price > 0;
 
     private double? GetPositionCouponValue(
         PositionData data,
@@ -467,7 +535,8 @@ public sealed class PortfolioPositionsService(
         PortfolioPositionValuation valuation,
         bool isNominalIndexed,
         double? averageBuyPrice,
-        bool isFloaterCalculator)
+        bool isFloaterCalculator,
+        string? annualizedReturnUnavailableReason)
     {
         var completeCouponIncome = income is { IsCouponIncomeComplete: true }
                                    && (isFloaterCalculator || couponValue.HasValue)
@@ -489,7 +558,11 @@ public sealed class PortfolioPositionsService(
             ApproximateCouponIncome = completeCouponIncome?.CouponIncome,
             ApproximateTotalPnl = completeCouponIncome?.TotalPnl,
             ApproximateTotalPnlPercent = completeCouponIncome?.TotalPnlPercent,
-            ApproximateAnnualizedTotalPnlPercent = completeCouponIncome?.AnnualizedTotalPnlPercent,
+            ApproximateAnnualizedTotalPnlPercent = (completeCouponIncome?.AnnualizedTotalPnlPercent).Round(),
+            ApproximateAnnualizedReturnBreakdown = completeCouponIncome?.AnnualizedTotalPnlPercent is not null
+                ? RoundAnnualizedBreakdown(completeCouponIncome.AnnualizedReturnBreakdown)
+                : null,
+            ApproximateAnnualizedReturnUnavailableReason = annualizedReturnUnavailableReason,
             AverageBuyPriceAtCurrentFaceValue = averageBuyPriceAtCurrentFaceValue,
             AverageBuyPricePercent = income?.AverageBuyPricePercent,
             CurrentFaceValue = data.Security?.FaceValue,
@@ -500,6 +573,23 @@ public sealed class PortfolioPositionsService(
 
         return new ValuedPosition(position, marketPriceData.TradingCurrencyRateToRub);
     }
+
+    private static PositionAnnualizedReturnBreakdown? RoundAnnualizedBreakdown(
+        PositionAnnualizedReturnBreakdown? breakdown) => breakdown is null ? null : breakdown with
+    {
+        TotalPnl = breakdown.TotalPnl.Round(),
+        InvestedCapitalDays = breakdown.InvestedCapitalDays.Round(),
+        AnnualizedPercent = breakdown.AnnualizedPercent.Round(),
+        Lots = breakdown.Lots.Select(lot => lot with
+        {
+            Quantity = lot.Quantity.Round(),
+            PurchaseCleanPricePerUnit = lot.PurchaseCleanPricePerUnit.Round(),
+            PaidAccruedInterestPerUnit = lot.PaidAccruedInterestPerUnit.Round(),
+            CommissionPerUnit = lot.CommissionPerUnit.Round(),
+            InvestedCapital = lot.InvestedCapital.Round(),
+            CapitalDays = lot.CapitalDays.Round()
+        }).ToArray()
+    };
 
     private static MoexMarketdata? GetMarketdataValue(
         Dictionary<string, MoexMarketdata> marketdataByKey,

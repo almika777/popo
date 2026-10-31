@@ -89,6 +89,26 @@ public sealed class MoexLqdtIndexHistoryTests
     }
 
     [Test]
+    public async Task GetMoneyMarketFundPriceHistoryAsync_loads_tmon_legal_closing_prices_from_first_trading_date()
+    {
+        var handler = new TestHttpMessageHandler(request => JsonResponse(HistoryPayload(
+            [["2023-07-12", "TMON", "TQBR", 99.9m, 100m]], 0, 1, 1)));
+
+        var result = await CreateClient(handler).GetMoneyMarketFundPriceHistoryAsync("TMON", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(handler.Requests, Has.Count.EqualTo(1));
+            Assert.That(handler.Requests[0], Does.Contain("/history/engines/stock/markets/shares/securities/TMON.json"));
+            Assert.That(handler.Requests[0], Does.Contain("from=2023-07-12"));
+            Assert.That(Uri.UnescapeDataString(handler.Requests[0]),
+                Does.Contain("history.columns=TRADEDATE,SECID,BOARDID,LEGALCLOSEPRICE"));
+            Assert.That(result.Select(value => value.SecId), Is.All.EqualTo("TMON"));
+            Assert.That(result.Single().Close, Is.EqualTo(100m));
+        });
+    }
+
+    [Test]
     public void GetLqdtPriceHistoryAsync_rejects_a_partial_page_reported_by_cursor_as_complete()
     {
         var handler = new TestHttpMessageHandler(_ => JsonResponse(HistoryPayload(

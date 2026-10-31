@@ -53,6 +53,42 @@ public sealed class CashRecommendationApiMapperTests
     }
 
     [Test]
+    public void ToResponse_ExposesSecurityShortName()
+    {
+        var yieldDate = new DateOnly(2027, 2, 19);
+        var candidate = new BondCandidate(
+            "SEC",
+            "TQCB",
+            1,
+            "Эмитент",
+            "RUB",
+            17.25d,
+            1_012.34d,
+            CreditRating.AAA,
+            new DateOnly(2028, 8, 19),
+            yieldDate,
+            BondCouponType.Floating,
+            1_000d,
+            yieldDate,
+            BondYieldDateType.Offer,
+            new BondYieldCalculationDetails(
+                new DateOnly(2026, 8, 20),
+                100.5d,
+                1_005d,
+                30.25d,
+                1_035.25d,
+                1_000d,
+                []))
+        {
+            ShortName = "СФО ВТБ РКС Олимп"
+        };
+
+        var response = CashRecommendationApiMapper.ToResponse([candidate]);
+
+        Assert.That(response.Bonds[0].ShortName, Is.EqualTo("СФО ВТБ РКС Олимп"));
+    }
+
+    [Test]
     public void ToResponse_ExposesInstrumentTypeFromSettings()
     {
         Assert.Multiple(() =>

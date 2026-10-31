@@ -65,7 +65,8 @@ public sealed class FloaterPositionCalculatorTests
             Assert.That(result.Income.UnrealizedPnl, Is.EqualTo(-300));
             Assert.That(result.Income.TotalPnl, Is.EqualTo(1_210));
             Assert.That(result.Income.TotalPnlPercent, Is.EqualTo(12.1).Within(0.000001));
-            Assert.That(result.Income.AnnualizedTotalPnlPercent, Is.EqualTo(12.1).Within(0.000001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent,
+                Is.EqualTo(1_210 * 365d / (10_060 * 365) * 100).Within(0.000001));
         });
     }
 
@@ -659,7 +660,7 @@ public sealed class FloaterPositionCalculatorTests
     }
 
     [Test]
-    public void Calculate_AnnualizesEachOpenLotUsingItsOwnHoldingPeriodAndReturn()
+    public void Calculate_AnnualizesTotalPnlOverInvestedCapitalDays()
     {
         var asOf = new DateOnly(2027, 1, 1);
         var input = Input(
@@ -685,7 +686,7 @@ public sealed class FloaterPositionCalculatorTests
             new DateOnly(2027, 3, 31));
 
         var result = new FloaterPositionCalculator().Calculate(input);
-        var expectedAnnualizedPercent = 100 * (100 + 50 * 365d / 182) / 2_000;
+        var expectedAnnualizedPercent = 150 * 365d / (1_050 * 365 + 1_000 * 182) * 100;
 
         Assert.Multiple(() =>
         {
@@ -714,7 +715,8 @@ public sealed class FloaterPositionCalculatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Income!.TotalPnl, Is.EqualTo(10));
-            Assert.That(result.Income.AnnualizedTotalPnlPercent, Is.EqualTo(365));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent,
+                Is.EqualTo(10 * 365d / 1_005 * 100).Within(0.000001));
             Assert.That(result.Income.IsCouponIncomeComplete, Is.True);
         });
     }

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AntdProvider } from "./antd-provider";
 import { AppNavigation } from "./app-navigation";
+import { MobileNavigation } from "./mobile-navigation";
 import { InitializationStatusBanner } from "./initialization-status";
 import { buildLanUrl } from "../lib/lan-url";
 import "@fontsource-variable/jetbrains-mono";
@@ -34,6 +35,7 @@ export default async function RootLayout({
             </header>
             <InitializationStatusBanner />
             {children}
+            <MobileNavigation />
           </AntdProvider>
         </AntdRegistry>
       </body>

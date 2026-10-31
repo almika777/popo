@@ -136,6 +136,28 @@ public sealed class PortfolioBenchmarkSeriesCalculatorTests
     }
 
     [Test]
+    public void Tmon_series_uses_tmon_closing_prices_and_ignores_lqdt_prices()
+    {
+        var from = new DateOnly(2026, 1, 1);
+        var to = new DateOnly(2026, 1, 3);
+        var history = new[]
+        {
+            new MoexIndexHistory { SecId = "LQDT", TradeDate = from, Close = 1m },
+            new MoexIndexHistory { SecId = "TMON", TradeDate = from, Close = 100m },
+            new MoexIndexHistory { SecId = "TMON", TradeDate = to, Close = 105m }
+        };
+
+        var result = new MoneyMarketFundBenchmarkSeriesCalculator("TMON").Calculate(from, to, history);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Series.ProfitPercent, Is.EqualTo(0.05).Within(0.000001));
+            Assert.That(result.StartPriceDate, Is.EqualTo(from));
+            Assert.That(result.EndPriceDate, Is.EqualTo(to));
+        });
+    }
+
+    [Test]
     public void Lqdt_series_ignores_lqdtm_index_and_other_security_prices()
     {
         var from = new DateOnly(2026, 1, 1);

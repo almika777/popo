@@ -39,4 +39,5 @@ public sealed record PortfolioPositionIncome(
     double HistoricalCouponIncome = 0,
     double PaidBuyAccruedInterest = 0,
     double CurrentAccruedInterest = 0,
-    bool IsCouponIncomeComplete = true);
+    bool IsCouponIncomeComplete = true,
+    PositionAnnualizedReturnBreakdown? AnnualizedReturnBreakdown = null);

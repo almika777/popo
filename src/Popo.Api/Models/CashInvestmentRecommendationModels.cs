@@ -53,6 +53,7 @@ public sealed record CashRecommendationsPageResponse(
 public sealed record CashRecommendationBondResponse(
     string SecId,
     string BoardId,
+    string? ShortName,
     int IssuerId,
     string IssuerName,
     string CurrencyId,
@@ -119,6 +120,7 @@ public static class CashRecommendationApiMapper
             .Select(x => new CashRecommendationBondResponse(
                 x.SecId,
                 x.BoardId,
+                x.ShortName,
                 x.IssuerId,
                 x.IssuerName,
                 x.CurrencyId,

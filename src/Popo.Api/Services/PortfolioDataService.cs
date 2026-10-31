@@ -108,5 +108,6 @@ public sealed class PortfolioDataService(
             request.To,
             cancellationToken,
             request.IncludeLqdt,
-            request.IncludeIndexedBond);
+            request.IncludeIndexedBond,
+            request.IncludeTmon);
 }

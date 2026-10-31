@@ -130,7 +130,8 @@ public sealed class BondAssessmentServiceFilterTests
     [Test]
     public async Task GetAssessments_CompleteInputsProduceCandidateWithPriceAndYieldDetails()
     {
-        var assessment = await AssessAsync(400);
+        var assessment = await AssessAsync(400,
+            transformSecurity: security => security with { ShortName = "СФО ВТБ РКС Олимп" });
         var candidate = assessment.Candidate!.Value;
 
         Assert.Multiple(() =>
@@ -141,6 +142,7 @@ public sealed class BondAssessmentServiceFilterTests
             Assert.That(candidate.BuyPrice, Is.EqualTo(1_000d));
             Assert.That(candidate.Rating, Is.EqualTo(CreditRating.AAA));
             Assert.That(candidate.MedianDailyVolume, Is.EqualTo(1_000d));
+            Assert.That(candidate.ShortName, Is.EqualTo("СФО ВТБ РКС Олимп"));
             Assert.That(candidate.Calculation.MarketPricePercent, Is.EqualTo(100d));
             Assert.That(candidate.Calculation.AccruedInterest, Is.EqualTo(0d));
         });
@@ -221,6 +223,7 @@ public sealed class BondAssessmentServiceFilterTests
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotImplementedException();
+        public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct) => throw new NotImplementedException();

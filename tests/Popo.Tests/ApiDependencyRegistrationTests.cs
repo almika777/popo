@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Popo.Api;
 using Popo.Api.Controllers;
 using Popo.Api.Models;
+using Popo.Api.Services;
 
 namespace Popo.Tests;
 
@@ -43,6 +44,7 @@ public sealed class ApiDependencyRegistrationTests
 
         Assert.That(scope.ServiceProvider.GetRequiredService<IOptions<MvcOptions>>()
             .Value.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes, Is.True);
+        Assert.That(scope.ServiceProvider.GetRequiredService<PortfolioCurrencyAnalyticsService>(), Is.Not.Null);
 
         var controllers = assembly.GetTypes()
             .Where(type => !type.IsAbstract && typeof(ControllerBase).IsAssignableFrom(type))
@@ -66,6 +68,7 @@ public sealed class ApiDependencyRegistrationTests
             typeof(UpsertPortfolioValuationRequest),
             typeof(UpsertPortfolioCashFlowRequest),
             typeof(PortfolioReturnQuery),
+            typeof(PortfolioCurrencyAnalyticsRequest),
             typeof(InvestmentStrategySettingsRequest),
             typeof(InvestmentStrategyPresetRequest)
         };
@@ -76,5 +79,7 @@ public sealed class ApiDependencyRegistrationTests
             Assert.That(scope.ServiceProvider.GetService(validatorType), Is.Not.Null,
                 $"{requestType.Name} must have a FluentValidation validator registered.");
         }
+
+        Assert.That(scope.ServiceProvider.GetService<IValidator<PortfolioCurrencyAnalyticsRequest>>(), Is.Not.Null);
     }
 }

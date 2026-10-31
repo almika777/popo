@@ -60,8 +60,10 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IValidator<UpsertPortfolioValuationRequest>, UpsertPortfolioValuationRequestValidator>();
         services.AddScoped<IValidator<UpsertPortfolioCashFlowRequest>, UpsertPortfolioCashFlowRequestValidator>();
         services.AddScoped<IValidator<PortfolioReturnQuery>, PortfolioReturnQueryValidator>();
+        services.AddScoped<IValidator<PortfolioCurrencyAnalyticsRequest>, PortfolioCurrencyAnalyticsRequestValidator>();
         services.AddScoped<IValidator<UpsertPortfolioTradeRequest>, UpsertPortfolioTradeRequestValidator>();
         services.AddScoped<IPortfolioPositionsService, PortfolioPositionsService>();
+        services.AddScoped<PortfolioCurrencyAnalyticsService>();
         services.AddScoped<PortfolioTradesService>();
         services.AddScoped<MoneyMarketFundsPageService>();
         services.AddScoped<MoneyMarketFundManagementService>();
