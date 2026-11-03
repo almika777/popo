@@ -12,6 +12,7 @@ using Popo.Core.Initialization;
 using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
 using Popo.Core.Portfolio.ClosedSessions;
+using Popo.Core.Statistics;
 using Popo.Storage.Providers;
 using Popo.Storage.Providers.Ratings;
 
@@ -24,6 +25,8 @@ public static class ServiceCollectionExtensions
         services.AddDbContextFactory<PopoDbContext>(options => 
             options.UseNpgsql(connectionString).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
         services.AddScoped<IBondsProvider, BondsProvider>();
+        services.AddScoped<IBondDailyPriceHistoryProvider, BondDailyPriceHistoryProvider>();
+        services.AddScoped<Popo.Core.Issuers.IIssuerLogoIssuerProvider, Providers.IssuerLogoIssuerProvider>();
         services.AddScoped<IRatingsProvider, RatingsProvider>();
         services.AddScoped<IHistoryProvider, HistoryProvider>();
         services.AddScoped<IMoexIndexHistoryStore, MoexIndexHistoryStore>();

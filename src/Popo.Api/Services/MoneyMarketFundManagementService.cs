@@ -12,8 +12,7 @@ public sealed class MoneyMarketFundManagementService(
         CancellationToken cancellationToken)
     {
         var secId = request.SecId.Trim();
-        if (!RelationHelper.MoneyMarketFunds.TryGetValue(secId, out var definition))
-            throw new InvalidApplicationRequestException("Поддерживаются только LQDT и TMON.");
+        var definition = RelationHelper.MoneyMarketFunds[secId];
 
         var existing = await moneyMarketFundsProvider.GetMoneyMarketFundsAsync(cancellationToken);
         if (existing.Any(x => string.Equals(x.SecId, secId, StringComparison.OrdinalIgnoreCase)))
@@ -29,8 +28,7 @@ public sealed class MoneyMarketFundManagementService(
         CancellationToken cancellationToken)
     {
         var secId = request.SecId.Trim();
-        if (!RelationHelper.MoneyMarketFunds.TryGetValue(secId, out var definition))
-            throw new InvalidApplicationRequestException("Поддерживаются только LQDT и TMON.");
+        var definition = RelationHelper.MoneyMarketFunds[secId];
 
         var existing = await moneyMarketFundsProvider.GetMoneyMarketFundsAsync(cancellationToken);
         if (existing.Any(x => x.Id != id && string.Equals(x.SecId, secId, StringComparison.OrdinalIgnoreCase)))

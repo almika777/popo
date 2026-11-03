@@ -42,6 +42,9 @@ services:
         ENTRYPOINT ["dotnet", "Popo.Api.dll"]
     environment:
       ConnectionStrings__DefaultConnection: "${POPO_DB_CONNECTION_STRING:-Host=database;Port=5432;Database=popo;Username=popo;Password=popo}"
+      IssuerLogos__Directory: /app/emitter_logos
+    volumes:
+      - ./emitter_logos:/app/emitter_logos
     depends_on:
       database:
         condition: service_healthy

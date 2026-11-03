@@ -85,19 +85,25 @@ namespace Popo.HttpClients
             }, ct))!;
         }
 
-        public async Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct)
-        {
-            return (await GetOrCreateWithLockAsync(nameof(GetActiveBondsMarketdataAsync), async () =>
-            {
-                const string columns =
-                    "SECID,BOARDID,YIELD,LAST,LCURRENTPRICE,MARKETPRICE2,MARKETPRICE,DURATION,LCLOSEPRICE,CLOSEPRICE,SYSTIME";
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
+            GetOrCreateWithLockAsync(
+                nameof(GetActiveBondsMarketdataAsync),
+                () => FetchActiveBondsMarketdataAsync(ct),
+                ct);
 
-                return await GetBoardDictionaryAsync<MoexMarketdata>(
-                    RelationHelper.BoardCurrency.Keys,
-                    boardId =>
-                        $"engines/stock/markets/bonds/boards/{boardId}/securities.json?iss.only=marketdata&columns={columns}",
-                    "marketdata", ct);
-            }, ct))!;
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            FetchActiveBondsMarketdataAsync(ct);
+
+        private Task<Dictionary<string, List<MoexMarketdata>>> FetchActiveBondsMarketdataAsync(CancellationToken ct)
+        {
+            const string columns =
+                "SECID,BOARDID,YIELD,LAST,NUMTRADES,VALTODAY,LCURRENTPRICE,MARKETPRICE2,MARKETPRICE,DURATION,LCLOSEPRICE,CLOSEPRICE,SYSTIME";
+
+            return GetBoardDictionaryAsync<MoexMarketdata>(
+                RelationHelper.BoardCurrency.Keys,
+                boardId =>
+                    $"engines/stock/markets/bonds/boards/{boardId}/securities.json?iss.only=marketdata&columns={columns}",
+                "marketdata", ct);
         }
 
         /// <summary>Запрашивает котировку фонда для заданных SECID и режима торгов и кэширует ответ на один час.</summary>

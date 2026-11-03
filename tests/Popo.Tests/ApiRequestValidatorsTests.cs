@@ -13,6 +13,7 @@ using Popo.Api.Validators;
 using Popo.Core.Portfolio;
 using Popo.Core.PortfolioReturns;
 using Popo.Core.Recommendations;
+using Popo.Core.Statistics;
 
 namespace Popo.Tests;
 
@@ -30,6 +31,21 @@ public sealed class ApiRequestValidatorsTests
         Assert.That(typeof(PortfolioReturnQuery).GetProperty(nameof(PortfolioReturnQuery.To))!
             .GetCustomAttributes(typeof(FromQueryAttribute), true)
             .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("to"));
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.Date))!
+            .GetCustomAttributes(typeof(FromQueryAttribute), true)
+            .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("date"));
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.MinimumTrades))!
+            .GetCustomAttributes(typeof(FromQueryAttribute), true)
+            .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("minimumTrades"));
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.MinimumTurnoverRub))!
+            .GetCustomAttributes(typeof(FromQueryAttribute), true)
+            .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("minimumTurnoverRub"));
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.IssuerCategory))!
+            .GetCustomAttributes(typeof(FromQueryAttribute), true)
+            .Cast<FromQueryAttribute>().Single().Name, Is.EqualTo("issuerCategory"));
+        Assert.That(typeof(ClosedPositionSessionsJobStatusRequest).GetProperty(nameof(ClosedPositionSessionsJobStatusRequest.JobId))!
+            .GetCustomAttributes(typeof(FromRouteAttribute), true)
+            .Cast<FromRouteAttribute>().Single().Name, Is.EqualTo("jobId"));
     }
 
     [Test]
@@ -42,6 +58,120 @@ public sealed class ApiRequestValidatorsTests
 
         Assert.That(shortResult.Errors.Single().ErrorMessage, Is.EqualTo("Введите не менее 3 символов для поиска."));
         Assert.That(validResult.IsValid, Is.True);
+    }
+
+    [Test]
+    public async Task Bond_daily_statistics_request_validator_rejects_invalid_date_and_liquidity_thresholds()
+    {
+        var validator = new BondDailyStatisticsRequestValidator(
+            new FixedTimeProvider(new DateTimeOffset(2026, 11, 2, 9, 0, 0, TimeSpan.Zero)));
+        var earlyDate = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2024, 12, 31)
+        });
+        var futureDate = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 11, 3)
+        });
+        var weekend = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 10, 31)
+        });
+        var invalidFilters = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 10, 30),
+            MinimumTrades = -1,
+            MinimumTurnoverRub = double.NaN
+        });
+        var negativeTurnover = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 10, 30),
+            MinimumTurnoverRub = -1
+        });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(earlyDate.Errors.Select(error => error.ErrorMessage),
+                Does.Contain("Выберите дату не раньше 01.01.2025."));
+            Assert.That(futureDate.Errors.Select(error => error.ErrorMessage),
+                Does.Contain("Нельзя выбрать будущую дату."));
+            Assert.That(weekend.Errors.Select(error => error.ErrorMessage),
+                Does.Contain("Выберите будний день: в выходные торги не проводятся."));
+            Assert.That(invalidFilters.Errors.Select(error => error.ErrorMessage), Does.Contain(
+                "Минимальное количество сделок не может быть отрицательным."));
+            Assert.That(invalidFilters.Errors.Select(error => error.ErrorMessage),
+                Does.Contain("Минимальный оборот должен быть неотрицательным числом."));
+            Assert.That(negativeTurnover.Errors.Select(error => error.ErrorMessage),
+                Does.Contain("Минимальный оборот должен быть неотрицательным числом."));
+        });
+    }
+
+    [Test]
+    public async Task Bond_daily_statistics_request_validator_allows_zero_thresholds_on_a_trading_weekday()
+    {
+        var validator = new BondDailyStatisticsRequestValidator(
+            new FixedTimeProvider(new DateTimeOffset(2026, 11, 2, 9, 0, 0, TimeSpan.Zero)));
+        var result = await validator.ValidateAsync(new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 11, 2),
+            MinimumTrades = 0,
+            MinimumTurnoverRub = 0
+        });
+
+        Assert.That(result.IsValid, Is.True);
+    }
+
+    [Test]
+    public async Task Bond_daily_statistics_request_validator_rejects_unknown_issuer_category()
+    {
+        var validator = new BondDailyStatisticsRequestValidator(
+            new FixedTimeProvider(new DateTimeOffset(2026, 11, 2, 9, 0, 0, TimeSpan.Zero)));
+        var request = new BondDailyStatisticsRequest
+        {
+            Date = new DateOnly(2026, 11, 2),
+            IssuerCategory = (BondIssuerCategory)99
+        };
+
+        var result = await validator.ValidateAsync(request);
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [Test]
+    public void Bond_daily_statistics_request_preserves_default_liquidity_thresholds()
+    {
+        var request = new BondDailyStatisticsRequest();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(request.MinimumTrades, Is.EqualTo(5));
+            Assert.That(request.MinimumTurnoverRub, Is.EqualTo(1_000_000));
+        });
+    }
+
+    [Test]
+    public async Task Closed_position_job_status_request_validator_rejects_malformed_job_ids()
+    {
+        var validator = new ClosedPositionSessionsJobStatusRequestValidator();
+
+        var invalid = await validator.ValidateAsync(new ClosedPositionSessionsJobStatusRequest { JobId = "12a" });
+        var tooLong = await validator.ValidateAsync(new ClosedPositionSessionsJobStatusRequest
+        {
+            JobId = new string('1', 65)
+        });
+        var valid = await validator.ValidateAsync(new ClosedPositionSessionsJobStatusRequest { JobId = "12345" });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(invalid.IsValid, Is.False);
+            Assert.That(tooLong.IsValid, Is.False);
+            Assert.That(valid.IsValid, Is.True);
+        });
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     [Test]

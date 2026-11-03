@@ -1,0 +1,92 @@
+.page {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+}
+
+.heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.heading h1 {
+  margin: 0 0 8px;
+}
+
+.form {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.form > :global(.ant-select) {
+  width: min(100%, 560px);
+}
+
+.selectedIssuer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+}
+
+.selectedIssuer img,
+.placeholder {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #303030;
+  border-radius: 8px;
+  background: #202a38;
+  object-fit: contain;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: #91caff;
+  font-size: 24px;
+}
+
+.selectedIssuer > div {
+  display: grid;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.loading {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+}
+
+@media (max-width: 767px) {
+  .page {
+    gap: 16px;
+    padding: 24px 16px 88px;
+  }
+
+  .heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .heading h1 {
+    font-size: 28px;
+  }
+
+  .actions,
+  .actions > :global(.ant-upload-wrapper),
+  .actions > :global(.ant-btn) {
+    width: 100%;
+  }
+}

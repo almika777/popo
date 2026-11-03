@@ -21,6 +21,12 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
             .ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
     }
 
+    public async Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct)
+    {
+        return (await client.GetActiveBondsMarketdataFreshAsync(ct))
+            .ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
+    }
+
     public async Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) =>
         (await client.GetFutureAmortsAndCoupons(secId, ct)).ToContract();
 

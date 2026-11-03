@@ -597,6 +597,12 @@ public sealed class PortfolioPositionsServiceTests
                 [security.BoardId] = quote is null ? [] : [quote]
             });
 
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            Task.FromResult(new Dictionary<string, List<MoexMarketdata>>
+            {
+                [security.BoardId] = quote is null ? [] : [quote]
+            });
+
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();

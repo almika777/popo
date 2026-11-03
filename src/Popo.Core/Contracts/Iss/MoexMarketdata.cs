@@ -27,6 +27,12 @@ public class MoexMarketdata
     /// </summary>
     public double? Last { get; set; }
 
+    /// <summary>Количество сделок с начала торговой сессии.</summary>
+    public double? NumTrades { get; set; }
+
+    /// <summary>Оборот с начала сессии в валюте расчётов.</summary>
+    public double? ValueToday { get; set; }
+
     /// <summary>
     /// Текущая цена
     /// </summary>

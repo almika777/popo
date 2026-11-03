@@ -34,6 +34,14 @@ public class MoexMarketdata
     [JsonPropertyName("LAST")]
     public double? Last { get; set; }
 
+    /// <summary>Количество сделок с начала торговой сессии.</summary>
+    [JsonPropertyName("NUMTRADES")]
+    public double? NumTrades { get; set; }
+
+    /// <summary>Оборот с начала сессии в валюте расчётов.</summary>
+    [JsonPropertyName("VALTODAY")]
+    public double? ValueToday { get; set; }
+
     /// <summary>
     /// Текущая цена
     /// </summary>

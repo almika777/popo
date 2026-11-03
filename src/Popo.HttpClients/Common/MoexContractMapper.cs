@@ -164,6 +164,8 @@ internal static class MoexContractMapper
         Yield = source.Yield,
         Bid = source.Bid,
         Last = source.Last,
+        NumTrades = source.NumTrades,
+        ValueToday = source.ValueToday,
         LCurrentPrice = source.LCurrentPrice,
         MarketPrice2 = source.MarketPrice2,
         MarketPrice = source.MarketPrice,

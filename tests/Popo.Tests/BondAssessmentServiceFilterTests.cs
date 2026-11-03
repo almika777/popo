@@ -216,6 +216,8 @@ public sealed class BondAssessmentServiceFilterTests
             {
                 ["SEC"] = [new MoexMarketdata { SecId = "SEC", BoardId = "TQCB", LCurrentPrice = 100d }]
             });
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            GetActiveBondsMarketdataAsync(ct);
         public Task<Dictionary<string, List<MoexBond>>> GetActiveBondsSecuritiesAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotImplementedException();

@@ -334,7 +334,7 @@ public sealed class PortfolioReturnsApiContractTests
     }
 
     [Test]
-    public async Task CalculateBenchmark_PropagatesRequestCancellationDuringTmonHistoryRequest()
+    public void CalculateBenchmark_PropagatesRequestCancellationDuringTmonHistoryRequest()
     {
         var provider = new FakeProvider();
         var from = new DateOnly(2026, 1, 1);
@@ -661,6 +661,9 @@ public sealed class PortfolioReturnsApiContractTests
             Task.FromResult(new Dictionary<string, List<MoexMarketdataYields>>());
 
         public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
+            Task.FromResult(new Dictionary<string, List<MoexMarketdata>>());
+
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, List<MoexMarketdata>>());
 
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>

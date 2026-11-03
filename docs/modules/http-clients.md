@@ -36,5 +36,6 @@ API и Jobs имеют независимые кэши. Объединение �
 ## Правила данных
 
 Транспортные DTO MOEX находятся в `Popo.HttpClients/Contracts/Iss`, включая ISS-обёртки и JSON-атрибуты. `MoexIssClient` выполняет запросы и разбирает ответы. `MoexHttpClient` через `MoexContractMapper` возвращает внутренние модели `Popo.Core/Contracts/Iss`, не содержащие атрибутов формата ISS.
+Для дневной статистики облигаций `GetActiveBondsMarketdataFreshAsync` обходит пятиминутный кэш котировок; обычный метод продолжает использовать его. Свежий запрос также получает `NUMTRADES` и `VALTODAY` для фильтров ликвидности.
 Преобразование ISS-строк выполняется через `MoexMapper`.
 Временные значения MOEX обрабатываются специализированными converters и `MoscowTime`.

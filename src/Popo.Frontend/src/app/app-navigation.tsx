@@ -9,7 +9,8 @@ const items = [
   { key: "/positions", label: <Link href="/positions">Позиции</Link> },
   { key: "/trades", label: <Link href="/trades">Сделки</Link> },
   { key: "/liquidity", label: <Link href="/liquidity">Ликвидность</Link> },
-  { key: "/recommendations", label: <Link href="/recommendations">Рекомендации</Link> }
+  { key: "/recommendations", label: <Link href="/recommendations">Рекомендации</Link> },
+  { key: "/statistics", label: <Link href="/statistics">Статистика</Link> }
 ];
 
 type AppNavigationProps = {
