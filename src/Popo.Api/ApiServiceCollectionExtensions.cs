@@ -76,7 +76,10 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<PortfolioBenchmarkService>();
         services.AddScoped<HistoricalBondDailyPriceComparisonCalculator>();
         services.AddScoped<CurrentBondDailyPriceComparisonCalculator>();
-        services.AddScoped<BondDailyStatisticsService>();
+        services.AddScoped<BondsStatisticsService>();
+        services.AddScoped<StatisticsIncreasesService>();
+        services.AddScoped<StatisticsDeclinesService>();
+        services.AddScoped<StatisticsTurnoversService>();
         services.AddSingleton<IssuerLogoFileStore>();
         services.AddScoped<IssuerLogoManagementService>();
         services.AddScoped<PortfolioDataService>();

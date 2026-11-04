@@ -10,6 +10,69 @@ public sealed class FloaterPositionCalculatorTests
     private static readonly DateOnly AsOf = new(2027, 1, 1);
 
     [Test]
+    public void Calculate_UsesAnnouncedUpcomingCouponToEstimateCurrentAccruedInterest()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 1, 1_000)],
+            1_000,
+            0.46,
+            [
+                Coupon(new DateOnly(2026, 3, 31), new DateOnly(2026, 1, 1), 50,
+                    new DateOnly(2026, 3, 15)),
+                Coupon(new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), 100,
+                    new DateOnly(2026, 6, 15))
+            ],
+            asOf: new DateOnly(2026, 5, 1),
+            nextCouponDate: new DateOnly(2026, 6, 30)) with
+        {
+            CouponFrequency = 2
+        };
+
+        var result = new FloaterPositionCalculator().Calculate(input);
+
+        Assert.That(result.Income!.CurrentAccruedInterest, Is.EqualTo(100d / 3).Within(0.000001));
+    }
+
+    [Test]
+    public void Calculate_UsesLastPublishedCouponWhenUpcomingAmountIsUnknown()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 1, 1_000)],
+            1_000,
+            0.46,
+            [
+                Coupon(new DateOnly(2026, 3, 31), new DateOnly(2026, 1, 1), 50,
+                    new DateOnly(2026, 3, 15)),
+                Coupon(new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), null,
+                    new DateOnly(2026, 6, 15))
+            ],
+            asOf: new DateOnly(2026, 5, 1),
+            nextCouponDate: new DateOnly(2026, 6, 30)) with
+        {
+            CouponFrequency = 2
+        };
+
+        var result = new FloaterPositionCalculator().Calculate(input);
+
+        Assert.That(result.Income!.CurrentAccruedInterest, Is.EqualTo(50d / 3).Within(0.000001));
+    }
+
+    [Test]
+    public void Calculate_UsesMoexAccruedInterestWhenScheduleCannotEstimateIt()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 1, 1_000)],
+            1_000,
+            0.46,
+            [],
+            asOf: new DateOnly(2026, 5, 1));
+
+        var result = new FloaterPositionCalculator().Calculate(input);
+
+        Assert.That(result.Income!.CurrentAccruedInterest, Is.EqualTo(0.46));
+    }
+
+    [Test]
     [TestCase(50d, 100d)]
     [TestCase(100d, 50d)]
     public void Calculate_UsesEachPublishedCouponAmountInsteadOfTheLatestCouponForEveryPeriod(

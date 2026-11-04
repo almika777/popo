@@ -29,9 +29,8 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
         if (!IsPositiveFinite(input.CurrentCleanPrice))
             return new PositionCalculationResult(null, valuation, averageBuyPrice, averageBuyPrice);
 
-        if (!input.CurrentAccruedInterest.HasValue
-            || !double.IsFinite(input.CurrentAccruedInterest.Value)
-            || input.CurrentAccruedInterest.Value < 0)
+        var currentAccruedInterestPerBond = GetCurrentAccruedInterest(input, couponValuationDate);
+        if (!currentAccruedInterestPerBond.HasValue)
             return new PositionCalculationResult(null, valuation, averageBuyPrice, averageBuyPrice);
 
         var couponScheduleComplete = openLots.Lots.All(x => x.TradeDate <= couponValuationDate)
@@ -50,7 +49,7 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
             couponScheduleComplete);
 
         var paidBuyAccruedInterest = openLots.PaidBuyAccruedInterest;
-        var currentAccruedInterest = remainingQuantity * input.CurrentAccruedInterest.Value;
+        var currentAccruedInterest = remainingQuantity * currentAccruedInterestPerBond.Value;
         var couponIncome = couponResult.HistoricalIncome + currentAccruedInterest - paidBuyAccruedInterest;
         var cleanPnl = valuation.UnrealizedPnl;
         var totalPnl = cleanPnl.GetValueOrDefault() + couponIncome - openLots.PaidBuyCommission;
@@ -148,6 +147,46 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
 
         return null;
     }
+
+    private static double? GetCurrentAccruedInterest(PositionCalculationInput input, DateOnly valuationDate)
+    {
+        var nextCoupon = input.CouponPayments
+            .Where(coupon => coupon.Date > valuationDate)
+            .OrderBy(coupon => coupon.Date)
+            .FirstOrDefault();
+        var lastKnownCoupon = input.CouponPayments
+            .Where(coupon => coupon.Date <= valuationDate)
+            .OrderByDescending(coupon => coupon.Date)
+            .FirstOrDefault(coupon => IsNonNegativeFinite(GetCouponAmountInRub(coupon)));
+        var couponAmount = nextCoupon is null ? null : GetCouponAmountInRub(nextCoupon);
+        couponAmount ??= lastKnownCoupon is null ? null : GetCouponAmountInRub(lastKnownCoupon);
+        couponAmount ??= IsPositiveFinite(input.CouponValue) ? input.CouponValue : null;
+        var periodEnd = nextCoupon?.Date ?? input.NextCouponDate;
+        if (!couponAmount.HasValue || !periodEnd.HasValue)
+            return GetValidCurrentAccruedInterest(input.CurrentAccruedInterest);
+
+        var periodStart = nextCoupon is { PeriodStartDate: var scheduledStart }
+                          && scheduledStart < periodEnd.Value
+            ? scheduledStart
+            : lastKnownCoupon?.Date.AddDays(1);
+        if (!periodStart.HasValue && input.CouponPeriodDays > 0)
+            periodStart = periodEnd.Value.AddDays(-input.CouponPeriodDays);
+        if (!periodStart.HasValue || periodStart.Value >= valuationDate)
+            return 0;
+
+        var periodDays = periodEnd.Value.DayNumber - periodStart.Value.DayNumber;
+        if (periodDays <= 0)
+            return GetValidCurrentAccruedInterest(input.CurrentAccruedInterest);
+
+        var elapsedDays = Math.Min(valuationDate.DayNumber - periodStart.Value.DayNumber, periodDays);
+        return couponAmount.Value * elapsedDays / periodDays;
+    }
+
+    private static double? GetValidCurrentAccruedInterest(double? value) =>
+        value.HasValue && double.IsFinite(value.Value) && value.Value >= 0 ? value : null;
+
+    private static bool IsNonNegativeFinite(double? value) =>
+        value.HasValue && double.IsFinite(value.Value) && value.Value >= 0;
 
     private static bool IsPositiveFinite(double? value) =>
         value.HasValue && double.IsFinite(value.Value) && value.Value > 0;

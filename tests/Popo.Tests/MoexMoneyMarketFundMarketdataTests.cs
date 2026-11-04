@@ -24,9 +24,9 @@ public sealed class MoexMoneyMarketFundMarketdataTests
         using var httpClient = new HttpClient(handler);
         var client = new MoexIssClient(new FixedHttpClientFactory(httpClient), new MemoryCache(new MemoryCacheOptions()));
 
-        var first = await client.GetActiveBondsMarketdataFreshAsync(CancellationToken.None);
+        var first = await client.GetBondsMarketdataAsync(CancellationToken.None);
         var firstRequestCount = handler.RequestCount;
-        var second = await client.GetActiveBondsMarketdataFreshAsync(CancellationToken.None);
+        var second = await client.GetBondsMarketdataAsync(CancellationToken.None);
 
         Assert.Multiple(() =>
         {

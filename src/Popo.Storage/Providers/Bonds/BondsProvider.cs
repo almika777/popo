@@ -42,29 +42,37 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
             join issuer in dbContext.MoexEmitents
                 on bond.EmitterId equals issuer.Id into issuerGroup
             from issuer in issuerGroup.DefaultIfEmpty()
-            select new BondSecurityDto(
-                SecId: security.SecId,
-                Isin: security.Isin,
-                BoardId: security.BoardId,
-                BondType: security.BondType,
-                FaceUnit: security.FaceUnit,
-                FaceValue: security.FaceValueOnSettleDate ?? security.FaceValue,
-                CurrencyId: security.CurrencyId,
-                EmitterId: bond.EmitterId,
-                IssuerName: issuer == null ? null : issuer.Title,
-                CouponFrequency: bond.CouponFrequency,
-                SettleDate: security.SettleDate,
-                OfferDate: security.OfferDate,
-                MatDate: security.MatDate,
-                AccruedInterest: security.AccruedInt,
-                BuybackDate: security.BuybackDate,
-                BuybackPrice: security.BuybackPrice,
-                CallOptionDate: security.CallOptionDate,
-                PutOptionDate: security.PutOptionDate,
-                BondSubType: security.BondSubType,
-                ShortName: security.ShortName);
+            select new
+            {
+                Security = new BondSecurityDto(
+                    SecId: security.SecId,
+                    Isin: security.Isin,
+                    BoardId: security.BoardId,
+                    BondType: security.BondType,
+                    FaceUnit: security.FaceUnit,
+                    FaceValue: security.FaceValueOnSettleDate ?? security.FaceValue,
+                    CurrencyId: security.CurrencyId,
+                    EmitterId: bond.EmitterId,
+                    IssuerName: issuer == null ? null : issuer.Title,
+                    CouponFrequency: bond.CouponFrequency,
+                    SettleDate: security.SettleDate,
+                    OfferDate: security.OfferDate,
+                    MatDate: security.MatDate,
+                    AccruedInterest: security.AccruedInt,
+                    BuybackDate: security.BuybackDate,
+                    BuybackPrice: security.BuybackPrice,
+                    CallOptionDate: security.CallOptionDate,
+                    PutOptionDate: security.PutOptionDate,
+                    BondSubType: security.BondSubType,
+                    ShortName: security.ShortName),
+                MoexType = bond.Type
+            };
 
-        return await securities.ToListAsync(cancellationToken);
+        var results = await securities.ToListAsync(cancellationToken);
+        return results.Select(result => result.Security with
+        {
+            IssuerCategory = Popo.Core.Statistics.BondIssuerCategoryHelper.GetIssuerCategory(result.MoexType)
+        }).ToList();
     }
     
     public async Task<IReadOnlyList<BondSearchResult>> SearchAsync(
