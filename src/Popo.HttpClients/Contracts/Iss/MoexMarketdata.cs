@@ -34,6 +34,10 @@ public class MoexMarketdata
     [JsonPropertyName("LAST")]
     public double? Last { get; set; }
 
+    /// <summary>Процентное изменение последней цены относительно предыдущей цены.</summary>
+    [JsonPropertyName("LASTTOPREVPRICE")]
+    public double? LastToPrevPrice { get; set; }
+
     /// <summary>Количество сделок с начала торговой сессии.</summary>
     [JsonPropertyName("NUMTRADES")]
     public double? NumTrades { get; set; }
@@ -71,6 +75,18 @@ public class MoexMarketdata
     /// </summary>
     [JsonPropertyName("CLOSEPRICE")]
     public double? ClosePrice { get; set; }
+    
+    /// <summary>
+    /// Изменение цены последней сделки к цене последней сделки предыдущего торгового дня
+    /// </summary>
+    [JsonPropertyName("LASTCHANGE")]
+    public double? LastChange { get; set; }
+    
+    /// <summary>
+    /// Изменение последней, %", "Изменение цены последней сделки к цене предыдущей сделки, %
+    /// </summary>
+    [JsonPropertyName("LASTCHANGEPRCNT")]
+    public double? LastChangePrcnt { get; set; }
     
     /// <summary>
     /// Дюрация, дни

@@ -85,24 +85,21 @@ namespace Popo.HttpClients
             }, ct))!;
         }
 
-        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetBondsMarketdataCachedAsync(CancellationToken ct) =>
             GetOrCreateWithLockAsync(
-                nameof(GetActiveBondsMarketdataAsync),
-                () => FetchActiveBondsMarketdataAsync(ct),
+                nameof(GetBondsMarketdataCachedAsync),
+                () => GetBondsMarketdata(ct),
                 ct);
 
-        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
-            FetchActiveBondsMarketdataAsync(ct);
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetBondsMarketdataAsync(CancellationToken ct) =>
+            GetBondsMarketdata(ct);
 
-        private Task<Dictionary<string, List<MoexMarketdata>>> FetchActiveBondsMarketdataAsync(CancellationToken ct)
+        private Task<Dictionary<string, List<MoexMarketdata>>> GetBondsMarketdata(CancellationToken ct)
         {
-            const string columns =
-                "SECID,BOARDID,YIELD,LAST,NUMTRADES,VALTODAY,LCURRENTPRICE,MARKETPRICE2,MARKETPRICE,DURATION,LCLOSEPRICE,CLOSEPRICE,SYSTIME";
-
             return GetBoardDictionaryAsync<MoexMarketdata>(
                 RelationHelper.BoardCurrency.Keys,
                 boardId =>
-                    $"engines/stock/markets/bonds/boards/{boardId}/securities.json?iss.only=marketdata&columns={columns}",
+                    $"engines/stock/markets/bonds/boards/{boardId}/securities.json?iss.only=marketdata",
                 "marketdata", ct);
         }
 

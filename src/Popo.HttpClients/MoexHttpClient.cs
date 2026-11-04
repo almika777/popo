@@ -17,13 +17,13 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
 
     public async Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct)
     {
-        return (await client.GetActiveBondsMarketdataAsync(ct))
+        return (await client.GetBondsMarketdataCachedAsync(ct))
             .ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
     }
 
     public async Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct)
     {
-        return (await client.GetActiveBondsMarketdataFreshAsync(ct))
+        return (await client.GetBondsMarketdataAsync(ct))
             .ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
     }
 
