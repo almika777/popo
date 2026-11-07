@@ -159,6 +159,8 @@ public sealed class FloaterPositionCalculator : IPositionCalculator
             .OrderByDescending(coupon => coupon.Date)
             .FirstOrDefault(coupon => IsNonNegativeFinite(GetCouponAmountInRub(coupon)));
         var couponAmount = nextCoupon is null ? null : GetCouponAmountInRub(nextCoupon);
+        if (!IsPositiveFinite(couponAmount))
+            couponAmount = null;
         couponAmount ??= lastKnownCoupon is null ? null : GetCouponAmountInRub(lastKnownCoupon);
         couponAmount ??= IsPositiveFinite(input.CouponValue) ? input.CouponValue : null;
         var periodEnd = nextCoupon?.Date ?? input.NextCouponDate;

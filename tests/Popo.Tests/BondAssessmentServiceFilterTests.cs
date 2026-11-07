@@ -234,9 +234,15 @@ public sealed class BondAssessmentServiceFilterTests
 
     private sealed class HistoryProvider : IHistoryProvider
     {
+        public Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, DailyVolumeStatistics> { ["SEC"] = new(1_000d, 1_000d) });
+
+        public Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class CashFlowProvider(

@@ -11,7 +11,7 @@ public sealed class BondDailyPriceHistoryProvider(IDbContextFactory<PopoDbContex
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await context.MoexHistoryYieldsEntities
             .AsNoTracking()
-            .Where(price => price.TradeDate < date && price.LegalClosePrice > 0 && price.LegalClosePrice <= double.MaxValue)
+            .Where(price => price.TradeDate < date && price.Close > 0 && price.Close <= double.MaxValue)
             .OrderByDescending(price => price.TradeDate)
             .Select(price => (DateOnly?)price.TradeDate)
             .FirstOrDefaultAsync(cancellationToken);
@@ -24,7 +24,7 @@ public sealed class BondDailyPriceHistoryProvider(IDbContextFactory<PopoDbContex
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var prices = await (
             from price in context.MoexHistoryYieldsEntities.AsNoTracking()
-            where price.TradeDate == date && price.LegalClosePrice > 0 && price.LegalClosePrice <= double.MaxValue
+            where price.TradeDate == date && price.Close > 0 && price.Close <= double.MaxValue
             join bond in context.MoexBonds.AsNoTracking()
                 on price.SecId equals bond.SecId into bondGroup
             from bond in bondGroup.DefaultIfEmpty()
@@ -33,7 +33,7 @@ public sealed class BondDailyPriceHistoryProvider(IDbContextFactory<PopoDbContex
                 price.SecId,
                 price.BoardId,
                 ShortName = price.ShortName ?? price.SecId,
-                Price = price.LegalClosePrice!.Value,
+                Price = price.Close!.Value,
                 price.NumTrades,
                 price.Value,
                 price.CurrencyId,

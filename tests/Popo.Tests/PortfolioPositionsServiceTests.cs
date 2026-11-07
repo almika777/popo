@@ -266,7 +266,7 @@ public sealed class PortfolioPositionsServiceTests
     }
 
     [Test]
-    public async Task Floater_UsesMoexAccruedInterestWhenCouponScheduleCannotEstimateIt()
+    public async Task Floater_HidesPnlWhenCouponScheduleIsIncomplete()
     {
         const string secId = "FLOAT-ACCRUED-FALLBACK";
         const string boardId = "TQCB";
@@ -320,13 +320,13 @@ public sealed class PortfolioPositionsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.ApproximateCouponIncome, Is.EqualTo(0.92));
-            Assert.That(result.ApproximateTotalPnl, Is.EqualTo(0.92));
+            Assert.That(result.ApproximateCouponIncome, Is.Null);
+            Assert.That(result.ApproximateTotalPnl, Is.Null);
         });
     }
 
     [Test]
-    public async Task Floater_UsesPublishedCouponScheduleInsteadOfMoexAccruedInterest()
+    public async Task Floater_UsesLastKnownCouponWhenUpcomingCouponIsZeroPlaceholder()
     {
         const string secId = "FLOAT-SERVICE";
         const string boardId = "TQCB";
@@ -370,7 +370,7 @@ public sealed class PortfolioPositionsServiceTests
                 new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), 100, "RUB",
                 new DateOnly(2026, 6, 15)),
             new PublishedCouponValue(secId, isin, couponBoardId,
-                new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), null, "RUB",
+                new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), 0, "RUB",
                 new DateOnly(2026, 9, 15))
         };
         var service = new PortfolioPositionsService(

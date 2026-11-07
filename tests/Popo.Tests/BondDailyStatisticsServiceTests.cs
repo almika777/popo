@@ -1,11 +1,15 @@
 using NUnit.Framework;
+using Microsoft.Extensions.Caching.Memory;
+using Popo.Api.Models;
 using Popo.Api.Services;
 using Popo.Api.Services.Statistics;
+using Popo.Core;
+using Popo.Core.Bonds;
 using Popo.Core.Common;
-using Popo.Core.Contracts.Iss;
-using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
 using Popo.Core.Statistics;
+using Popo.HttpClients;
+using Popo.HttpClients.Contracts.Iss;
 
 namespace Popo.Tests;
 
@@ -14,14 +18,15 @@ public sealed class BondDailyStatisticsServiceTests
     [Test]
     public void GetDailyStatisticsAsync_ExposesEditableLiquidityThresholds()
     {
-        var parameterNames = typeof(BondDailyStatisticsService)
-            .GetMethod(nameof(BondDailyStatisticsService.GetDailyStatisticsAsync))!
+        var parameterNames = typeof(BondsStatisticsService)
+            .GetMethod(nameof(BondsStatisticsService.GetDailyStatisticsAsync))!
             .GetParameters()
             .Select(parameter => parameter.Name)
             .ToArray();
 
-        Assert.That(parameterNames, Does.Contain("minimumTrades"));
-        Assert.That(parameterNames, Does.Contain("minimumTurnoverRub"));
+        Assert.That(parameterNames, Does.Contain("request"));
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.MinimumTrades)), Is.Not.Null);
+        Assert.That(typeof(BondDailyStatisticsRequest).GetProperty(nameof(BondDailyStatisticsRequest.MinimumTurnoverRub)), Is.Not.Null);
     }
 
     [Test]
@@ -85,7 +90,7 @@ public sealed class BondDailyStatisticsServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Declines.Select(item => item.SecId), Is.EqualTo(new[]
+            Assert.That(result.Declines.Select(item => item.SecId), Is.EquivalentTo(new[]
             {
                 "LOW-TRADES-PREVIOUS",
                 "LOW-TURNOVER-PREVIOUS",
@@ -185,8 +190,8 @@ public sealed class BondDailyStatisticsServiceTests
         {
             ["TQCB"] =
             [
-                new() { SecId = "GOV", BoardId = "TQCB", Last = 90, NumTrades = 10, ValueToday = 2_000_000 },
-                new() { SecId = "CORP", BoardId = "TQCB", Last = 80, NumTrades = 10, ValueToday = 3_000_000 }
+                new() { SecId = "GOV", BoardId = "TQCB", Last = 90, LastToPrevPrice = -10, NumTrades = 10, ValueToday = 2_000_000 },
+                new() { SecId = "CORP", BoardId = "TQCB", Last = 80, LastToPrevPrice = -20, NumTrades = 10, ValueToday = 3_000_000 }
             ]
         };
         var service = CreateService(history, quotes, today);
@@ -263,8 +268,8 @@ public sealed class BondDailyStatisticsServiceTests
         {
             ["TQCB"] =
             [
-                new() { SecId = "BOND1", BoardId = "TQCB", Last = 95, NumTrades = 10, ValueToday = 1_500_000, LCurrentPrice = 83, MarketPrice2 = 80 },
-                new() { SecId = "BOND2", BoardId = "TQCB", Last = 90, NumTrades = 10, ValueToday = 1_500_000, LCurrentPrice = 0, MarketPrice2 = 87, LClosePrice = 1 },
+                new() { SecId = "BOND1", BoardId = "TQCB", Last = 95, LastToPrevPrice = -5, NumTrades = 10, ValueToday = 1_500_000, LCurrentPrice = 83, MarketPrice2 = 80 },
+                new() { SecId = "BOND2", BoardId = "TQCB", Last = 90, LastToPrevPrice = -10, NumTrades = 10, ValueToday = 1_500_000, LCurrentPrice = 0, MarketPrice2 = 87, LClosePrice = 1 },
                 new() { SecId = "NO-LAST", BoardId = "TQCB", LCurrentPrice = 85, MarketPrice2 = 80 },
                 new() { SecId = "STALE", BoardId = "TQCB", LClosePrice = 1, ClosePrice = 1 }
             ]
@@ -359,21 +364,41 @@ public sealed class BondDailyStatisticsServiceTests
         });
     }
 
-    private static BondDailyStatisticsService CreateService(
+    private static DailyStatisticsTestService CreateService(
         IBondDailyPriceHistoryProvider history,
         Dictionary<string, List<MoexMarketdata>> quotes,
         DateOnly today,
         IReadOnlyDictionary<string, double>? ratesToRub = null)
     {
         var timeProvider = new FixedTimeProvider(new DateTimeOffset(today.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(3)));
-        return new BondDailyStatisticsService(
-            new FakeCurrencyRatesProvider(ratesToRub ?? new Dictionary<string, double>()),
-            new BondDailyPriceComparisonCalculatorFactory(
-                new CurrentBondDailyPriceComparisonCalculator(history, new FakeMoexHttpClient(quotes)),
-                new HistoricalBondDailyPriceComparisonCalculator(history)),
-            new BondDailyChangesCalculator(new(), new(), new()),
-            new BondDailyTopTurnoversCalculator(),
-            timeProvider);
+        var historyProvider = (IHistoryProvider)history;
+        var bondsProvider = new FakeBondsProvider(((FakeHistoryProvider)history).Securities);
+        var moexClient = new MoexIssClient(
+            new FixedHttpClientFactory(new HttpClient(new MarketdataResponseHandler(quotes))),
+            new MemoryCache(new MemoryCacheOptions()));
+        var currencyRatesProvider = new FakeCurrencyRatesProvider(ratesToRub ?? new Dictionary<string, double>());
+        return new DailyStatisticsTestService(new BondsStatisticsService(
+            historyProvider,
+            new StatisticsIncreasesService(timeProvider, historyProvider, bondsProvider, moexClient, currencyRatesProvider),
+            new StatisticsDeclinesService(timeProvider, historyProvider, bondsProvider, moexClient, currencyRatesProvider),
+            new StatisticsTurnoversService(timeProvider, historyProvider, bondsProvider, moexClient, currencyRatesProvider)));
+    }
+
+    private sealed class DailyStatisticsTestService(BondsStatisticsService service)
+    {
+        public Task<BondDailyStatisticsResult> GetDailyStatisticsAsync(
+            DateOnly date,
+            CancellationToken cancellationToken,
+            int minimumTrades = 5,
+            double minimumTurnoverRub = 1_000_000,
+            BondIssuerCategory? issuerCategory = null) =>
+            service.GetDailyStatisticsAsync(new BondDailyStatisticsRequest
+            {
+                Date = date,
+                MinimumTrades = minimumTrades,
+                MinimumTurnoverRub = minimumTurnoverRub,
+                IssuerCategory = issuerCategory
+            }, cancellationToken);
     }
 
     private static BondDailyPricePoint Price(
@@ -389,10 +414,45 @@ public sealed class BondDailyStatisticsServiceTests
         new(secId, boardId, shortName ?? secId, value, numTrades, turnover, currencyId, issuerCategory, emitterId);
 
     private sealed class FakeHistoryProvider(IReadOnlyDictionary<DateOnly, IReadOnlyList<BondDailyPricePoint>> prices)
-        : IBondDailyPriceHistoryProvider
+        : IBondDailyPriceHistoryProvider, IHistoryProvider
     {
+        public IReadOnlyList<BondSecurityDto> Securities => prices.Values
+            .SelectMany(points => points)
+            .GroupBy(point => (point.SecId, point.BoardId))
+            .Select(group => group.First())
+            .Select(point => new BondSecurityDto(
+                point.SecId,
+                point.SecId,
+                point.BoardId,
+                null,
+                point.CurrencyId ?? "RUB",
+                1_000,
+                point.CurrencyId ?? "RUB",
+                point.EmitterId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                ShortName: point.ShortName,
+                IssuerCategory: point.IssuerCategory))
+            .ToArray();
+
         public Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken) =>
             Task.FromResult(prices.Keys.Where(candidate => candidate < date).MaxBy(candidate => candidate) as DateOnly?);
+
+        public Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct) =>
+            Task.FromResult<IDictionary<SecBoard, DateStatistics>>(prices.TryGetValue(date, out var values)
+                ? values.ToDictionary(
+                    point => new SecBoard(point.SecId, point.BoardId),
+                    point => new DateStatistics(point.Price, point.NumTrades, point.Value))
+                : new Dictionary<SecBoard, DateStatistics>());
+
+        public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) =>
+            Task.FromResult(new Dictionary<string, double>());
+
+        public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) =>
+            Task.FromResult(new Dictionary<string, DailyVolumeStatistics>());
 
         public Task<IReadOnlyList<BondDailyPricePoint>> GetClosingPricesAsync(DateOnly date, CancellationToken cancellationToken) =>
             Task.FromResult(prices.TryGetValue(date, out var values) ? values : (IReadOnlyList<BondDailyPricePoint>)[]);
@@ -410,6 +470,67 @@ public sealed class BondDailyStatisticsServiceTests
                     group => new BondDailySecurityMetadata(group.First().ShortName, group.First().IssuerCategory, group.First().EmitterId),
                     StringComparer.OrdinalIgnoreCase);
             return Task.FromResult<IReadOnlyDictionary<string, BondDailySecurityMetadata>>(metadata);
+        }
+    }
+
+    private sealed class FakeBondsProvider(IReadOnlyList<BondSecurityDto> securities) : IBondsProvider
+    {
+        public Task<IReadOnlyList<BondSecurityDto>> GetSecuritiesAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(securities);
+
+        public Task<IReadOnlyList<BondSearchResult>> SearchAsync(string query, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<BondFaceValueResult>> GetHistoricalFaceValuesAsync(
+            IReadOnlyList<BondFaceValueRequest> requests,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> GetTradingCurrenciesAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> GetFaceUnitsAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class FixedHttpClientFactory(HttpClient httpClient) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => httpClient;
+    }
+
+    private sealed class MarketdataResponseHandler(Dictionary<string, List<MoexMarketdata>> quotes) : HttpMessageHandler
+    {
+        private static readonly string[] Columns =
+        [
+            "SECID", "BOARDID", "LAST", "LASTTOPREVPRICE", "NUMTRADES", "VALTODAY",
+            "LCURRENTPRICE", "MARKETPRICE2", "MARKETPRICE", "LCLOSEPRICE", "CLOSEPRICE"
+        ];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var pathSegments = request.RequestUri!.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var boardIndex = Array.IndexOf(pathSegments, "boards");
+            var boardId = boardIndex >= 0 && boardIndex + 1 < pathSegments.Length ? pathSegments[boardIndex + 1] : string.Empty;
+            var data = quotes.GetValueOrDefault(boardId, [])
+                .Select(quote => (object?[])
+                [
+                    quote.SecId,
+                    quote.BoardId,
+                    quote.Last,
+                    quote.LastToPrevPrice,
+                    quote.NumTrades,
+                    quote.ValueToday,
+                    quote.LCurrentPrice,
+                    quote.MarketPrice2,
+                    quote.MarketPrice,
+                    quote.LClosePrice,
+                    quote.ClosePrice
+                ])
+                .ToArray();
+            var body = System.Text.Json.JsonSerializer.Serialize(new { marketdata = new { columns = Columns, data } });
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body)
+            });
         }
     }
 
@@ -434,21 +555,4 @@ public sealed class BondDailyStatisticsServiceTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeMoexHttpClient(Dictionary<string, List<MoexMarketdata>> marketdata) : IMoexHttpClient
-    {
-        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) => Task.FromResult(marketdata);
-        public Task<Dictionary<string, List<MoexBond>>> GetActiveBondsSecuritiesAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) => throw new NotSupportedException();
-        public Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexEmitentDescription>> GetAllEmitentDescriptionAsync(CancellationToken ct) => throw new NotSupportedException();
-    }
 }

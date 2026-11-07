@@ -24,11 +24,13 @@ public class BondsStatisticsService(
         var declinesTask = statisticsDeclinesService.Get(request, previousDate.Value, ct);
 
         await Task.WhenAll(turnoversTask, increasesTask, declinesTask);
+        var increases = await increasesTask;
+        var declines = await declinesTask;
         return new BondDailyStatisticsResult(
-            request.Date, 
-            previousDate.Value, 
-            await declinesTask, 
-            await increasesTask, 
+            request.Date,
+            increases.HasComparablePrices || declines.HasComparablePrices ? previousDate.Value : null,
+            declines.Changes,
+            increases.Changes,
             await turnoversTask);
     }
 }

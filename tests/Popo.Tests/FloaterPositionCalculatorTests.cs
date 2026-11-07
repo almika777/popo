@@ -34,6 +34,30 @@ public sealed class FloaterPositionCalculatorTests
     }
 
     [Test]
+    public void Calculate_UsesLastKnownCouponWhenUpcomingAmountIsZeroPlaceholder()
+    {
+        var input = Input(
+            [Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 1, 1_000)],
+            1_000,
+            0.46,
+            [
+                Coupon(new DateOnly(2026, 3, 31), new DateOnly(2026, 1, 1), 50,
+                    new DateOnly(2026, 3, 15)),
+                Coupon(new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), 0,
+                    new DateOnly(2026, 6, 15))
+            ],
+            asOf: new DateOnly(2026, 5, 1),
+            nextCouponDate: new DateOnly(2026, 6, 30)) with
+        {
+            CouponFrequency = 2
+        };
+
+        var result = new FloaterPositionCalculator().Calculate(input);
+
+        Assert.That(result.Income!.CurrentAccruedInterest, Is.EqualTo(50d / 3).Within(0.000001));
+    }
+
+    [Test]
     public void Calculate_UsesLastPublishedCouponWhenUpcomingAmountIsUnknown()
     {
         var input = Input(
@@ -92,14 +116,20 @@ public sealed class FloaterPositionCalculatorTests
             ]);
 
         var result = new FloaterPositionCalculator().Calculate(input);
+        var periodStart = new DateOnly(2026, 10, 1);
+        var expectedCurrentAccruedInterest = 10 * secondCoupon
+            * (AsOf.DayNumber - periodStart.DayNumber)
+            / (new DateOnly(2027, 3, 31).DayNumber - periodStart.DayNumber);
+        var expectedCouponIncome = (firstCoupon + secondCoupon) * 10 + expectedCurrentAccruedInterest;
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Income!.HistoricalCouponIncome, Is.EqualTo((firstCoupon + secondCoupon) * 10));
-            Assert.That(result.Income.CouponIncome, Is.EqualTo((firstCoupon + secondCoupon) * 10));
-            Assert.That(result.Income.TotalPnl, Is.EqualTo((firstCoupon + secondCoupon) * 10));
-            Assert.That(result.Income.TotalPnlPercent, Is.EqualTo((firstCoupon + secondCoupon) / 10));
-            Assert.That(result.Income.AnnualizedTotalPnlPercent, Is.EqualTo((firstCoupon + secondCoupon) / 10));
+            Assert.That(result.Income.CurrentAccruedInterest, Is.EqualTo(expectedCurrentAccruedInterest));
+            Assert.That(result.Income.CouponIncome, Is.EqualTo(expectedCouponIncome));
+            Assert.That(result.Income.TotalPnl, Is.EqualTo(expectedCouponIncome));
+            Assert.That(result.Income.TotalPnlPercent, Is.EqualTo(expectedCouponIncome / 100).Within(0.000001));
+            Assert.That(result.Income.AnnualizedTotalPnlPercent, Is.EqualTo(expectedCouponIncome / 100).Within(0.000001));
             Assert.That(result.Income.IsCouponIncomeComplete, Is.True);
         });
     }
@@ -118,18 +148,24 @@ public sealed class FloaterPositionCalculatorTests
             ]);
 
         var result = new FloaterPositionCalculator().Calculate(input);
+        var periodStart = new DateOnly(2026, 10, 1);
+        var expectedCurrentAccruedInterest = 10 * 100d
+            * (AsOf.DayNumber - periodStart.DayNumber)
+            / (new DateOnly(2027, 3, 31).DayNumber - periodStart.DayNumber);
+        var expectedCouponIncome = 1_500 + expectedCurrentAccruedInterest - 50;
+        var expectedTotalPnl = -300 + expectedCouponIncome - 10;
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Income!.HistoricalCouponIncome, Is.EqualTo(1_500));
             Assert.That(result.Income.PaidBuyAccruedInterest, Is.EqualTo(50));
-            Assert.That(result.Income.CurrentAccruedInterest, Is.EqualTo(70));
-            Assert.That(result.Income.CouponIncome, Is.EqualTo(1_520));
+            Assert.That(result.Income.CurrentAccruedInterest, Is.EqualTo(expectedCurrentAccruedInterest));
+            Assert.That(result.Income.CouponIncome, Is.EqualTo(expectedCouponIncome));
             Assert.That(result.Income.UnrealizedPnl, Is.EqualTo(-300));
-            Assert.That(result.Income.TotalPnl, Is.EqualTo(1_210));
-            Assert.That(result.Income.TotalPnlPercent, Is.EqualTo(12.1).Within(0.000001));
+            Assert.That(result.Income.TotalPnl, Is.EqualTo(expectedTotalPnl));
+            Assert.That(result.Income.TotalPnlPercent, Is.EqualTo(expectedTotalPnl / 100).Within(0.000001));
             Assert.That(result.Income.AnnualizedTotalPnlPercent,
-                Is.EqualTo(1_210 * 365d / (10_060 * 365) * 100).Within(0.000001));
+                Is.EqualTo(expectedTotalPnl * 365d / (10_060 * 365) * 100).Within(0.000001));
         });
     }
 
@@ -209,6 +245,11 @@ public sealed class FloaterPositionCalculatorTests
             ]);
 
         var result = new FloaterPositionCalculator().Calculate(input);
+        var periodStart = new DateOnly(2026, 7, 1);
+        var expectedCurrentAccruedInterest = 3 * 40d
+            * (AsOf.DayNumber - periodStart.DayNumber)
+            / (new DateOnly(2027, 3, 31).DayNumber - periodStart.DayNumber);
+        var expectedCouponIncome = 195 + expectedCurrentAccruedInterest - 18;
 
         Assert.Multiple(() =>
         {
@@ -218,10 +259,10 @@ public sealed class FloaterPositionCalculatorTests
             Assert.That(result.Income.PaidBuyCommission, Is.EqualTo(7));
             Assert.That(result.Income.PaidBuyAccruedInterest, Is.EqualTo(18).Within(0.000001));
             Assert.That(result.Income.HistoricalCouponIncome, Is.EqualTo(195));
-            Assert.That(result.Income.CurrentAccruedInterest, Is.EqualTo(30));
-            Assert.That(result.Income.CouponIncome, Is.EqualTo(207).Within(0.000001));
+            Assert.That(result.Income.CurrentAccruedInterest, Is.EqualTo(expectedCurrentAccruedInterest));
+            Assert.That(result.Income.CouponIncome, Is.EqualTo(expectedCouponIncome).Within(0.000001));
             Assert.That(result.Income.UnrealizedPnl, Is.EqualTo(50));
-            Assert.That(result.Income.TotalPnl, Is.EqualTo(250).Within(0.000001));
+            Assert.That(result.Income.TotalPnl, Is.EqualTo(50 + expectedCouponIncome - 7).Within(0.000001));
         });
     }
 
@@ -716,10 +757,12 @@ public sealed class FloaterPositionCalculatorTests
 
         var result = new FloaterPositionCalculator().Calculate(input);
         var holdingDays = new DateOnly(2026, 7, 2).DayNumber - new DateOnly(2026, 1, 1).DayNumber;
+        var currentAccruedInterest = 100d
+            / (new DateOnly(2026, 12, 31).DayNumber - new DateOnly(2026, 7, 1).DayNumber);
 
         Assert.That(
             result.Income!.AnnualizedTotalPnlPercent,
-            Is.EqualTo(100 * 365d / holdingDays / 1_000 * 100).Within(0.000001));
+            Is.EqualTo((100 + currentAccruedInterest) * 365d / holdingDays / 1_000 * 100).Within(0.000001));
     }
 
     [Test]
@@ -749,12 +792,12 @@ public sealed class FloaterPositionCalculatorTests
             new DateOnly(2027, 3, 31));
 
         var result = new FloaterPositionCalculator().Calculate(input);
-        var expectedAnnualizedPercent = 150 * 365d / (1_050 * 365 + 1_000 * 182) * 100;
+        var expectedAnnualizedPercent = 50 * 365d / (1_050 * 365 + 1_000 * 182) * 100;
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Income!.HistoricalCouponIncome, Is.EqualTo(100));
-            Assert.That(result.Income.CouponIncome, Is.EqualTo(150));
+            Assert.That(result.Income.CouponIncome, Is.EqualTo(50));
             Assert.That(result.Income.AnnualizedTotalPnlPercent,
                 Is.EqualTo(expectedAnnualizedPercent).Within(0.000001));
         });
