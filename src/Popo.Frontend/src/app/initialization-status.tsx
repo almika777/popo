@@ -67,10 +67,13 @@ export function InitializationStatusBanner() {
   }, []);
 
   useEffect(() => {
-    void loadStatus();
-    const timer = window.setInterval(() => void loadStatus(), 3000);
-    return () => window.clearInterval(timer);
-  }, [loadStatus]);
+    const hasActiveJobs = status?.jobs.some((job) => job.status === "Pending" || job.status === "Running") ?? false;
+    if (status && !hasActiveJobs) return;
+
+    const delay = status === null && loadError === null ? 0 : 3000;
+    const timer = window.setTimeout(() => void loadStatus(), delay);
+    return () => window.clearTimeout(timer);
+  }, [loadStatus, loadError, status]);
 
   const completedCount = useMemo(
     () => status?.jobs.filter((job) => job.status === "Succeeded").length ?? 0,

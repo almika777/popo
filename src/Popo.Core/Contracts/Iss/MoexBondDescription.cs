@@ -1,3 +1,5 @@
+using Popo.Core.Statistics;
+
 namespace Popo.Core.Contracts.Iss;
 
 public class MoexBondDescription
@@ -45,7 +47,7 @@ public class MoexBondDescription
     public bool IsOfz => Type == "ofz_bond";
 
     public bool IsCorporateBond =>
-        Type is "corporate_bond" or "exchange_bond";
+        BondIssuerCategoryHelper.GetIssuerCategory(Type) == BondIssuerCategory.Corporate;
 
     public bool IsMatured =>
         MatDate.HasValue && MatDate.Value < DateOnly.FromDateTime(DateTime.UtcNow);

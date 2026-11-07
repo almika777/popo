@@ -331,8 +331,20 @@ body {
   overflow-wrap: anywhere;
 }
 
-.portfolio-valuation-edit-input .ant-input-number-handler-wrap {
-  display: none;
+.ant-input-number-actions,
+.ant-input-number-handler-wrap {
+  display: none !important;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .portfolio-return-card {
@@ -1063,7 +1075,7 @@ body {
     background: #001529;
     --adm-color-primary: #1677ff;
     --adm-color-text-secondary: rgba(255, 255, 255, 0.65);
-    --adm-font-size-2: clamp(7.5px, 2.3vw, 10px);
+    --adm-font-size-2: clamp(7.5px, 2.2vw, 9px);
   }
 
   .mobile-bottom-navigation .adm-tab-bar-wrap {

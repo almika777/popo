@@ -1,9 +1,11 @@
 using NUnit.Framework;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Popo.Api.Models;
 using Popo.Api.Controllers;
 using Popo.Core.Portfolio;
 using Popo.Core.PortfolioReturns;
+using Popo.Core.Statistics;
 using System.Reflection;
 
 namespace Popo.Tests;
@@ -81,6 +83,34 @@ public sealed class PageApiContractTests
             .ToArray();
 
         Assert.That(endpoints, Does.Contain("POST analytics/currency"));
+    }
+
+    [Test]
+    public void StatisticsController_ExposesDailyMoversEndpoint()
+    {
+        var endpoints = typeof(StatisticsController)
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
+            .SelectMany(method => method.GetCustomAttributes<HttpMethodAttribute>()
+                .SelectMany(attribute => attribute.HttpMethods.Select(httpMethod =>
+                    $"{httpMethod} {attribute.Template}")))
+            .ToArray();
+
+        Assert.That(endpoints, Does.Contain("GET bonds/daily-movers"));
+        var queryParameter = typeof(StatisticsController)
+            .GetMethod(nameof(StatisticsController.GetDailyBondMovers))!
+            .GetParameters()
+            .Single(parameter => parameter.GetCustomAttribute<FromQueryAttribute>() is not null);
+        Assert.That(queryParameter.ParameterType, Is.EqualTo(typeof(BondDailyStatisticsRequest)));
+        var controllerRoute = typeof(StatisticsController).GetCustomAttributes<RouteAttribute>().Single().Template;
+        Assert.That($"{controllerRoute}/{endpoints.Single(endpoint => endpoint.StartsWith("GET ", StringComparison.Ordinal)).Split(' ')[1]}",
+            Is.EqualTo("api/statistics/bonds/daily-movers"));
+        var result = new BondDailyStatisticsResult(new DateOnly(2026, 10, 27), null, [], [], []);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Declines, Is.Empty);
+            Assert.That(result.Increases, Is.Empty);
+            Assert.That(result.Turnovers, Is.Empty);
+        });
     }
 
     [Test]

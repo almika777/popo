@@ -9,6 +9,7 @@ using Popo.Api.Services;
 using Popo.Api.Services.Position;
 using Popo.Api.Services.Trades;
 using Popo.Api.Services.ClosedPositions;
+using Popo.Api.Services.Statistics;
 using Popo.Api.Validators;
 using Popo.Core;
 using Popo.HttpClients;
@@ -50,8 +51,12 @@ public static class ApiServiceCollectionExtensions
         services.AddProblemDetails();
         services.AddPopoHttpClients();
         services.AddPopoStorage(configuration.GetPopoConnectionString());
+        services.AddSingleton(TimeProvider.System);
         services.AddClosedPositionSessionsApi(configuration);
         services.AddScoped<IValidator<BondSearchRequest>, BondSearchRequestValidator>();
+        services.AddScoped<IValidator<BondDailyStatisticsRequest>, BondDailyStatisticsRequestValidator>();
+        services.AddScoped<IValidator<IssuerLogoUploadRequest>, IssuerLogoUploadRequestValidator>();
+        services.AddScoped<IValidator<ClosedPositionSessionsJobStatusRequest>, ClosedPositionSessionsJobStatusRequestValidator>();
         services.AddScoped<InvestmentStrategySettingsRequestValidator>();
         services.AddScoped<IValidator<InvestmentStrategySettingsRequest>>(provider =>
             provider.GetRequiredService<InvestmentStrategySettingsRequestValidator>());
@@ -69,6 +74,14 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<MoneyMarketFundManagementService>();
         services.AddScoped<PortfolioPageService>();
         services.AddScoped<PortfolioBenchmarkService>();
+        services.AddScoped<HistoricalBondDailyPriceComparisonCalculator>();
+        services.AddScoped<CurrentBondDailyPriceComparisonCalculator>();
+        services.AddScoped<BondsStatisticsService>();
+        services.AddScoped<StatisticsIncreasesService>();
+        services.AddScoped<StatisticsDeclinesService>();
+        services.AddScoped<StatisticsTurnoversService>();
+        services.AddSingleton<IssuerLogoFileStore>();
+        services.AddScoped<IssuerLogoManagementService>();
         services.AddScoped<PortfolioDataService>();
         services.AddScoped<CashRecommendationsPageService>();
         services.AddScoped<CashRecommendationSettingsService>();

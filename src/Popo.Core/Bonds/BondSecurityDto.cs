@@ -20,7 +20,8 @@ public readonly record struct BondSecurityDto(
     DateOnly? CallOptionDate = null,
     DateOnly? PutOptionDate = null,
     string? BondSubType = null,
-    string? ShortName = null)
+    string? ShortName = null,
+    Popo.Core.Statistics.BondIssuerCategory? IssuerCategory = null)
 {
     public bool IsFloater => BondCouponClassifier.IsFloater(BondType, BondSubType);
 

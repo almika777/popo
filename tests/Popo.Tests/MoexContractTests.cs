@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Popo.Storage;
 using Popo.Storage.Entities.Moex;
 using Popo.HttpClients.Serialization;
+using IssMarketdata = Popo.HttpClients.Contracts.Iss.MoexMarketdata;
 
 namespace Popo.Tests;
 
@@ -58,6 +59,19 @@ public sealed class MoexContractTests
             "{\"SECID\":\"FLOAT\"}", options);
 
         Assert.That(bond!.Accruedint, Is.Null);
+    }
+
+    [Test]
+    public void MarketdataContract_PreservesSessionTradeCountAndTurnover()
+    {
+        var source = JsonSerializer.Deserialize<IssMarketdata>(
+            "{\"SECID\":\"BOND\",\"BOARDID\":\"TQCB\",\"NUMTRADES\":12,\"VALTODAY\":1200000}");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(source!.NumTrades, Is.EqualTo(12));
+            Assert.That(source.ValueToday, Is.EqualTo(1_200_000));
+        });
     }
 
     private sealed class ContractPayload

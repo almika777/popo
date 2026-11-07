@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Popo.Api.Models;
 using Popo.Api.Services.ClosedPositions;
 using Popo.Core.Portfolio.ClosedSessions;
 
@@ -17,6 +18,7 @@ public sealed class ClosedPositionSessionsController(ClosedPositionSessionsPageS
         => Accepted(await service.RecalculateAsync(cancellationToken));
 
     [HttpGet("recalculation/{jobId}")]
-    public ActionResult<ClosedPositionSessionsJobStatus> GetStatus(string jobId)
-        => Ok(service.GetStatus(jobId));
+    public ActionResult<ClosedPositionSessionsJobStatus> GetStatus(
+        [FromRoute] ClosedPositionSessionsJobStatusRequest request)
+        => Ok(service.GetStatus(request.JobId));
 }

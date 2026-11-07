@@ -202,6 +202,9 @@ public sealed class TradesControllerFaceValueTests
         public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
             throw new NotSupportedException();
 

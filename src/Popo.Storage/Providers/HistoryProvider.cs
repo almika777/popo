@@ -16,4 +16,26 @@ public class HistoryProvider(IDbContextFactory<PopoDbContext> dbContextFactory) 
         return statistics.ToDictionary(x => x.SecId, x => new DailyVolumeStatistics(x.Average, x.Median));
     }
 
+    public async Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.MoexHistoryYieldsEntities
+            .AsNoTracking()
+            .Where(price =>
+                price.TradeDate < date && price.Close > 0 && price.Close <= double.MaxValue)
+            .OrderByDescending(price => price.TradeDate)
+            .Select(price => (DateOnly?)price.TradeDate)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(ct);
+        return await context.MoexHistoryYieldsEntities
+            .AsNoTracking()
+            .Where(x => x.TradeDate == date)
+            .ToDictionaryAsync(
+                x => new SecBoard(x.SecId, x.BoardId), 
+                x => new DateStatistics(x.Close, x.NumTrades, x.Value), cancellationToken: ct);
+    }
 }

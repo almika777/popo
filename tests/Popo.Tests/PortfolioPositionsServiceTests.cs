@@ -266,7 +266,67 @@ public sealed class PortfolioPositionsServiceTests
     }
 
     [Test]
-    public async Task Floater_UsesPublishedCouponScheduleAndCurrentAccruedInterestWithoutMoexCouponValue()
+    public async Task Floater_HidesPnlWhenCouponScheduleIsIncomplete()
+    {
+        const string secId = "FLOAT-ACCRUED-FALLBACK";
+        const string boardId = "TQCB";
+        const string isin = "RU000A10FALL";
+        const string couponBoardId = "TQBR";
+        var asOf = MoscowTime.Today;
+        var nextCouponDate = asOf.AddDays(90);
+        var trades = new[]
+        {
+            new PortfolioTradeRecord(
+                Guid.NewGuid(), secId, boardId, "RUB", asOf.AddDays(-10), TradeSide.Buy,
+                2, 1_000, 1_000, 0, 0, 0, 2_000)
+        };
+        var position = new PortfolioPositionRecord(
+            secId, boardId, "RUB", 2, 2, 0, 2_000, 2_000, 0, 1_000);
+        var service = new PortfolioPositionsService(
+            new FakeMoneyMarketFundsProvider(),
+            new FakeTradesProvider(trades),
+            new FakePositionsProvider(position),
+            new FakeMoexHttpClient(
+                new MoexBond
+                {
+                    SecId = secId,
+                    BoardId = boardId,
+                    Isin = secId,
+                    InitialFaceValue = 1_000,
+                    FaceValue = 1_000,
+                    FaceUnit = "RUB",
+                    BondType = "Флоатер",
+                    CouponFrequency = 2,
+                    CouponValue = 0,
+                    Accruedint = 0.46,
+                    NextCouponDate = nextCouponDate
+                },
+                new MoexMarketdata
+                {
+                    SecId = secId,
+                    BoardId = boardId,
+                    LCurrentPrice = 100,
+                    SysTime = asOf.ToDateTime(TimeOnly.MinValue)
+                }),
+            null!,
+            new FakeHistoryProvider(),
+            new FakeCouponProvider(
+            [
+                new PublishedCouponValue(secId, isin, couponBoardId,
+                    nextCouponDate, asOf.AddDays(-30), null, "RUB", nextCouponDate.AddDays(-15))
+            ]));
+
+        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.ApproximateCouponIncome, Is.Null);
+            Assert.That(result.ApproximateTotalPnl, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task Floater_UsesLastKnownCouponWhenUpcomingCouponIsZeroPlaceholder()
     {
         const string secId = "FLOAT-SERVICE";
         const string boardId = "TQCB";
@@ -291,7 +351,7 @@ public sealed class PortfolioPositionsServiceTests
             BondType = "Флоатер",
             CouponFrequency = 4,
             CouponValue = 0,
-            Accruedint = 7,
+            Accruedint = 0.46,
             NextCouponDate = new DateOnly(2026, 9, 30)
         };
         var quote = new MoexMarketdata
@@ -310,7 +370,7 @@ public sealed class PortfolioPositionsServiceTests
                 new DateOnly(2026, 6, 30), new DateOnly(2026, 4, 1), 100, "RUB",
                 new DateOnly(2026, 6, 15)),
             new PublishedCouponValue(secId, isin, couponBoardId,
-                new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), null, "RUB",
+                new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), 0, "RUB",
                 new DateOnly(2026, 9, 15))
         };
         var service = new PortfolioPositionsService(
@@ -328,8 +388,8 @@ public sealed class PortfolioPositionsServiceTests
         {
             Assert.That(result.MarketValue, Is.EqualTo(1_940));
             Assert.That(result.UnrealizedPnl, Is.EqualTo(-60));
-            Assert.That(result.ApproximateCouponIncome, Is.EqualTo(304));
-            Assert.That(result.ApproximateTotalPnl, Is.EqualTo(244));
+            Assert.That(result.ApproximateCouponIncome, Is.EqualTo(358.13).Within(0.01));
+            Assert.That(result.ApproximateTotalPnl, Is.EqualTo(298.13).Within(0.01));
             Assert.That(result.ApproximateAnnualizedTotalPnlPercent, Is.Not.Null);
             Assert.That(result.ApproximateAnnualizedReturnBreakdown, Is.Not.Null);
             Assert.That(result.ApproximateAnnualizedReturnBreakdown!.AnnualizedPercent,
@@ -597,6 +657,12 @@ public sealed class PortfolioPositionsServiceTests
                 [security.BoardId] = quote is null ? [] : [quote]
             });
 
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            Task.FromResult(new Dictionary<string, List<MoexMarketdata>>
+            {
+                [security.BoardId] = quote is null ? [] : [quote]
+            });
+
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
@@ -621,8 +687,17 @@ public sealed class PortfolioPositionsServiceTests
 
     private sealed class FakeHistoryProvider : IHistoryProvider
     {
+        public Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) => Task.FromResult(new Dictionary<string, double>());
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) => Task.FromResult(new Dictionary<string, DailyVolumeStatistics>());
+        public Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private sealed class FakeCouponProvider(IReadOnlyList<PublishedCouponValue>? schedule = null)

@@ -3,6 +3,7 @@
 import {
   BarChartOutlined,
   DatabaseOutlined,
+  LineChartOutlined,
   SwapOutlined,
   UnorderedListOutlined,
   WalletOutlined
@@ -12,11 +13,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLayoutEffect } from "react";
 
 const navigationItems = [
-  { key: "/portfolio", label: "Портфель", icon: WalletOutlined },
-  { key: "/positions", label: "Позиции", icon: UnorderedListOutlined },
-  { key: "/trades", label: "Сделки", icon: SwapOutlined },
-  { key: "/liquidity", label: "Ликвидность", icon: DatabaseOutlined },
-  { key: "/recommendations", label: "Рекомендации", icon: BarChartOutlined }
+  { key: "/portfolio", label: "Портфель", ariaLabel: "Портфель", icon: WalletOutlined },
+  { key: "/positions", label: "Позиции", ariaLabel: "Позиции", icon: UnorderedListOutlined },
+  { key: "/trades", label: "Сделки", ariaLabel: "Сделки", icon: SwapOutlined },
+  { key: "/liquidity", label: "Ликвидн.", ariaLabel: "Ликвидность", icon: DatabaseOutlined },
+  { key: "/recommendations", label: "Рекоменд.", ariaLabel: "Рекомендации", icon: BarChartOutlined },
+  { key: "/statistics", label: "Статистика", ariaLabel: "Статистика", icon: LineChartOutlined }
 ];
 
 export function MobileNavigation() {
@@ -63,12 +65,12 @@ export function MobileNavigation() {
   return (
     <nav className="mobile-bottom-navigation" aria-label="Основная навигация">
       <TabBar activeKey={selectedKey} safeArea>
-        {navigationItems.map(({ key, label, icon: Icon }) => (
+        {navigationItems.map(({ key, label, ariaLabel, icon: Icon }) => (
           <TabBar.Item
             key={key}
             icon={<Icon aria-hidden="true" />}
             title={label}
-            aria-label={label}
+            aria-label={ariaLabel}
             aria-current={selectedKey === key ? "page" : undefined}
             onClick={() => router.push(key)}
           />

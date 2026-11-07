@@ -4,6 +4,7 @@ using Popo.Core.Portfolio.ClosedSessions;
 using Popo.Core.Portfolio;
 using Popo.Core.PortfolioReturns;
 using Popo.Core.Recommendations;
+using Popo.Core.Statistics;
 
 namespace Popo.Core;
 
@@ -17,6 +18,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PortfolioReturnCalculator>();
         services.AddSingleton<PortfolioBenchmarkCalculator>();
         services.AddSingleton<PortfolioCurrencyAnalyticsCalculator>();
+        services.AddSingleton<BondDailyPriceChangeCalculator>();
+        services.AddSingleton<BondDailyTopDeclinesCalculator>();
+        services.AddSingleton<BondDailyTopIncreasesCalculator>();
+        services.AddSingleton<BondDailyTopTurnoversCalculator>();
+        services.AddSingleton<BondDailyChangesCalculator>();
         services.AddScoped<ClosedPositionSessionsService>();
         return services;
     }

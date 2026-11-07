@@ -295,6 +295,7 @@ public sealed class PortfolioPositionsService(
             data.Position.CurrencyId,
             data.Security?.BondType,
             data.Security?.BondSubType);
+        var isFloater = calculator is FloaterPositionCalculator;
         var tradePricing = CalculatePositionTradePricing(
             data,
             sourceData.Trades,
@@ -359,7 +360,7 @@ public sealed class PortfolioPositionsService(
             valuation,
             isNominalIndexed,
             positionCalculation.AverageBuyPrice,
-            calculator is FloaterPositionCalculator,
+            isFloater,
             annualizedReturnUnavailableReason);
     }
 

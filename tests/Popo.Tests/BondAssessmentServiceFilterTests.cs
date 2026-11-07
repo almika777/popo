@@ -216,6 +216,8 @@ public sealed class BondAssessmentServiceFilterTests
             {
                 ["SEC"] = [new MoexMarketdata { SecId = "SEC", BoardId = "TQCB", LCurrentPrice = 100d }]
             });
+        public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataFreshAsync(CancellationToken ct) =>
+            GetActiveBondsMarketdataAsync(ct);
         public Task<Dictionary<string, List<MoexBond>>> GetActiveBondsSecuritiesAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotImplementedException();
@@ -232,9 +234,15 @@ public sealed class BondAssessmentServiceFilterTests
 
     private sealed class HistoryProvider : IHistoryProvider
     {
+        public Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, DailyVolumeStatistics> { ["SEC"] = new(1_000d, 1_000d) });
+
+        public Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class CashFlowProvider(

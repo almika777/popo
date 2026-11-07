@@ -10,6 +10,34 @@ namespace Popo.Tests;
 public sealed class MoexMoneyMarketFundMarketdataTests
 {
     [Test]
+    public async Task FreshBondMarketdataIsNotCached()
+    {
+        var handler = new FixedResponseHandler(HttpStatusCode.OK, """
+            {
+              "marketdata": {
+                "columns": ["SECID", "BOARDID"],
+                "data": [],
+                "metadata": {}
+              }
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = new MoexIssClient(new FixedHttpClientFactory(httpClient), new MemoryCache(new MemoryCacheOptions()));
+
+        var first = await client.GetBondsMarketdataAsync(CancellationToken.None);
+        var firstRequestCount = handler.RequestCount;
+        var second = await client.GetBondsMarketdataAsync(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Is.Empty);
+            Assert.That(second, Is.Empty);
+            Assert.That(firstRequestCount, Is.GreaterThan(0));
+            Assert.That(handler.RequestCount, Is.EqualTo(firstRequestCount * 2));
+        });
+    }
+
+    [Test]
     public async Task EmptySuccessfulMarketdataResponseReturnsAnUnpricedFundQuote()
     {
         var handler = new FixedResponseHandler(HttpStatusCode.OK, """
@@ -52,9 +80,15 @@ public sealed class MoexMoneyMarketFundMarketdataTests
 
     private sealed class FixedResponseHandler(HttpStatusCode statusCode, string content) : HttpMessageHandler
     {
+        private int _requestCount;
+        public int RequestCount => Volatile.Read(ref _requestCount);
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(statusCode) { Content = new StringContent(content) });
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requestCount);
+            return Task.FromResult(new HttpResponseMessage(statusCode) { Content = new StringContent(content) });
+        }
     }
 }

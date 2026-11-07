@@ -31,8 +31,6 @@ public sealed class ClosedPositionSessionsPageService(
 
     public ClosedPositionSessionsJobStatus GetStatus(string jobId)
     {
-        if (string.IsNullOrWhiteSpace(jobId) || jobId.Length > 64 || !jobId.All(char.IsAsciiDigit))
-            throw new InvalidApplicationRequestException("Некорректный идентификатор задачи.");
         using var connection = jobStorage.GetConnection();
         var data = connection.GetJobData(jobId);
         if (data?.Job?.Type != typeof(IClosedPositionSessionsJob))
