@@ -221,12 +221,10 @@ public sealed class BondAssessmentServiceFilterTests
         public Task<Dictionary<string, List<MoexBond>>> GetActiveBondsSecuritiesAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) => throw new NotImplementedException();
-        public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) => throw new NotImplementedException();
         public Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct) => throw new NotImplementedException();
         public Task<List<MoexEmitentDescription>> GetAllEmitentDescriptionAsync(CancellationToken ct) => throw new NotImplementedException();
@@ -237,7 +235,6 @@ public sealed class BondAssessmentServiceFilterTests
         public Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) => throw new NotImplementedException();
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, DailyVolumeStatistics> { ["SEC"] = new(1_000d, 1_000d) });
 

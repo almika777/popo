@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { cashInvestmentRecommendationsApi } from "./cash-investment-recommendations-api.ts";
 
-test("getCurrent requests the current liquidity snapshot", async () => {
+test("recalculate requests the current liquidity snapshot", async () => {
   const calls: Array<{ url: string; method: string }> = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -15,9 +15,9 @@ test("getCurrent requests the current liquidity snapshot", async () => {
   };
 
   try {
-    const result = await cashInvestmentRecommendationsApi.getCurrent();
+    const result = await cashInvestmentRecommendationsApi.recalculate();
     assert.deepEqual(result.bonds, []);
-    assert.deepEqual(calls, [{ url: "http://localhost:5109/api/recommendations/cash", method: "GET" }]);
+    assert.deepEqual(calls, [{ url: "http://localhost:5109/api/recommendations/cash/recalculate", method: "POST" }]);
   } finally {
     globalThis.fetch = originalFetch;
   }

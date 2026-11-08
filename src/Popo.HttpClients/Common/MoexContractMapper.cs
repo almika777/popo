@@ -136,24 +136,6 @@ internal static class MoexContractMapper
         Close = source.Close,
     };
 
-    public static CoreModels.MoexMarketdataYields ToContract(this Iss.MoexMarketdataYields source) => new()
-    {
-        SecId = source.SecId,
-        BoardId = source.BoardId,
-        Price = source.Price,
-        YieldDate = source.YieldDate,
-        YieldDateType = source.YieldDateType,
-        EffectiveYield = source.EffectiveYield,
-        Duration = source.Duration,
-        ZSpread = source.ZSpread,
-        GSpread = source.GSpread,
-        WaPrice = source.WaPrice,
-        EffectiveYieldWaPrice = source.EffectiveYieldWaPrice,
-        DurationWaPrice = source.DurationWaPrice,
-        TradeMoment = source.TradeMoment,
-        SeqNum = source.SeqNum,
-    };
-
     /// <summary>Переносит поля рыночной котировки из транспортной модели MOEX в контракт Core.</summary>
     /// <param name="source">Строка рыночных данных из ответа MOEX ISS.</param>
     /// <returns>Котировка в контракте, используемом расчётами приложения.</returns>
@@ -173,16 +155,6 @@ internal static class MoexContractMapper
         ClosePrice = source.ClosePrice,
         Duration = source.Duration,
         SysTime = source.SysTime,
-    };
-
-    public static CoreModels.MoexTrade ToContract(this Iss.MoexTrade source) => new()
-    {
-        TradeTime = source.TradeTime,
-        Price = source.Price,
-        Quantity = source.Quantity,
-        Value = source.Value,
-        Yield = source.Yield,
-        BuySell = source.BuySell,
     };
 
     public static CoreModels.SecDescription ToContract(this Iss.SecDescription source) => new()

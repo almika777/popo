@@ -17,14 +17,6 @@ public sealed class CashRecommendationsController(
         CancellationToken cancellationToken) =>
         Ok(await pageService.GetAsync(cancellationToken));
 
-    [HttpGet("cash")]
-    public async Task<ActionResult<CashRecommendationResponse>> GetCurrent(
-        CancellationToken cancellationToken)
-    {
-        var result = await cashRecommendationService.GetRecommendations(cancellationToken);
-        return Ok(CashRecommendationApiMapper.ToResponse(result));
-    }
-
     [HttpGet("cash/settings")]
     public async Task<ActionResult<InvestmentStrategySettingsResponse>> GetSettings(
         CancellationToken cancellationToken)

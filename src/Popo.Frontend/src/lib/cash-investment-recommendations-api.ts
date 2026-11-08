@@ -97,7 +97,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const cashInvestmentRecommendationsApi = {
   getPage: () => request<CashRecommendationsPage>("/recommendations/cash/page"),
-  getCurrent: () => request<CashRecommendationResponse>("/recommendations/cash"),
   getSettings: () => request<InvestmentStrategySettings>("/recommendations/cash/settings"),
   updateSettings: (settings: InvestmentStrategySettings) =>
     request<InvestmentStrategySettings>("/recommendations/cash/settings", {

@@ -657,9 +657,6 @@ public sealed class PortfolioReturnsApiContractTests
             string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) =>
-            Task.FromResult(new Dictionary<string, List<MoexMarketdataYields>>());
-
         public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, List<MoexMarketdata>>());
 
@@ -694,9 +691,6 @@ public sealed class PortfolioReturnsApiContractTests
             return Task.FromResult(lqdtHistory?.Where(value => value.SecId == secId).ToList() ?? []);
         }
 
-        public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) =>
             Task.FromResult(new List<SecDescription>());
 
@@ -712,14 +706,8 @@ public sealed class PortfolioReturnsApiContractTests
         public Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<PortfolioPositionRecord>> GetPositionsAsync(CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken) =>
             Task.FromResult(overview ?? throw new NotSupportedException());
-
-        public Task<PortfolioSummaryRecord> GetSummaryAsync(DateOnly asOf, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
 
         public Task<IReadOnlyList<MoneyMarketFundRecord>> GetMoneyMarketFundsAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -737,9 +725,6 @@ public sealed class PortfolioReturnsApiContractTests
         {
             return Task.FromResult<IReadOnlyList<PortfolioValuationRecord>>(Valuations);
         }
-
-        public Task<PortfolioValuationRecord?> GetValuationAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(Valuations.SingleOrDefault(x => x.Id == id));
 
         public Task<PortfolioValuationRecord> AddValuationAsync(DateOnly date, double totalValue, string comment, CancellationToken cancellationToken)
         {
@@ -767,9 +752,6 @@ public sealed class PortfolioReturnsApiContractTests
         {
             return Task.FromResult<IReadOnlyList<PortfolioCashFlowRecord>>(CashFlows);
         }
-
-        public Task<PortfolioCashFlowRecord?> GetCashFlowAsync(Guid id, CancellationToken cancellationToken) =>
-            Task.FromResult(CashFlows.SingleOrDefault(x => x.Id == id));
 
         public Task<PortfolioCashFlowRecord> AddCashFlowAsync(DateOnly date, PortfolioCashFlowType type, double amount, string comment, CancellationToken cancellationToken)
         {

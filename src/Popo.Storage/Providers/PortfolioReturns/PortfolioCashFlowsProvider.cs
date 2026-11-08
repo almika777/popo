@@ -19,15 +19,6 @@ public sealed class PortfolioCashFlowsProvider(IDbContextFactory<PopoDbContext> 
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<PortfolioCashFlowRecord?> GetCashFlowAsync(Guid id, CancellationToken cancellationToken)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        return await dbContext.PortfolioCashFlows
-            .Where(x => x.Id == id)
-            .Select(x => new PortfolioCashFlowRecord(x.Id, x.Date, x.Type, x.Amount, x.Comment))
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
     public async Task<PortfolioCashFlowRecord> AddCashFlowAsync(
         DateOnly date,
         PortfolioCashFlowType type,

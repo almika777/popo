@@ -19,8 +19,4 @@ public interface IPortfolioCouponProvider
         IReadOnlyCollection<PortfolioBondKey> bonds,
         CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
-        IReadOnlyCollection<PortfolioBondKey> bonds,
-        DateOnly asOf,
-        CancellationToken cancellationToken);
 }

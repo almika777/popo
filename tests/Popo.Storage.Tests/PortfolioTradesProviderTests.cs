@@ -147,6 +147,7 @@ public sealed class PortfolioTradesProviderTests
             new PortfolioTrade(secId, boardId, currencyId, new DateOnly(2026, 1, 3), TradeSide.Buy, 10, 98),
             CancellationToken.None));
 
-        Assert.That((await _tradesProvider.GetTradeAsync(buy.Id, CancellationToken.None))?.TradeDate, Is.EqualTo(new DateOnly(2026, 1, 1)));
+        Assert.That((await _tradesProvider.GetTradesAsync(CancellationToken.None))
+            .Single(x => x.Id == buy.Id).TradeDate, Is.EqualTo(new DateOnly(2026, 1, 1)));
     }
 }

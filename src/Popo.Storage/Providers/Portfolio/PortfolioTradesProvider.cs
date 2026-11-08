@@ -18,14 +18,6 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
         return entities.Select(ToRecord).ToArray();
     }
 
-    public async Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await dbContext.PortfolioTrades.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-        return entity is null ? null : ToRecord(entity);
-    }
-    
     public async Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken)
     {
         ValidateTrade(trade);

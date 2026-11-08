@@ -153,25 +153,34 @@ public sealed class ZoPositionCalculatorTests
     }
 
     [Test]
-    public void Factory_SelectsZoCalculatorForForeignNominalAndRubleTradingCurrency()
+    public void Factory_SelectsDefaultCalculatorForCurrencyBondTypes()
     {
         var factory = new PositionCalculatorFactory();
 
         Assert.Multiple(() =>
         {
-            Assert.That(factory.Create("USD", "RUB"), Is.TypeOf<ZoPositionCalculator>());
-            Assert.That(factory.Create("eur", "sur"), Is.TypeOf<ZoPositionCalculator>());
-            Assert.That(factory.Create("CNY", "RUB"), Is.TypeOf<ZoPositionCalculator>());
+            Assert.That(factory.Create("Валютная облигация"), Is.TypeOf<DefaultPositionCalculator>());
+            Assert.That(factory.Create("Валютные облигации"), Is.TypeOf<DefaultPositionCalculator>());
+            Assert.That(factory.Create("валютная облигация"), Is.TypeOf<DefaultPositionCalculator>());
         });
     }
 
-    [TestCase("RUB", "RUB")]
-    [TestCase("CNY", "CNY")]
-    [TestCase("CHF", "RUB")]
-    [TestCase("USD", "CNY")]
-    public void Factory_LeavesOtherCurrencyPairsOnDefaultCalculator(string faceUnit, string currencyId)
+    [TestCase("Структурная облигация")]
+    [TestCase("Дисконтная облигация")]
+    [TestCase("Конвертируемая облигация")]
+    [TestCase("Амортизируемая облигация")]
+    public void Factory_UsesDefaultForOtherBondTypes(string bondType)
     {
-        Assert.That(new PositionCalculatorFactory().Create(faceUnit, currencyId),
+        Assert.That(new PositionCalculatorFactory().Create(bondType),
+            Is.TypeOf<DefaultPositionCalculator>());
+    }
+
+    [TestCase("Фикс с известным купоном")]
+    [TestCase("Фикс с неизвестным купоном")]
+    [TestCase("Линкер/облигация с индексируемым номиналом")]
+    public void Factory_UsesDefaultForFixedAndIndexedBondTypes(string bondType)
+    {
+        Assert.That(new PositionCalculatorFactory().Create(bondType),
             Is.TypeOf<DefaultPositionCalculator>());
     }
 

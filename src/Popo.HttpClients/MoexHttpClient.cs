@@ -12,9 +12,6 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
             .ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
     }
 
-    public async Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) =>
-        (await client.GetActiveBondsMarketdataYieldsAsync(ct)).ToDictionary(x => x.Key, x => x.Value.Select(value => value.ToContract()).ToList());
-
     public async Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct)
     {
         return (await client.GetBondsMarketdataCachedAsync(ct))
@@ -45,9 +42,6 @@ public sealed class MoexHttpClient(MoexIssClient client) : IMoexHttpClient
 
     public async Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) =>
         (await client.GetMoneyMarketFundPriceHistoryAsync(secId, ct)).Select(value => value.ToContract()).ToList();
-
-    public async Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>
-        (await client.GetBondTradesAsync(secId, boardId, ct)).Select(value => value.ToContract()).ToList();
 
     public async Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) =>
         (await client.GetActiveSecAsync(ct)).Select(value => value.ToContract()).ToList();

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Popo.Core.Bonds;
 using Popo.Core.Portfolio.Position;
 
 namespace Popo.Tests;
@@ -8,42 +9,49 @@ public sealed class PositionCalculatorFactoryTests
 {
     private readonly PositionCalculatorFactory factory = new();
 
-    [TestCase("RUB", "RUB")]
-    [TestCase("SUR", "SUR")]
-    [TestCase("RUB", "SUR")]
-    [TestCase("SUR", "RUB")]
-    public void Create_SelectsFloaterCalculatorForRubleCurrencyPair(string faceUnit, string currencyId)
+    [TestCase("Флоатер")]
+    [TestCase("флоатер")]
+    [TestCase("Облигация с плавающим купоном")]
+    [TestCase("облигация с плавающим купоном")]
+    public void Create_SelectsFloaterCalculatorForBondType(string bondType)
     {
-        Assert.That(factory.Create(faceUnit, currencyId, "Облигация с плавающим купоном"),
+        Assert.That(factory.Create(bondType),
             Is.TypeOf<FloaterPositionCalculator>());
     }
 
     [Test]
-    public void Create_PrioritizesZoCalculatorForForeignNominalFloater()
+    public void Create_SelectsFloaterCalculatorForFloater()
     {
-        Assert.That(factory.Create("USD", "RUB", "Флоатер"), Is.TypeOf<ZoPositionCalculator>());
+        Assert.That(factory.Create("Флоатер"), Is.TypeOf<FloaterPositionCalculator>());
+    }
+
+    [Test]
+    public void Create_SelectsDefaultForKnownFixedType()
+    {
+        Assert.That(factory.Create("Облигация с фиксированным (известным) купоном"),
+            Is.TypeOf<DefaultPositionCalculator>());
     }
 
     [TestCase("Флоатер", null)]
     [TestCase(null, "Флоатер")]
     [TestCase("Облигация с плавающим купоном", null)]
     [TestCase(null, "Облигация с плавающим купоном")]
-    public void Create_RecognizesFloaterInBondTypeOrSubtype(string? bondType, string? bondSubType)
+    public void Classifier_RecognizesFloaterInBondTypeOrSubtype(string? bondType, string? bondSubType)
     {
-        Assert.That(factory.Create("RUB", "RUB", bondType, bondSubType),
-            Is.TypeOf<FloaterPositionCalculator>());
+        Assert.That(BondCouponClassifier.IsFloater(bondType, bondSubType), Is.True);
+        Assert.That(factory.Create(bondType ?? bondSubType), Is.TypeOf<FloaterPositionCalculator>());
     }
 
     [Test]
     public void Create_LeavesUnknownBondTypeOnDefaultCalculator()
     {
-        Assert.That(factory.Create("RUB", "RUB", "Облигация с постоянным купоном"),
+        Assert.That(factory.Create("Облигация с постоянным купоном"),
             Is.TypeOf<DefaultPositionCalculator>());
     }
 
     [Test]
-    public void Create_TwoArgumentCallKeepsDefaultCalculatorBehavior()
+    public void Create_NullBondTypeKeepsDefaultCalculatorBehavior()
     {
-        Assert.That(factory.Create("RUB", "RUB"), Is.TypeOf<DefaultPositionCalculator>());
+        Assert.That(factory.Create(null), Is.TypeOf<DefaultPositionCalculator>());
     }
 }

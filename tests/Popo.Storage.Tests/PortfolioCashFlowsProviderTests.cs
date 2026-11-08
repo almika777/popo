@@ -30,7 +30,8 @@ public sealed class PortfolioCashFlowsProviderTests
             "deposit",
             CancellationToken.None);
 
-        var stored = await _provider.GetCashFlowAsync(created.Id, CancellationToken.None);
+        var stored = (await _provider.GetCashFlowsAsync(CancellationToken.None))
+            .Single(x => x.Id == created.Id);
 
         Assert.That(stored, Is.Not.Null);
         Assert.That(stored!.Type, Is.EqualTo(PortfolioCashFlowType.Deposit));

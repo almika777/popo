@@ -140,7 +140,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -187,7 +187,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
         using var json = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(
             result,
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)));
@@ -244,7 +244,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
         var breakdown = result.ApproximateAnnualizedReturnBreakdown!;
         var lot = breakdown.Lots.Single();
 
@@ -316,7 +316,7 @@ public sealed class PortfolioPositionsServiceTests
                     nextCouponDate, asOf.AddDays(-30), null, "RUB", nextCouponDate.AddDays(-15))
             ]));
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -382,7 +382,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider(couponSchedule));
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -461,7 +461,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -523,7 +523,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -604,7 +604,7 @@ public sealed class PortfolioPositionsServiceTests
             new FakeHistoryProvider(),
             new FakeCouponProvider());
 
-        var result = (await service.GetPositionsAsync(CancellationToken.None)).Single();
+        var result = (await service.GetPageAsync(CancellationToken.None)).Positions.Single();
 
         Assert.Multiple(() =>
         {
@@ -640,7 +640,6 @@ public sealed class PortfolioPositionsServiceTests
         public Task<IReadOnlyList<PortfolioTradeRecord>> GetTradesAsync(CancellationToken cancellationToken) =>
             Task.FromResult(trades);
 
-        public Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> UpdateTradeAsync(Guid id, PortfolioTrade trade, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<bool> DeleteTradeAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -665,7 +664,6 @@ public sealed class PortfolioPositionsServiceTests
 
         public Task<MoexBondization> GetFutureAmortsAndCoupons(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<MoexMarketdata> GetMoneyMarketFundMarketdataAsync(string secId, string boardId, CancellationToken ct) =>
             quote is null ? throw new NotSupportedException() :
             Task.FromResult(new MoexMarketdata
@@ -679,7 +677,6 @@ public sealed class PortfolioPositionsServiceTests
         public Task<List<MoexIndexHistory>> GetLqdtIndexHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexIndexHistory>> GetLqdtPriceHistoryAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<MoexEmitentDescription>> GetAllEmitentDescriptionAsync(CancellationToken ct) => throw new NotSupportedException();
@@ -692,7 +689,6 @@ public sealed class PortfolioPositionsServiceTests
             throw new NotImplementedException();
         }
 
-        public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) => Task.FromResult(new Dictionary<string, double>());
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) => Task.FromResult(new Dictionary<string, DailyVolumeStatistics>());
         public Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken)
         {
@@ -708,11 +704,5 @@ public sealed class PortfolioPositionsServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult(schedule ?? Array.Empty<PublishedCouponValue>());
 
-        public Task<IReadOnlyList<PublishedCouponValue>> GetPublishedHistoryAsync(
-            IReadOnlyCollection<PortfolioBondKey> bonds,
-            DateOnly asOf,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<PublishedCouponValue>>(
-                schedule?.Where(x => x.Date <= asOf).ToArray() ?? []);
     }
 }

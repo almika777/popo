@@ -38,9 +38,9 @@ public sealed class PortfolioValuationsProviderTests
             101_000,
             "updated",
             CancellationToken.None), Is.True);
-        Assert.That((await _provider.GetValuationAsync(created.Id, CancellationToken.None))!.TotalValue,
-            Is.EqualTo(101_000));
+        Assert.That((await _provider.GetValuationsAsync(CancellationToken.None))
+            .Single(x => x.Id == created.Id).TotalValue, Is.EqualTo(101_000));
         Assert.That(await _provider.DeleteValuationAsync(created.Id, CancellationToken.None), Is.True);
-        Assert.That(await _provider.GetValuationAsync(created.Id, CancellationToken.None), Is.Null);
+        Assert.That(await _provider.GetValuationsAsync(CancellationToken.None), Is.Empty);
     }
 }

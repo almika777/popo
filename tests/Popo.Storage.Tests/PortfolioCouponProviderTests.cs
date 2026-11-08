@@ -43,14 +43,10 @@ public sealed class PortfolioCouponProviderTests
 
         var bond = new PortfolioBondKey(secId, isin, positionBoardId);
         var schedule = await _provider.GetCouponScheduleAsync([bond], CancellationToken.None);
-        var history = await _provider.GetPublishedHistoryAsync(
-            [bond], historicalDate, CancellationToken.None);
-
         Assert.Multiple(() =>
         {
             Assert.That(schedule.Select(x => x.Date), Is.EqualTo(new[] { historicalDate, futureDate }));
             Assert.That(schedule.Single(x => x.Date == futureDate).Value, Is.Null);
-            Assert.That(history.Select(x => x.Date), Is.EqualTo(new[] { historicalDate }));
         });
     }
 

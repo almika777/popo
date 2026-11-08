@@ -4,8 +4,6 @@ public interface IPortfolioValuationsProvider
 {
     Task<IReadOnlyList<PortfolioValuationRecord>> GetValuationsAsync(CancellationToken cancellationToken);
 
-    Task<PortfolioValuationRecord?> GetValuationAsync(Guid id, CancellationToken cancellationToken);
-
     Task<PortfolioValuationRecord> AddValuationAsync(
         DateOnly date,
         double totalValue,

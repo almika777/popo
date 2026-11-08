@@ -19,19 +19,6 @@ public sealed class PortfolioValuationsProvider(IDbContextFactory<PopoDbContext>
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>Возвращает оценку по идентификатору или <see langword="null"/>, если она не найдена.</summary>
-    public async Task<PortfolioValuationRecord?> GetValuationAsync(
-        Guid id,
-        CancellationToken cancellationToken)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        return await dbContext.PortfolioValuations
-            .AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new PortfolioValuationRecord(x.Id, x.Date, x.TotalValue, x.Comment))
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
     /// <summary>Сохраняет оценку общей стоимости портфеля на указанную дату и возвращает созданную запись.</summary>
     public async Task<PortfolioValuationRecord> AddValuationAsync(
         DateOnly date,

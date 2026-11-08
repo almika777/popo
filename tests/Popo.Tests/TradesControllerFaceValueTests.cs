@@ -142,9 +142,6 @@ public sealed class TradesControllerFaceValueTests
         public Task<IReadOnlyList<PortfolioTradeRecord>> GetTradesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken)
         {
             AddedTrade = trade;
@@ -172,9 +169,6 @@ public sealed class TradesControllerFaceValueTests
         public Task<IReadOnlyList<PortfolioTradeRecord>> GetTradesAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken) =>
             throw OversellError();
 
@@ -196,9 +190,6 @@ public sealed class TradesControllerFaceValueTests
         public Task<List<MoexHistoryYields>> GetBondHistoryPageAsync(string secId, string boardId, DateOnly? from = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(CancellationToken ct) =>
-            throw new NotSupportedException();
-
         public Task<Dictionary<string, List<MoexMarketdata>>> GetActiveBondsMarketdataAsync(CancellationToken ct) =>
             throw new NotSupportedException();
 
@@ -215,9 +206,6 @@ public sealed class TradesControllerFaceValueTests
             throw new NotSupportedException();
 
         public Task<List<MoexIndexHistory>> GetMoneyMarketFundPriceHistoryAsync(string secId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<List<SecDescription>> GetActiveSecAsync(CancellationToken ct) =>
