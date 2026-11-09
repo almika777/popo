@@ -19,16 +19,6 @@ public sealed record UpsertMoneyMarketFundRequest(
     double Quantity,
     double AveragePrice);
 
-public sealed record PositionsPageResponse(
-    IReadOnlyList<PortfolioPositionRecord> Positions,
-    PositionTotalsResponse Totals);
-
-public sealed record PositionTotalsResponse(
-    double MarketValueRub,
-    double? InvestedAmountRub,
-    double? UnrealizedPnlRub,
-    double? UnrealizedPnlPercent);
-
 public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId, string Name);
 
 public sealed record MoneyMarketFundsPageResponse(

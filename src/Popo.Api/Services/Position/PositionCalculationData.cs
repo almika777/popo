@@ -8,18 +8,16 @@ namespace Popo.Api.Services.Position;
 
 internal sealed record PositionSourceData(
         IReadOnlyList<PortfolioPositionRecord> Positions,
-        IReadOnlyList<PortfolioTradeRecord> Trades,
         IReadOnlyList<MoexMarketdata> Marketdata,
         IReadOnlyList<MoexBond> Securities,
         IReadOnlyDictionary<string, DailyVolumeStatistics> VolumeStatistics)
     {
         public static PositionSourceData Empty =>
-            new([], [], [], [], new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase));
+            new([], [], [], new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase));
     }
 
 internal sealed record PositionData(
         PortfolioPositionRecord Position,
-        IReadOnlyList<PortfolioTradeRecord> Trades,
         MoexMarketdata? Marketdata,
         MoexBond? Security,
         DailyVolumeStatistics? VolumeStatistics)
@@ -28,10 +26,6 @@ internal sealed record PositionData(
                                         && Security.InitialFaceValue > 0
                                         && Security.FaceValue > Security.InitialFaceValue;
     }
-
-internal sealed record PositionAdditionalData(
-        IReadOnlyList<PublishedCouponValue> CouponHistory,
-        IReadOnlyList<CurrencyRateSnapshot> CurrencyRates);
 
 internal sealed record CurrencyRateSnapshot(DateOnly RateDate, string CurrencyCode, double UnitRate);
 
@@ -42,8 +36,3 @@ internal sealed record PositionMarketPriceData(
         double? MarketPrice);
 
 internal sealed record ValuedPosition(PortfolioPositionRecord Position, double? TradingCurrencyRateToRub);
-
-internal sealed record PositionTradePricing(
-        PortfolioTradeRecord Trade,
-        double? PurchasePricePercent,
-        double? PurchasePriceAtCurrentFaceValue);

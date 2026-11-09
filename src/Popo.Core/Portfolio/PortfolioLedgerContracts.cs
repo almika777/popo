@@ -1,5 +1,3 @@
-using Popo.Core.Portfolio.Position;
-
 namespace Popo.Core.Portfolio;
 
 public enum TradeSide
@@ -55,31 +53,7 @@ public sealed record PortfolioPositionRecord(
     double BoughtAmount,
     double SoldAmount,
     double? AverageBuyPrice,
-    double? MarketPrice = null,
-    double? MarketValue = null,
-    double? UnrealizedPnl = null,
-    double? UnrealizedPnlPercent = null,
-    string ShortName = "",
-    double? AverageDailyVolume = null,
-    double? MedianDailyVolume = null,
-    double? ApproximateCouponIncome = null,
-    double? ApproximateTotalPnl = null,
-    double? ApproximateTotalPnlPercent = null,
-    double? AverageBuyPriceAtCurrentFaceValue = null,
-    double? AverageBuyPricePercent = null,
-    double? CurrentFaceValue = null,
-    string? FaceUnit = null,
-    double? MarketPricePercent = null,
-    bool IsNominalIndexed = false,
-    double? ApproximateAnnualizedTotalPnlPercent = null,
-    PositionAnnualizedReturnBreakdown? ApproximateAnnualizedReturnBreakdown = null,
-    string? ApproximateAnnualizedReturnUnavailableReason = null);
-
-public sealed record PortfolioPositionValuation(
-    double? MarketPrice,
-    double? MarketValue,
-    double? UnrealizedPnl,
-    double? UnrealizedPnlPercent);
+    string ShortName = "");
 
 public sealed record PortfolioSummaryRecord(
     DateOnly AsOf,

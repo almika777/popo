@@ -24,20 +24,3 @@ public sealed record PositionIncomeTrade(
     double? ActualCleanPrice = null,
     double AccruedInterest = 0);
 
-public sealed record PortfolioPositionIncome(
-    double RemainingCleanCost,
-    double PaidBuyCommission,
-    double CouponIncome,
-    double TotalPnl,
-    double TotalPnlPercent,
-    double RemainingQuantity = 0,
-    double? AverageBuyPricePercent = null,
-    double? UnrealizedPnl = null,
-    double? UnrealizedPnlPercent = null,
-    double? ActualRemainingCleanCost = null,
-    double? AnnualizedTotalPnlPercent = null,
-    double HistoricalCouponIncome = 0,
-    double PaidBuyAccruedInterest = 0,
-    double CurrentAccruedInterest = 0,
-    bool IsCouponIncomeComplete = true,
-    PositionAnnualizedReturnBreakdown? AnnualizedReturnBreakdown = null);

@@ -13,7 +13,6 @@ namespace Popo.Api.Services.Position;
 
 public interface IPortfolioPositionsService
 {
-    Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken);
     Task<PortfolioOverview> GetOverviewAsync(DateOnly asOf, CancellationToken cancellationToken);
 
     /// <summary>Возвращает позиции фондов с доступной рыночной оценкой MOEX и рассчитанным результатом.</summary>
@@ -30,37 +29,10 @@ public interface IPortfolioPositionsService
 
 public sealed class PortfolioPositionsService(
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
-    IPortfolioTradesProvider tradesProvider,
     IPortfolioPositionsProvider positionsProvider,
     IMoexHttpClient moexHttpClient,
-    IDbContextFactory<PopoDbContext> dbContextFactory,
-    IHistoryProvider historyProvider,
-    IPortfolioCouponProvider couponProvider) : IPortfolioPositionsService
+    IDbContextFactory<PopoDbContext> dbContextFactory) : IPortfolioPositionsService
 {
-    public async Task<PositionsPageResponse> GetPageAsync(CancellationToken cancellationToken)
-    {
-        var valuedPositions = await LoadPositionsAsync(cancellationToken);
-        var positions = valuedPositions.Select(x => x.Position).ToArray();
-        var marketValueRub = valuedPositions.Sum(x =>
-            x.Position.MarketValue.GetValueOrDefault() * x.TradingCurrencyRateToRub.GetValueOrDefault());
-        var unrealizedPnlRub = valuedPositions.All(x => x.Position.UnrealizedPnl.HasValue)
-            ? valuedPositions.Sum(x => x.Position.UnrealizedPnl!.Value
-                                       * x.TradingCurrencyRateToRub.GetValueOrDefault())
-            : (double?)null;
-        var investedAmountRub = unrealizedPnlRub.HasValue
-            ? marketValueRub - unrealizedPnlRub.Value
-            : (double?)null;
-        var totals = new PositionTotalsResponse(
-            marketValueRub,
-            investedAmountRub,
-            unrealizedPnlRub,
-            !investedAmountRub.HasValue || investedAmountRub.Value == 0
-                ? null
-                : unrealizedPnlRub!.Value / investedAmountRub.Value * 100);
-
-        return new PositionsPageResponse(positions, totals);
-    }
-
     public async Task<IReadOnlyList<PortfolioCurrencyAnalyticsAsset>> GetCurrencyAnalyticsAssetsAsync(
         CancellationToken cancellationToken)
     {
@@ -76,7 +48,6 @@ public sealed class PortfolioPositionsService(
         await Task.WhenAll(marketdataTask, securitiesTask);
         var positionData = PositionDataResolver.ResolvePositionData(new PositionSourceData(
             positions,
-            [],
             (await marketdataTask).SelectMany(item => item.Value).ToArray(),
             (await securitiesTask).SelectMany(item => item.Value).ToArray(),
             new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
@@ -142,7 +113,6 @@ public sealed class PortfolioPositionsService(
         await Task.WhenAll(marketdataTask, securitiesTask);
         var data = PositionDataResolver.ResolvePositionData(new PositionSourceData(
             positions,
-            [],
             (await marketdataTask).SelectMany(item => item.Value).ToArray(),
             (await securitiesTask).SelectMany(item => item.Value).ToArray(),
             new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
@@ -182,68 +152,6 @@ public sealed class PortfolioPositionsService(
                 QuoteTime = quote.SysTime
             };
         }).ToArray();
-    }
-
-    private async Task<IReadOnlyList<ValuedPosition>> LoadPositionsAsync(CancellationToken cancellationToken)
-    {
-        var asOf = MoscowTime.Today;
-        var sourceData = await LoadPositionSourceDataAsync(asOf, cancellationToken);
-        if (sourceData.Positions.Count == 0)
-            return [];
-
-        var positionDatas = PositionDataResolver.ResolvePositionData(sourceData);
-        var positionAdditionalData = await LoadPositionAdditionalData(positionDatas, asOf, cancellationToken);
-
-        return positionDatas
-            .Select(selection => PositionValuationCalculator.BuildPosition(selection, positionAdditionalData, asOf))
-            .ToArray();
-    }
-
-    private async Task<PositionSourceData> LoadPositionSourceDataAsync(
-        DateOnly asOf,
-        CancellationToken cancellationToken)
-    {
-        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
-        if (positions.Count == 0)
-            return PositionSourceData.Empty;
-
-        var tradesTask = tradesProvider.GetTradesAsync(cancellationToken);
-        var marketdataTask = moexHttpClient.GetActiveBondsMarketdataAsync(cancellationToken);
-        var securitiesTask = moexHttpClient.GetActiveBondsSecuritiesAsync(cancellationToken);
-        var volumeStatisticsTask = historyProvider.GetDailyVolumeStatistics(cancellationToken);
-        await Task.WhenAll(tradesTask, marketdataTask, securitiesTask, volumeStatisticsTask);
-
-        var trades = (await tradesTask).Where(x => x.TradeDate <= asOf).ToArray();
-        var marketdata = (await marketdataTask).SelectMany(x => x.Value).ToArray();
-        var securities = (await securitiesTask).SelectMany(x => x.Value).ToArray();
-        var volumeStatistics = await volumeStatisticsTask;
-
-        return new PositionSourceData(positions, trades, marketdata, securities, volumeStatistics);
-    }
-
-    private async Task<PositionAdditionalData> LoadPositionAdditionalData(
-        IReadOnlyCollection<PositionData> selections,
-        DateOnly asOf,
-        CancellationToken cancellationToken)
-    {
-        var bondKeys = selections
-            .Where(x => x.Security is not null)
-            .Select(x => new PortfolioBondKey(x.Security!.SecId, x.Security.Isin, x.Security.BoardId))
-            .Distinct()
-            .ToArray();
-        var couponHistory = await couponProvider.GetCouponScheduleAsync(bondKeys, cancellationToken);
-        var rateCurrencies = selections
-            .Where(x => x.Security is not null)
-            .SelectMany(x => new[] { x.Security!.FaceUnit, x.Position.CurrencyId })
-            .Concat(couponHistory.Select(x => x.FaceUnit))
-            .Where(x => !IsRubleCurrency(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var rates = rateCurrencies.Length == 0
-            ? []
-            : await LoadCurrencyRatesAsync(rateCurrencies, cancellationToken);
-
-        return new PositionAdditionalData(couponHistory, rates);
     }
 
     private async Task<IReadOnlyList<CurrencyRateSnapshot>> LoadCurrencyRatesAsync(

@@ -41,7 +41,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPortfolioCurrencyRatesProvider, PortfolioCurrencyRatesProvider>();
         services.AddScoped<IClosedPositionSessionSourceProvider, ClosedPositionSessionSourceProvider>();
         services.AddScoped<IClosedPositionSessionsProvider, ClosedPositionSessionsProvider>();
-        services.AddScoped<IPortfolioCouponProvider, PortfolioCouponProvider>();
         services.AddScoped<ICashInvestmentRecommendationStore, InvestmentStrategySettingsStore>();
         services.AddScoped<IInitializationStateStore, InitializationStateStore>();
         return services;

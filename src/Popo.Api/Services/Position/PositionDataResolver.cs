@@ -17,10 +17,6 @@ internal static class PositionDataResolver
         var securitiesByKey = sourceData.Securities
             .GroupBy(x => InstrumentKey(x.SecId, x.BoardId), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
-        var tradesByPosition = sourceData.Trades
-            .GroupBy(x => PositionKey(x.SecId, x.BoardId, x.CurrencyId), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
-
         return sourceData.Positions.Select(position =>
         {
             var marketdata = GetMarketdataValue(marketdataByKey, marketdataBySecId, position);
@@ -30,10 +26,6 @@ internal static class PositionDataResolver
             var security = securitiesByKey.GetValueOrDefault(securityKey);
             return new PositionData(
                 position,
-                tradesByPosition.GetValueOrDefault(PositionKey(
-                    position.SecId,
-                    position.BoardId,
-                    position.CurrencyId)) ?? [],
                 marketdata,
                 security,
                 sourceData.VolumeStatistics.GetValueOrDefault(position.SecId));
@@ -59,8 +51,5 @@ internal static class PositionDataResolver
     }
 
     private static string InstrumentKey(string secId, string boardId) => $"{secId}\u001F{boardId}";
-
-    private static string PositionKey(string secId, string boardId, string currencyId) =>
-        $"{secId}\u001F{boardId}\u001F{currencyId}";
 
 }
