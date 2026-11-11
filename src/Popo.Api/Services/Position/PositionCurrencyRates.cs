@@ -32,6 +32,7 @@ internal static class PositionCurrencyRates
 
     internal static bool IsRubleCurrency(string currency) =>
         string.Equals(currency, "RUB", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(currency, "SUR", StringComparison.OrdinalIgnoreCase);
+        || string.Equals(currency, "SUR", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(currency, "RUR", StringComparison.OrdinalIgnoreCase);
 
 }

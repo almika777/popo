@@ -1,6 +1,4 @@
 using Popo.Api.Models;
-using Popo.Core.Contracts.Iss;
-using Popo.Core.Portfolio;
 
 namespace Popo.Api.Services.Position;
 
@@ -16,5 +14,5 @@ public interface IPositionBuilderFactory
 
 public interface IOpenPositionBuilder
 {
-    Task<PositionResponse> Build(List<PortfolioTradeRecord> trades, MoexMarketdata marketdata);
+    PositionResponse Build(OpenPositionBuildInput input);
 }

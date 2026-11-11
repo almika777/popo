@@ -1013,9 +1013,9 @@ namespace Popo.Storage.Migrations
                         .HasPrecision(20, 6)
                         .HasColumnType("double precision");
 
-                    b.Property<double>("Quantity")
+                    b.Property<int>("Quantity")
                         .HasPrecision(20, 6)
-                        .HasColumnType("double precision");
+                        .HasColumnType("integer");
 
                     b.Property<string>("SecId")
                         .IsRequired()

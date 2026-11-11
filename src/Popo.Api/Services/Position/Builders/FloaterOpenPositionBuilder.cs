@@ -1,13 +1,17 @@
 ﻿using Popo.Api.Models;
-using Popo.Core.Contracts.Iss;
-using Popo.Core.Portfolio;
 
 namespace Popo.Api.Services.Position.Builders;
 
 public class FloaterOpenPositionBuilder : IOpenPositionBuilder
 {
-    public Task<PositionResponse> Build(List<PortfolioTradeRecord> trades, MoexMarketdata marketdata)
+    public PositionResponse Build(OpenPositionBuildInput input)
     {
-        throw new NotImplementedException();
+        return new PositionResponse
+        {
+            SecId = "null",
+            BoardId = "null",
+            CurrencyId = "null",
+            ShortName = "null"
+        };
     }
 }

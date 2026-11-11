@@ -161,12 +161,12 @@ export default function PositionsPage() {
   const columns: ColumnsType<PortfolioPosition> = [
     { title: "Облигация", dataIndex: "shortName", width: 190, render: (value: string, row) => {
       const bondName = value || row.secId;
-      return <div className="position-table-identity">
-        <Tooltip title={bondName}>
+      return <Tooltip title={<><div>{bondName}</div><div>Тип: {row.bondType?.trim() || "Нет данных"}</div></>}>
+        <div className="position-table-identity">
           <Link className="position-bond-name" href={positionDetailsPath(row.secId, row.boardId)}>{bondName}</Link>
-        </Tooltip>
-        <Typography.Text type="secondary">{row.secId} · {row.currencyId}</Typography.Text>
-      </div>;
+          <Typography.Text type="secondary">{row.secId} · {row.currencyId}</Typography.Text>
+        </div>
+      </Tooltip>;
     } },
     { title: "Кол-во", dataIndex: "quantity", width: 90, render: (value: number, row) => {
       const liquidityLevel = getPositionLiquidityLevel(value, row.averageDailyVolume);
@@ -308,7 +308,7 @@ export default function PositionsPage() {
                 </div>
                 <div className="position-summary-item">
                   <Typography.Text type="secondary">Рыночная стоимость</Typography.Text>
-                  <Typography.Text className="position-summary-value">{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
+                  <Typography.Text className="position-summary-value">{totals?.marketValueRub == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
                 </div>
                 <div className="position-summary-item">
                   <Typography.Text type="secondary">Текущая себестоимость</Typography.Text>

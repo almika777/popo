@@ -6,14 +6,33 @@ export type BondSearchResult = { secId: string; boardId: string; currency: strin
 export type PortfolioTrade = { id: string; secId: string; boardId: string; currencyId: string; tradeDate: string; side: TradeSide; quantity: number; price: number; faceValue: number; accruedInterest: number; commission: number; commissionPercent: number; amount: number; shortName: string };
 export type PositionAnnualizedLotBreakdown = { tradeDate: string; quantity: number; purchaseCleanPricePerUnit: number; paidAccruedInterestPerUnit: number; commissionPerUnit: number; investedCapital: number; holdingDays: number; capitalDays: number };
 export type PositionAnnualizedReturnBreakdown = { valuationDate: string; totalPnl: number; investedCapitalDays: number; annualizedPercent: number; lots: PositionAnnualizedLotBreakdown[] };
-export type PortfolioPosition = { secId: string; boardId: string; currencyId: string; quantity: number; boughtQuantity: number; soldQuantity: number; boughtAmount: number; soldAmount: number; averageBuyPrice: number | null; averageBuyPriceAtCurrentFaceValue: number | null; averageBuyPricePercent: number | null; currentFaceValue: number | null; faceUnit: string | null; marketPricePercent: number | null; marketPrice: number | null; marketValue: number | null; unrealizedPnl: number | null; unrealizedPnlPercent: number | null; approximateCouponIncome: number | null; approximateTotalPnl: number | null; approximateTotalPnlPercent: number | null; approximateAnnualizedTotalPnlPercent: number | null; approximateAnnualizedReturnBreakdown?: PositionAnnualizedReturnBreakdown | null; approximateAnnualizedReturnUnavailableReason?: "QuoteBeforeLatestOpenPurchase" | null; shortName: string; averageDailyVolume: number | null; medianDailyVolume: number | null; isNominalIndexed: boolean };
+export type OpenPositionResponse = { secId: string; boardId: string; currencyId: string; shortName: string; bondType: string | null; quantity: number; avgBuyPrice: number; marketPrice: number; totalCost: number; unrealizedPnl: number; couponIncome: number; totalPnl: number };
+export type PortfolioPosition = { secId: string; boardId: string; currencyId: string; quantity: number; bondType: string | null; averageBuyPrice: number | null; averageBuyPriceAtCurrentFaceValue: number | null; currentFaceValue: number | null; faceUnit: string | null; marketPricePercent: number | null; marketPrice: number | null; marketValue: number | null; unrealizedPnl: number | null; unrealizedPnlPercent: number | null; approximateCouponIncome: number | null; approximateTotalPnl: number | null; approximateTotalPnlPercent: number | null; approximateAnnualizedTotalPnlPercent: number | null; approximateAnnualizedReturnBreakdown?: PositionAnnualizedReturnBreakdown | null; approximateAnnualizedReturnUnavailableReason?: "QuoteBeforeLatestOpenPurchase" | null; shortName: string; averageDailyVolume: number | null; medianDailyVolume: number | null; isNominalIndexed: boolean };
 export type PortfolioSummary = { asOf: string; totalValueRub: number; positionsValueRub: number; moneyMarketFundsValueRub: number };
-export type PositionTotals = { marketValueRub: number; investedAmountRub: number | null; unrealizedPnlRub: number | null; unrealizedPnlPercent: number | null };
+export type PositionTotals = { marketValueRub: number | null; investedAmountRub: number | null; unrealizedPnlRub: number | null; unrealizedPnlPercent: number | null };
 export type PositionsPage = { positions: PortfolioPosition[]; totals: PositionTotals };
 export type MoneyMarketFundOption = { secId: string; boardId: string; name: string };
 export type MoneyMarketFund = { id: string; secId: string; boardId: string; quantity: number; averagePrice: number; currentPrice: number | null; currentValue: number | null; pnl: number | null; pnlPercent: number | null; quoteTime: string | null };
 export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyMarketFundOptions: MoneyMarketFundOption[] };
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
+
+function toPortfolioPosition(row: OpenPositionResponse): PortfolioPosition {
+  return {
+    secId: row.secId, boardId: row.boardId, currencyId: row.currencyId, shortName: row.shortName, bondType: row.bondType ?? null,
+    quantity: row.quantity, averageBuyPrice: row.avgBuyPrice, marketPrice: row.marketPrice,
+    marketValue: row.totalCost, unrealizedPnl: row.unrealizedPnl,
+    approximateCouponIncome: row.couponIncome, approximateTotalPnl: row.totalPnl,
+    averageBuyPriceAtCurrentFaceValue: null, currentFaceValue: null, faceUnit: null,
+    marketPricePercent: null, unrealizedPnlPercent: null, approximateTotalPnlPercent: null,
+    approximateAnnualizedTotalPnlPercent: null, averageDailyVolume: null, medianDailyVolume: null,
+    isNominalIndexed: false
+  };
+}
+
+async function getPositionsPage(): Promise<PositionsPage> {
+  const page = await request<{ positions: OpenPositionResponse[]; totals: PositionTotals }>("/positions");
+  return { positions: page.positions.map(toPortfolioPosition), totals: page.totals };
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -43,8 +62,8 @@ export const portfolioLedgerApi = {
   getTrades: () => request<PortfolioTrade[]>("/trades"),
   saveTrade: (payload: TradePayload, id?: string) => request<PortfolioTrade>(id ? `/trades/${id}` : "/trades", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) }),
   deleteTrade: (id: string) => request<void>(`/trades/${id}`, { method: "DELETE" }),
-  getPositionsPage: () => request<PositionsPage>("/positions"),
-  getPositions: async () => (await request<PositionsPage>("/positions")).positions,
+  getPositionsPage,
+  getPositions: async () => (await getPositionsPage()).positions,
   getMoneyMarketFundsPage: () => request<MoneyMarketFundsPage>("/liquidity/money-market-funds/page"),
   addMoneyMarketFund: (payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>("/liquidity/money-market-funds", { method: "POST", body: JSON.stringify(payload) }),
   updateMoneyMarketFund: (id: string, payload: { secId: string; quantity: number; averagePrice: number }) => request<MoneyMarketFund>(`/liquidity/money-market-funds/${id}`, { method: "PUT", body: JSON.stringify(payload) }),

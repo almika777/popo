@@ -22,7 +22,7 @@ public sealed class UpsertPortfolioTradeRequestValidator : AbstractValidator<Ups
             .IsInEnum()
             .WithMessage("Тип сделки должен быть: покупка или продажа.");
         RuleFor(request => request.Quantity)
-            .Must(quantity => double.IsFinite(quantity) && quantity > 0 && quantity == Math.Truncate(quantity))
+            .Must(quantity => double.IsFinite(quantity) && quantity is > 0 and <= int.MaxValue)
             .WithMessage("Количество должно быть положительным целым числом.");
         RuleFor(request => request.Price)
             .Must(price => double.IsFinite(price) && price > 0)

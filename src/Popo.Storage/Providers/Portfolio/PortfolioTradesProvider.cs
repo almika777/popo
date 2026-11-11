@@ -153,7 +153,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     private static void ValidateTrade(PortfolioTrade trade)
     {
         if (string.IsNullOrWhiteSpace(trade.SecId) || string.IsNullOrWhiteSpace(trade.BoardId)
-                                                   || string.IsNullOrWhiteSpace(trade.CurrencyId) || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0 || trade.Quantity != Math.Truncate(trade.Quantity)
+                                                   || string.IsNullOrWhiteSpace(trade.CurrencyId) || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0
                                                    || !double.IsFinite(trade.Price) || trade.Price <= 0
                                                    || !double.IsFinite(trade.FaceValue) || trade.FaceValue <= 0
                                                    || !double.IsFinite(trade.AccruedInterest) || trade.AccruedInterest < 0

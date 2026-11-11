@@ -8,7 +8,7 @@ public sealed record UpsertPortfolioTradeRequest(
     string CurrencyId,
     DateOnly TradeDate,
     TradeSide Side,
-    double Quantity,
+    int Quantity,
     double Price,
     double FaceValue,
     double AccruedInterestTotal,

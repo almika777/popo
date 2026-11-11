@@ -13,8 +13,7 @@ public class PortfolioPositionsValidate
                 throw new ArgumentException("Укажите бумагу, торговую площадку и валюту сделки.");
             }
 
-            if (!double.IsFinite(trade.Quantity) || trade.Quantity <= 0 ||
-                trade.Quantity != Math.Truncate(trade.Quantity)
+            if (trade.Quantity <= 0
                 || !double.IsFinite(trade.Price) || trade.Price <= 0
                 || !double.IsFinite(trade.FaceValue) || trade.FaceValue <= 0
                 || !double.IsFinite(trade.AccruedInterest) || trade.AccruedInterest < 0
