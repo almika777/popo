@@ -5,6 +5,7 @@ using Popo.Api.Services.Position;
 using Popo.Core.Contracts.Iss;
 using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
+using Popo.Core.Portfolio.Position;
 using Popo.Core.Portfolio.Trades;
 
 namespace Popo.Tests;
@@ -35,7 +36,8 @@ public sealed class OpenPositionServiceTests
             _ => throw new NotSupportedException()
         });
         var rates = Stub<IPortfolioCurrencyRatesProvider>(_ => throw new NotSupportedException());
-        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), rates).GetAsync(CancellationToken.None);
+        var coupons = Stub<IPortfolioCouponProvider>(_ => throw new NotSupportedException());
+        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), coupons, rates).GetAsync(CancellationToken.None);
 
         Assert.DoesNotThrow(() => JsonSerializer.Serialize(result));
         Assert.That(result.Positions.Select(position => position.SecId), Is.EqualTo(new[] { "OPEN" }));
@@ -58,7 +60,8 @@ public sealed class OpenPositionServiceTests
             _ => throw new NotSupportedException()
         });
         var rates = Stub<IPortfolioCurrencyRatesProvider>(_ => throw new NotSupportedException());
-        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), rates).GetAsync(CancellationToken.None);
+        var coupons = Stub<IPortfolioCouponProvider>(_ => throw new NotSupportedException());
+        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), coupons, rates).GetAsync(CancellationToken.None);
 
         Assert.Multiple(() =>
         {

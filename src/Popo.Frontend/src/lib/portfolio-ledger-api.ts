@@ -17,13 +17,16 @@ export type MoneyMarketFundsPage = { moneyMarketFunds: MoneyMarketFund[]; moneyM
 type TradePayload = Omit<PortfolioTrade, "id" | "amount" | "commission" | "accruedInterest" | "shortName"> & { accruedInterestTotal: number };
 
 function toPortfolioPosition(row: OpenPositionResponse): PortfolioPosition {
+  const costBasis = row.avgBuyPrice * row.quantity;
   return {
     secId: row.secId, boardId: row.boardId, currencyId: row.currencyId, shortName: row.shortName, bondType: row.bondType ?? null,
     quantity: row.quantity, averageBuyPrice: row.avgBuyPrice, marketPrice: row.marketPrice,
     marketValue: row.totalCost, unrealizedPnl: row.unrealizedPnl,
     approximateCouponIncome: row.couponIncome, approximateTotalPnl: row.totalPnl,
     averageBuyPriceAtCurrentFaceValue: null, currentFaceValue: null, faceUnit: null,
-    marketPricePercent: null, unrealizedPnlPercent: null, approximateTotalPnlPercent: null,
+    marketPricePercent: null,
+    unrealizedPnlPercent: costBasis > 0 ? row.unrealizedPnl / costBasis * 100 : null,
+    approximateTotalPnlPercent: costBasis > 0 ? row.totalPnl / costBasis * 100 : null,
     approximateAnnualizedTotalPnlPercent: null, averageDailyVolume: null, medianDailyVolume: null,
     isNominalIndexed: false
   };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { InfoCircleOutlined, RightOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Space, Spin, Table, Tabs, Tooltip, Typography } from "antd";
+import { App as AntdApp, Card, Spin, Table, Tabs, Tooltip, Typography } from "antd";
 import { Popup } from "antd-mobile";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
@@ -170,16 +170,7 @@ export default function PositionsPage() {
     } },
     { title: "Кол-во", dataIndex: "quantity", width: 90, render: (value: number, row) => {
       const liquidityLevel = getPositionLiquidityLevel(value, row.averageDailyVolume);
-      const tooltip = row.averageDailyVolume == null
-        ? "Средний дневной объём: нет данных"
-        : `Средний дневной объём: ${integer.format(row.averageDailyVolume)} шт.`;
-
-      return <Tooltip title={tooltip}>
-        <Space size={4}>
-          <InfoCircleOutlined aria-label={tooltip} />
-          <Typography.Text type={liquidityLevel == null ? undefined : liquidityTextType[liquidityLevel]}>{integer.format(value)}</Typography.Text>
-        </Space>
-      </Tooltip>;
+      return <Typography.Text type={liquidityLevel == null ? undefined : liquidityTextType[liquidityLevel]}>{integer.format(value)}</Typography.Text>;
     } },
     { title: "Средняя цена", key: "averageBuyPrice", width: 140, render: (_, row) => {
       const averagePrice = getPositionAverageBuyPrice(row);

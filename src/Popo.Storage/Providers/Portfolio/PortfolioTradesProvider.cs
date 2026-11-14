@@ -82,7 +82,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     
     private static PortfolioTradeEntity ToEntity(PortfolioTrade trade) => new()
     {
-        Id = Guid.NewGuid(), SecId = trade.SecId, BoardId = trade.BoardId, CurrencyId = trade.CurrencyId,
+        Id = Guid.CreateVersion7(), SecId = trade.SecId, BoardId = trade.BoardId, CurrencyId = trade.CurrencyId,
         TradeDate = trade.TradeDate, Side = trade.Side, Quantity = trade.Quantity, Price = trade.Price,
         FaceValue = trade.FaceValue, AccruedInterest = trade.AccruedInterest,
         Commission = trade.CommissionAmount

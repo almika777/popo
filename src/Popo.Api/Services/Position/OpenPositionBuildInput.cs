@@ -11,4 +11,5 @@ public sealed record OpenPositionBuildInput
     public required MoexBond Security { get; init; }
     public required DateOnly AsOf { get; init; }
     public IReadOnlyList<OpenPositionCoupon> Coupons { get; init; } = [];
+    public PortfolioCurrencyRateRecord? CurrentCurrencyRate { get; init; }
 }

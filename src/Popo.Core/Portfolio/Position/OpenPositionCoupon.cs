@@ -5,4 +5,5 @@ public sealed record OpenPositionCoupon(
     DateOnly StartDate,
     DateOnly CouponDate,
     double? Value,
-    string FaceUnit);
+    string FaceUnit,
+    double? ValueInRub = null);
