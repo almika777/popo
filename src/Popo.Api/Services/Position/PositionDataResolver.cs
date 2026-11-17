@@ -27,15 +27,14 @@ internal static class PositionDataResolver
             return new PositionData(
                 position,
                 marketdata,
-                security,
-                sourceData.VolumeStatistics.GetValueOrDefault(position.SecId));
+                security);
         }).ToArray();
     }
 
     private static MoexMarketdata? GetMarketdataValue(
         Dictionary<string, MoexMarketdata> marketdataByKey,
         Dictionary<string, MoexMarketdata[]> marketdataBySecId,
-        PortfolioPositionRecord position)
+        PortfolioHoldingRecord position)
     {
         var marketdataValue = marketdataByKey
             .GetValueOrDefault(InstrumentKey(position.SecId, position.BoardId));

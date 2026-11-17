@@ -2,7 +2,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5109/api
 
 export type TradeSide = "Buy" | "Sell";
 export const MIN_BOND_SEARCH_LENGTH = 3;
-export type BondSearchResult = { secId: string; boardId: string; currency: string; shortName: string; accruedInterest: number | null; faceValue: number };
+export type BondSearchResult = { secId: string; boardId: string; currency: string; shortName: string; accruedInterest: number | null; faceValue: number; faceUnit?: string | null };
 export type PortfolioTrade = { id: string; secId: string; boardId: string; currencyId: string; tradeDate: string; side: TradeSide; quantity: number; price: number; faceValue: number; accruedInterest: number; commission: number; commissionPercent: number; amount: number; shortName: string };
 export type PositionAnnualizedLotBreakdown = { tradeDate: string; quantity: number; purchaseCleanPricePerUnit: number; paidAccruedInterestPerUnit: number; commissionPerUnit: number; investedCapital: number; holdingDays: number; capitalDays: number };
 export type PositionAnnualizedReturnBreakdown = { valuationDate: string; totalPnl: number; investedCapitalDays: number; annualizedPercent: number; lots: PositionAnnualizedLotBreakdown[] };

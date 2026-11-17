@@ -17,7 +17,8 @@ test("displays fields returned by the open positions API", async () => {
     assert.equal(row.marketValue, 3300);
     assert.equal(row.approximateCouponIncome, 25);
     assert.equal(row.approximateTotalPnl, 320);
-    assert.equal(row.approximateTotalPnlPercent, null);
+    assert.equal(row.unrealizedPnlPercent, 10);
+    assert.equal(row.approximateTotalPnlPercent, 320 / 3000 * 100);
   } finally {
     globalThis.fetch = originalFetch;
   }

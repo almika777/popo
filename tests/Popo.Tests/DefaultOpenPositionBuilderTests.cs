@@ -72,6 +72,20 @@ public sealed class DefaultOpenPositionBuilderTests
                 Trade(new DateOnly(2026, 1, 9), TradeSide.Buy, 4, 900) with { Commission = 8 }
             ],
             january, new ExpectedResult(4, 900, 1_100, 4_400, 800, 8, 800));
+        yield return new TestCaseData(new Scenario(
+            [
+                new PortfolioTradeRecord(Guid.Parse("018cc251-f400-7000-8000-000000000003"), "BOND", "TQCB", "RUB",
+                    new DateOnly(2026, 1, 9), TradeSide.Buy, 4, 900, 1_000, 0, 8, 0, 3_608, "Bond"),
+                new PortfolioTradeRecord(Guid.Parse("018cc251-f400-7000-8000-000000000001"), "BOND", "TQCB", "RUB",
+                    new DateOnly(2026, 1, 1), TradeSide.Buy, 10, 1_000, 1_000, 0, 100, 0, 10_100, "Bond"),
+                new PortfolioTradeRecord(Guid.Parse("018cc251-f400-7000-8000-000000000002"), "BOND", "TQCB", "RUB",
+                    new DateOnly(2026, 1, 9), TradeSide.Sell, 10, 1_050, 1_000, 0, 0, 0, 10_500, "Bond")
+            ],
+            new DateOnly(2026, 1, 10), new ExpectedResult(4, 900, 1_100, 4_400, 800, 8, 800),
+            new MoexMarketdata { SecId = "BOND", BoardId = "TQCB", LCurrentPrice = 110 },
+            new MoexBond { SecId = "BOND", BoardId = "TQCB", ShortName = "Тестовая облигация", FaceValue = 1_000,
+                FaceUnit = "RUB", BondType = "Облигация с фиксированным (известным) купоном", CouponValue = 90, CouponPeriod = 90 }))
+            .SetName("Build_ReopenedPositionOnSameDayInIdOrder");
         yield return Case("PurchaseAfterPartialSale",
             [Trade(new DateOnly(2026, 1, 1), TradeSide.Buy, 10, 1_000),
              Trade(new DateOnly(2026, 1, 3), TradeSide.Sell, 5, 1_000),

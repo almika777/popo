@@ -4,16 +4,21 @@ using Popo.Core.Portfolio.Position;
 
 namespace Popo.Storage.Providers.Portfolio;
 
-public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbContextFactory) : IPortfolioPositionsProvider
+public class PortfolioHoldingsProvider(IDbContextFactory<PopoDbContext> dbContextFactory) : IPortfolioHoldingsProvider
 {
-    public async Task<IReadOnlyList<PortfolioPositionRecord>> GetPositionsAsync(
+    public async Task<IReadOnlyList<PortfolioHoldingRecord>> GetHoldingsAsync(
         DateOnly asOf,
         CancellationToken cancellationToken)
     {
         var trades = await GetTradeInputsAsync(asOf, cancellationToken);
-        return PortfolioPositionCalculator
-            .Calculate(trades)
-            .Select(PortfolioPositionCalculator.ToRecord)
+        PortfolioPositionsValidate.ValidateTradeSequence(trades);
+        return trades.GroupBy(trade => (trade.SecId, trade.BoardId, trade.CurrencyId))
+            .Select(group => new PortfolioHoldingRecord(group.Key.SecId, group.Key.BoardId, group.Key.CurrencyId,
+                group.Sum(trade => trade.Side == TradeSide.Buy ? trade.Quantity : -trade.Quantity)))
+            .Where(holding => holding.Quantity > 0)
+            .OrderBy(holding => holding.SecId)
+            .ThenBy(holding => holding.BoardId)
+            .ThenBy(holding => holding.CurrencyId)
             .ToArray();
     }
 
@@ -34,7 +39,7 @@ public class PortfolioPositionsProvider(IDbContextFactory<PopoDbContext> dbConte
                 x.Price, 
                 x.FaceValue, 
                 x.AccruedInterest,
-                x.Commission / (x.Quantity * x.Price + x.Quantity * x.AccruedInterest) * 100)
+                x.Commission / (x.Quantity * x.Price + x.Quantity * x.AccruedInterest) * 100) { Id = x.Id }
             ).ToListAsync(cancellationToken);
     }
 }

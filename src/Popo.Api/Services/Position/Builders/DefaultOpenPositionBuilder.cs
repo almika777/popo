@@ -19,22 +19,19 @@ public class DefaultOpenPositionBuilder : IOpenPositionBuilder
         double remainingCleanCost = 0;
         double remainingBuyCommission = 0;
         double remainingHoldingDays = 0;
-        foreach (var day in trades.GroupBy(trade => trade.TradeDate).OrderBy(day => day.Key))
+        foreach (var trade in trades.OrderBy(trade => trade.TradeDate).ThenBy(trade => trade.Id))
         {
-            foreach (var trade in day.Where(trade => trade.Side == TradeSide.Buy))
+            if (trade.Side == TradeSide.Buy)
             {
                 remainingQuantity += trade.Quantity;
                 remainingCleanCost += trade.Quantity * trade.Price;
                 remainingBuyCommission += trade.Commission;
                 remainingHoldingDays += (double)trade.Quantity * (asOf.DayNumber - trade.TradeDate.DayNumber + 1);
+                continue;
             }
 
-            var sold = day.Where(trade => trade.Side == TradeSide.Sell).Sum(trade => trade.Quantity);
-            if (sold == 0)
-                continue;
-
-            var fraction = (remainingQuantity - sold) / remainingQuantity;
-            remainingQuantity *= fraction;
+            var fraction = (remainingQuantity - trade.Quantity) / remainingQuantity;
+            remainingQuantity -= trade.Quantity;
             remainingCleanCost *= fraction;
             remainingBuyCommission *= fraction;
             remainingHoldingDays *= fraction;

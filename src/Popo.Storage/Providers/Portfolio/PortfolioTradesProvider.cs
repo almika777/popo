@@ -23,9 +23,8 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
         ValidateTrade(trade);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
-        await ValidateTradeSequenceAsync(dbContext, trade, excludedTradeId: null, cancellationToken);
-
         var entity = ToEntity(trade);
+        await ValidateTradeSequenceAsync(dbContext, trade with { Id = entity.Id }, excludedTradeId: null, cancellationToken);
         dbContext.PortfolioTrades.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -42,7 +41,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
             return false;
         }
 
-        await ValidateTradeSequenceAsync(dbContext, trade, id, cancellationToken);
+        await ValidateTradeSequenceAsync(dbContext, trade with { Id = id }, id, cancellationToken);
 
         entity.SecId = trade.SecId;
         entity.BoardId = trade.BoardId;
@@ -145,7 +144,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
                 x.Price,
                 x.FaceValue,
                 x.AccruedInterest,
-                0))
+                0) { Id = x.Id })
             .ToListAsync(cancellationToken);
         return existingTrades;
     }

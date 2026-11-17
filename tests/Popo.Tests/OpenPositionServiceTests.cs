@@ -1,7 +1,9 @@
 using System.Reflection;
 using System.Text.Json;
 using NUnit.Framework;
+using Popo.Api.Services.Position.Builders;
 using Popo.Api.Services.Position;
+using Popo.Core.Common;
 using Popo.Core.Contracts.Iss;
 using Popo.Core.HttpClients;
 using Popo.Core.Portfolio;
@@ -12,6 +14,45 @@ namespace Popo.Tests;
 
 public sealed class OpenPositionServiceTests
 {
+    [TestCase("Валютная облигация")]
+    [TestCase("Валютные облигации")]
+    public void Factory_SelectsCurrencyBuilder(string bondType)
+    {
+        Assert.That(new PositionBuilderFactory().Get(bondType), Is.InstanceOf<CurrencyOpenPositionBuilder>());
+    }
+
+    [Test]
+    public async Task GetAsync_CalculatesCurrencyPositionUsingCouponAndRate()
+    {
+        var today = MoscowTime.Today;
+        var records = new[] { new PortfolioTradeRecord(Guid.NewGuid(), "CURRENCY-SERVICE", "TQCB", "RUB",
+            today.AddDays(-9), TradeSide.Buy, 10, 85_000, 1_000, 0, 1_000, 1000d / 850_000 * 100, 851_000) };
+        var trades = Stub<IPortfolioTradesProvider>(_ => Task.FromResult<IReadOnlyList<PortfolioTradeRecord>>(records));
+        var security = new MoexBond { SecId = "CURRENCY-SERVICE", BoardId = "TQCB", ShortName = "Currency bond",
+            FaceValue = 1_000, FaceUnit = "USD", BondType = "Валютная облигация" };
+        var quote = new MoexMarketdata { SecId = "CURRENCY-SERVICE", BoardId = "TQCB", LCurrentPrice = 99 };
+        var moex = Stub<IMoexHttpClient>(method => method.Name switch
+        {
+            nameof(IMoexHttpClient.GetActiveBondsSecuritiesAsync) => Task.FromResult(new Dictionary<string, List<MoexBond>> { ["TQCB"] = [security] }),
+            nameof(IMoexHttpClient.GetActiveBondsMarketdataAsync) => Task.FromResult(new Dictionary<string, List<MoexMarketdata>> { ["TQCB"] = [quote] }),
+            _ => throw new NotSupportedException()
+        });
+        var coupons = Stub<IPortfolioCouponProvider>(_ => Task.FromResult<IReadOnlyList<OpenPositionCoupon>>(
+            [new OpenPositionCoupon("CURRENCY-SERVICE", today.AddDays(-10), today.AddDays(20), 30, "USD")]));
+        var rates = Stub<IPortfolioCurrencyRatesProvider>(_ => Task.FromResult<IReadOnlyList<PortfolioCurrencyRateRecord>>(
+            [new PortfolioCurrencyRateRecord("USD", today, 90)]));
+
+        var result = await CreateService(trades, moex, coupons, rates).GetAsync(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Positions.Single().MarketPrice, Is.EqualTo(89_100));
+            Assert.That(result.Positions.Single().CouponIncome, Is.EqualTo(9_000));
+            Assert.That(result.Positions.Single().TotalPnl, Is.EqualTo(49_000));
+            Assert.That(result.Totals.MarketValueRub, Is.EqualTo(891_000));
+        });
+    }
+
     [Test]
     public async Task GetAsync_ExcludesClosedPositionsAndSerializesOpenPositions()
     {
@@ -37,7 +78,7 @@ public sealed class OpenPositionServiceTests
         });
         var rates = Stub<IPortfolioCurrencyRatesProvider>(_ => throw new NotSupportedException());
         var coupons = Stub<IPortfolioCouponProvider>(_ => throw new NotSupportedException());
-        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), coupons, rates).GetAsync(CancellationToken.None);
+        var result = await CreateService(trades, moex, coupons, rates).GetAsync(CancellationToken.None);
 
         Assert.DoesNotThrow(() => JsonSerializer.Serialize(result));
         Assert.That(result.Positions.Select(position => position.SecId), Is.EqualTo(new[] { "OPEN" }));
@@ -61,7 +102,7 @@ public sealed class OpenPositionServiceTests
         });
         var rates = Stub<IPortfolioCurrencyRatesProvider>(_ => throw new NotSupportedException());
         var coupons = Stub<IPortfolioCouponProvider>(_ => throw new NotSupportedException());
-        var result = await new OpenPositionService(trades, moex, new PositionBuilderFactory(), coupons, rates).GetAsync(CancellationToken.None);
+        var result = await CreateService(trades, moex, coupons, rates).GetAsync(CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -72,6 +113,13 @@ public sealed class OpenPositionServiceTests
             Assert.That(result.Totals.UnrealizedPnlRub, Is.EqualTo(200));
             Assert.That(result.Totals.UnrealizedPnlPercent, Is.EqualTo(10));
         });
+    }
+
+    private static OpenPositionService CreateService(IPortfolioTradesProvider trades, IMoexHttpClient moex,
+        IPortfolioCouponProvider coupons, IPortfolioCurrencyRatesProvider rates)
+    {
+        var factory = new PositionBuilderFactory();
+        return new OpenPositionService(trades, moex, factory, new OpenPositionReferenceDataLoader(coupons, rates, factory));
     }
 
     private static T Stub<T>(Func<MethodInfo, object> handler) where T : class

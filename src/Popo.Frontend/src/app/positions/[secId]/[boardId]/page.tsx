@@ -19,6 +19,7 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
   const secId = decodeURIComponent(encodedSecId);
   const boardId = decodeURIComponent(encodedBoardId);
   const [form] = Form.useForm<TradeForm>();
+  const tradeSide = Form.useWatch("side", form);
   const [position, setPosition] = useState<PortfolioPosition>();
   const [trades, setTrades] = useState<PortfolioTrade[]>([]);
   const [instrument, setInstrument] = useState<BondSearchResult>();
@@ -110,14 +111,15 @@ export default function PositionDetailsPage({ params }: { params: Promise<{ secI
       </Card>
       <Card title={editingId ? "Изменить сделку" : "Добавить сделку"}>
         <Form form={form} layout="vertical" onFinish={save} initialValues={{ side: "Buy", accruedInterestTotal: 0, commission: 0.04 }}>
+          {tradeSide === "Sell" && <Typography.Paragraph type="secondary">Если продажа совершена в другой валюте, пересчитайте цену и НКД в {instrument?.currency ?? "валюту позиции"}. Комиссию укажите в процентах от пересчитанной суммы сделки.</Typography.Paragraph>}
           <Row gutter={[16, 0]}>
             <Col xs={24} md={8}><Form.Item label="Дата сделки" name="tradeDate" rules={[{ required: true, message: "Укажите дату" }]}><DatePicker style={{ width: "100%" }} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Тип сделки" name="side" rules={[{ required: true }]}><Select options={[{ value: "Buy", label: "Покупка" }, { value: "Sell", label: "Продажа" }]} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Количество, шт." name="quantity" rules={[{ required: true }]}><InputNumber min={1} precision={0} style={{ width: "100%" }} /></Form.Item></Col>
-            <Col xs={24} md={8}><Form.Item label="Цена за 1 шт." name="price" rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
-            <Col xs={24} md={8}><Form.Item label="НКД за все бумаги" name="accruedInterestTotal" help={!editingId && instrument?.accruedInterest == null ? "НКД не указан в справочнике. Введите сумму вручную." : undefined} rules={[{ required: true, message: "Укажите НКД по сделке" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
+            <Col xs={24} md={8}><Form.Item label={`Цена за 1 шт.${instrument ? `, ${instrument.currency}` : ""}`} name="price" rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
+            <Col xs={24} md={8}><Form.Item label={`НКД за все бумаги${instrument ? `, ${instrument.currency}` : ""}`} name="accruedInterestTotal" help={!editingId && instrument?.accruedInterest == null ? "НКД не указан в справочнике. Введите сумму вручную." : undefined} rules={[{ required: true, message: "Укажите НКД по сделке" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} /></Form.Item></Col>
             <Col xs={24} md={8}><Form.Item label="Комиссия, %"><Space.Compact block><Form.Item name="commission" noStyle rules={[{ required: true }]}><InputNumber min={0} precision={4} style={{ width: "calc(100% - 40px)" }} /></Form.Item><Input value="%" disabled style={{ width: 40, textAlign: "center" }} /></Space.Compact></Form.Item></Col>
-            {instrument && <Col xs={24} md={8}><Typography.Text type="secondary">Номинал: {number.format(instrument.faceValue)} {instrument.currency}</Typography.Text></Col>}
+            {instrument && <Col xs={24} md={8}><Typography.Text type="secondary">Номинал: {number.format(instrument.faceValue)} {instrument.faceUnit?.trim() || "валюта неизвестна"}</Typography.Text></Col>}
           </Row>
           <Space><Button type="primary" htmlType="submit">{editingId ? "Сохранить изменения" : "Добавить сделку"}</Button>{editingId && <Button onClick={() => { setEditingId(undefined); form.resetFields(); }}>Отмена</Button>}</Space>
         </Form>

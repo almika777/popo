@@ -9,6 +9,7 @@ public class PositionBuilderFactory : IPositionBuilderFactory
         "Облигация с фиксированным (известным) купоном" => new DefaultOpenPositionBuilder(),
         "Фикс с известным купоном" => new DefaultOpenPositionBuilder(),
         "Флоатер" or "Облигация с плавающим купоном" => new FloaterOpenPositionBuilder(),
+        "Валютная облигация" or "Валютные облигации" => new CurrencyOpenPositionBuilder(),
         _ => new DefaultOpenPositionBuilder()
     };
 }

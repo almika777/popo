@@ -39,7 +39,7 @@ namespace Popo.Storage.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            throw new NotSupportedException("Исходные идентификаторы сделок не сохраняются; автоматический откат невозможен.");
+            // Исходные ID не сохраняются; UUIDv7 остаются валидными Guid после отката миграции.
         }
     }
 }

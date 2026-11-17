@@ -8,7 +8,8 @@ public static class OpenPositionTotalsCalculator
     public static PositionTotalsResponse Calculate(
         IReadOnlyList<PositionResponse> positions, IReadOnlyList<PortfolioCurrencyRateRecord> rates)
     {
-        var ratesByCurrency = rates.ToDictionary(rate => rate.CurrencyId, rate => rate.RateToRub, StringComparer.OrdinalIgnoreCase);
+        var ratesByCurrency = rates
+            .ToDictionary(rate => rate.CurrencyId, rate => rate.RateToRub, StringComparer.OrdinalIgnoreCase);
         double value = 0, pnl = 0;
         foreach (var position in positions)
         {

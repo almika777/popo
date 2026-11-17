@@ -29,7 +29,7 @@ public interface IPortfolioPositionsService
 
 public sealed class PortfolioPositionsService(
     IPortfolioMoneyMarketFundsProvider moneyMarketFundsProvider,
-    IPortfolioPositionsProvider positionsProvider,
+    IPortfolioHoldingsProvider holdingsProvider,
     IMoexHttpClient moexHttpClient,
     IDbContextFactory<PopoDbContext> dbContextFactory) : IPortfolioPositionsService
 {
@@ -37,7 +37,7 @@ public sealed class PortfolioPositionsService(
         CancellationToken cancellationToken)
     {
         var asOf = MoscowTime.Today;
-        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
+        var positions = await holdingsProvider.GetHoldingsAsync(asOf, cancellationToken);
         if (positions.Count == 0)
         {
             return [];
@@ -49,8 +49,7 @@ public sealed class PortfolioPositionsService(
         var positionData = PositionDataResolver.ResolvePositionData(new PositionSourceData(
             positions,
             (await marketdataTask).SelectMany(item => item.Value).ToArray(),
-            (await securitiesTask).SelectMany(item => item.Value).ToArray(),
-            new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
+            (await securitiesTask).SelectMany(item => item.Value).ToArray()));
         var currencies = positionData
             .SelectMany(item => PositionValuationCalculator.HasCurrentMarketPrice(item) && item.Security is not null
                 ? new[] { item.Position.CurrencyId, item.Security.FaceUnit }
@@ -65,9 +64,7 @@ public sealed class PortfolioPositionsService(
             var pricing = PositionValuationCalculator.CalculateMarketPrice(item, rates, asOf);
             var name = !string.IsNullOrWhiteSpace(item.Security?.ShortName)
                 ? item.Security.ShortName
-                : !string.IsNullOrWhiteSpace(item.Position.ShortName)
-                    ? item.Position.ShortName
-                    : item.Position.SecId;
+                : item.Position.SecId;
 
             return new PortfolioCurrencyAnalyticsAsset(
                 $"position:{item.Position.SecId}:{item.Position.BoardId}:{item.Position.CurrencyId}",
@@ -104,7 +101,7 @@ public sealed class PortfolioPositionsService(
         DateOnly asOf,
         CancellationToken cancellationToken)
     {
-        var positions = await positionsProvider.GetPositionsAsync(asOf, cancellationToken);
+        var positions = await holdingsProvider.GetHoldingsAsync(asOf, cancellationToken);
         if (positions.Count == 0)
             return [];
 
@@ -114,8 +111,7 @@ public sealed class PortfolioPositionsService(
         var data = PositionDataResolver.ResolvePositionData(new PositionSourceData(
             positions,
             (await marketdataTask).SelectMany(item => item.Value).ToArray(),
-            (await securitiesTask).SelectMany(item => item.Value).ToArray(),
-            new Dictionary<string, DailyVolumeStatistics>(StringComparer.OrdinalIgnoreCase)));
+            (await securitiesTask).SelectMany(item => item.Value).ToArray()));
         var currencies = data
             .SelectMany(item => new[] { item.Position.CurrencyId, item.Security?.FaceUnit ?? item.Position.CurrencyId })
             .Where(currency => !IsRubleCurrency(currency))

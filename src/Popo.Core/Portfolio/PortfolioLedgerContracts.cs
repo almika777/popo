@@ -18,6 +18,8 @@ public sealed record PortfolioTrade(
     double AccruedInterest = 0,
     double CommissionPercent = 0)
 {
+    public Guid? Id { get; init; }
+
     public double CleanAmount => Quantity * Price;
     public double AccruedInterestAmount => Quantity * AccruedInterest;
     public double GrossAmount => TradeSettlementCalculator.Calculate(Side, Quantity, Price, AccruedInterest, CommissionPercent).GrossAmount;
@@ -42,18 +44,11 @@ public sealed record PortfolioTradeRecord(
     double Amount,
     string ShortName = "");
 
-public sealed record PortfolioPositionRecord(
+public sealed record PortfolioHoldingRecord(
     string SecId,
     string BoardId,
     string CurrencyId,
-    double Quantity,
-    double BoughtQuantity,
-    double SoldQuantity,
-    double BoughtCleanAmount,
-    double BoughtAmount,
-    double SoldAmount,
-    double? AverageBuyPrice,
-    string ShortName = "");
+    double Quantity);
 
 public sealed record PortfolioSummaryRecord(
     DateOnly AsOf,

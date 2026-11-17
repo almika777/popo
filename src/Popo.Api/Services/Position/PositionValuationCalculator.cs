@@ -29,9 +29,7 @@ internal static class PositionValuationCalculator
                 tradingCurrencyRateToRub);
 
         return new PositionMarketPriceData(
-            quoteDate,
             tradingCurrencyRateToRub,
-            faceCurrencyRateToRub,
             marketPrice);
     }
 
