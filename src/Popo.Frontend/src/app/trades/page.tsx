@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CloseOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { App as AntdApp, Button, Card, Col, DatePicker, Form, Input, InputNumber, Pagination, Popconfirm, Row, Select, Space, Spin, Table, Tooltip, Typography } from "antd";
@@ -107,7 +108,9 @@ export default function TradesPage() {
     if (!selectedBond) { message.error("Выберите облигацию из поиска"); return; }
     if (values.accruedInterestTotal == null) { message.error("Укажите НКД по сделке"); return; }
     try {
-      await portfolioLedgerApi.saveTrade({ secId: selectedBond.secId, boardId: selectedBond.boardId, currencyId: selectedBond.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side: values.side, quantity: values.quantity, price: values.price, faceValue: selectedBond.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
+      const side = editingId ? rows.find((row) => row.id === editingId)?.side : "Buy";
+      if (!side) { message.error("Не удалось найти редактируемую сделку"); return; }
+      await portfolioLedgerApi.saveTrade({ secId: selectedBond.secId, boardId: selectedBond.boardId, currencyId: selectedBond.currency, tradeDate: values.tradeDate.format("YYYY-MM-DD"), side, quantity: values.quantity, price: values.price, faceValue: selectedBond.faceValue, accruedInterestTotal: values.accruedInterestTotal, commissionPercent: values.commission ?? 0 }, editingId);
       message.success(editingId ? "Сделка обновлена" : "Сделка сохранена"); form.resetFields(); setSelectedBond(undefined); setEditingId(undefined); await load();
     } catch (error) { message.error(error instanceof Error ? error.message : "Не удалось сохранить сделку"); }
   };
@@ -148,16 +151,16 @@ export default function TradesPage() {
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
       <Typography.Title level={1} style={{ margin: 0 }}>Сделки</Typography.Title>
     </div>
-    <Typography.Paragraph type="secondary">Сделка хранится в валюте торгов, выбранной из карточки облигации. Позиции пересчитываются автоматически.</Typography.Paragraph>
+    <Typography.Paragraph type="secondary">Покупку можно добавить здесь, продажу — на странице соответствующей <Link href="/positions">позиции</Link>. Сделка хранится в валюте торгов выбранной облигации.</Typography.Paragraph>
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-      <Card title={editingId ? "Изменить сделку" : "Добавить сделку"} className="trade-editor-card">
+      <Card title={editingId ? "Изменить сделку" : "Добавить покупку"} className="trade-editor-card">
         <Form form={form} layout="vertical" onFinish={save} initialValues={{ side: "Buy", accruedInterestTotal: 0, commission: 0.04 }}>
           <Form.Item label="Облигация" name="secId" rules={[{ required: true, message: "Выберите облигацию" }]}>
             <Select showSearch filterOption={false} onSearch={(value) => void searchBonds(value)} onChange={(value) => { const bond = bonds.find((item) => bondKey(item) === value); setSelectedBond(bond); form.setFieldValue("accruedInterestTotal", calculateAccruedInterestTotal(bond?.accruedInterest, form.getFieldValue("quantity"))); }} options={bonds.map((bond) => ({ value: bondKey(bond), label: `${bond.shortName || bond.secId} · ${bond.secId} · ${bond.currency} · номинал ${number.format(bond.faceValue)}` }))} placeholder="Поиск облигации" style={{ width: "100%" }} />
           </Form.Item>
           <Row gutter={[16, 0]}>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Дата" name="tradeDate" rules={[{ required: true, message: "Укажите дату" }]}><DatePicker style={{ width: "100%" }} /></Form.Item></Col>
-            <Col xs={24} sm={12} lg={4}><Form.Item label="Тип" name="side" rules={[{ required: true, message: "Выберите тип" }]}><Select options={[{ value: "Buy", label: "Покупка" }, { value: "Sell", label: "Продажа" }]} /></Form.Item></Col>
+            <Col xs={24} sm={12} lg={4}><Form.Item label="Тип" name="side" rules={[{ required: true, message: "Выберите тип" }]}><Select disabled options={[{ value: "Buy", label: "Покупка" }, { value: "Sell", label: "Продажа" }]} /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Количество" name="quantity" rules={[{ required: true, message: "Укажите целое количество" }]}><InputNumber min={1} precision={0} style={{ width: "100%" }} placeholder="Шт." onChange={(quantity) => { if (selectedBond?.accruedInterest != null) form.setFieldValue("accruedInterestTotal", calculateAccruedInterestTotal(selectedBond.accruedInterest, quantity)); }} /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="Цена" name="price" rules={[{ required: true, message: "Укажите цену" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} placeholder="За 1 шт." /></Form.Item></Col>
             <Col xs={24} sm={12} lg={4}><Form.Item label="НКД" name="accruedInterestTotal" help={selectedBond && selectedBond.accruedInterest == null ? "НКД не указан в справочнике. Введите сумму вручную." : undefined} rules={[{ required: true, message: "Укажите НКД по сделке" }]}><InputNumber min={0} precision={4} style={{ width: "100%" }} placeholder="За все бумаги" /></Form.Item></Col>

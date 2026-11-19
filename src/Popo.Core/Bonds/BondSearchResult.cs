@@ -6,4 +6,5 @@ public sealed record BondSearchResult(
     string Currency,
     string ShortName,
     double? AccruedInterest,
-    double FaceValue);
+    double FaceValue,
+    string? FaceUnit = null);

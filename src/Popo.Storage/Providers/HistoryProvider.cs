@@ -5,9 +5,6 @@ namespace Popo.Storage.Providers;
 
 public class HistoryProvider(IDbContextFactory<PopoDbContext> dbContextFactory) : IHistoryProvider
 {
-    public async Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct)
-        => (await GetDailyVolumeStatistics(ct)).ToDictionary(x => x.Key, x => x.Value.Median);
-
     public async Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(ct);

@@ -18,22 +18,13 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
         return entities.Select(ToRecord).ToArray();
     }
 
-    public async Task<PortfolioTradeRecord?> GetTradeAsync(Guid id, CancellationToken cancellationToken)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var entity = await dbContext.PortfolioTrades.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-        return entity is null ? null : ToRecord(entity);
-    }
-    
     public async Task<PortfolioTradeRecord> AddTradeAsync(PortfolioTrade trade, CancellationToken cancellationToken)
     {
         ValidateTrade(trade);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
-        await ValidateTradeSequenceAsync(dbContext, trade, excludedTradeId: null, cancellationToken);
-
         var entity = ToEntity(trade);
+        await ValidateTradeSequenceAsync(dbContext, trade with { Id = entity.Id }, excludedTradeId: null, cancellationToken);
         dbContext.PortfolioTrades.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -50,7 +41,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
             return false;
         }
 
-        await ValidateTradeSequenceAsync(dbContext, trade, id, cancellationToken);
+        await ValidateTradeSequenceAsync(dbContext, trade with { Id = id }, id, cancellationToken);
 
         entity.SecId = trade.SecId;
         entity.BoardId = trade.BoardId;
@@ -90,7 +81,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     
     private static PortfolioTradeEntity ToEntity(PortfolioTrade trade) => new()
     {
-        Id = Guid.NewGuid(), SecId = trade.SecId, BoardId = trade.BoardId, CurrencyId = trade.CurrencyId,
+        Id = Guid.CreateVersion7(), SecId = trade.SecId, BoardId = trade.BoardId, CurrencyId = trade.CurrencyId,
         TradeDate = trade.TradeDate, Side = trade.Side, Quantity = trade.Quantity, Price = trade.Price,
         FaceValue = trade.FaceValue, AccruedInterest = trade.AccruedInterest,
         Commission = trade.CommissionAmount
@@ -153,7 +144,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
                 x.Price,
                 x.FaceValue,
                 x.AccruedInterest,
-                0))
+                0) { Id = x.Id })
             .ToListAsync(cancellationToken);
         return existingTrades;
     }
@@ -161,7 +152,7 @@ public class PortfolioTradesProvider(IDbContextFactory<PopoDbContext> dbContextF
     private static void ValidateTrade(PortfolioTrade trade)
     {
         if (string.IsNullOrWhiteSpace(trade.SecId) || string.IsNullOrWhiteSpace(trade.BoardId)
-                                                   || string.IsNullOrWhiteSpace(trade.CurrencyId) || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0 || trade.Quantity != Math.Truncate(trade.Quantity)
+                                                   || string.IsNullOrWhiteSpace(trade.CurrencyId) || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0
                                                    || !double.IsFinite(trade.Price) || trade.Price <= 0
                                                    || !double.IsFinite(trade.FaceValue) || trade.FaceValue <= 0
                                                    || !double.IsFinite(trade.AccruedInterest) || trade.AccruedInterest < 0

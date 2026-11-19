@@ -3,7 +3,6 @@
 public interface IHistoryProvider
 {
     Task<IDictionary<SecBoard, DateStatistics>> GetStatisticsAsync(DateOnly date, CancellationToken ct);
-    Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct);
     Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct);
     Task<DateOnly?> GetLatestTradingDateBeforeAsync(DateOnly date, CancellationToken cancellationToken);
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { InfoCircleOutlined, RightOutlined } from "@ant-design/icons";
-import { App as AntdApp, Card, Space, Spin, Table, Tabs, Tooltip, Typography } from "antd";
+import { App as AntdApp, Card, Spin, Table, Tabs, Tooltip, Typography } from "antd";
 import { Popup } from "antd-mobile";
 import Link from "next/link";
 import type { ColumnsType } from "antd/es/table";
@@ -161,25 +161,16 @@ export default function PositionsPage() {
   const columns: ColumnsType<PortfolioPosition> = [
     { title: "Облигация", dataIndex: "shortName", width: 190, render: (value: string, row) => {
       const bondName = value || row.secId;
-      return <div className="position-table-identity">
-        <Tooltip title={bondName}>
+      return <Tooltip title={<><div>{bondName}</div><div>Тип: {row.bondType?.trim() || "Нет данных"}</div></>}>
+        <div className="position-table-identity">
           <Link className="position-bond-name" href={positionDetailsPath(row.secId, row.boardId)}>{bondName}</Link>
-        </Tooltip>
-        <Typography.Text type="secondary">{row.secId} · {row.currencyId}</Typography.Text>
-      </div>;
+          <Typography.Text type="secondary">{row.secId} · {row.currencyId}</Typography.Text>
+        </div>
+      </Tooltip>;
     } },
     { title: "Кол-во", dataIndex: "quantity", width: 90, render: (value: number, row) => {
       const liquidityLevel = getPositionLiquidityLevel(value, row.averageDailyVolume);
-      const tooltip = row.averageDailyVolume == null
-        ? "Средний дневной объём: нет данных"
-        : `Средний дневной объём: ${integer.format(row.averageDailyVolume)} шт.`;
-
-      return <Tooltip title={tooltip}>
-        <Space size={4}>
-          <InfoCircleOutlined aria-label={tooltip} />
-          <Typography.Text type={liquidityLevel == null ? undefined : liquidityTextType[liquidityLevel]}>{integer.format(value)}</Typography.Text>
-        </Space>
-      </Tooltip>;
+      return <Typography.Text type={liquidityLevel == null ? undefined : liquidityTextType[liquidityLevel]}>{integer.format(value)}</Typography.Text>;
     } },
     { title: "Средняя цена", key: "averageBuyPrice", width: 140, render: (_, row) => {
       const averagePrice = getPositionAverageBuyPrice(row);
@@ -308,7 +299,7 @@ export default function PositionsPage() {
                 </div>
                 <div className="position-summary-item">
                   <Typography.Text type="secondary">Рыночная стоимость</Typography.Text>
-                  <Typography.Text className="position-summary-value">{totals == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
+                  <Typography.Text className="position-summary-value">{totals?.marketValueRub == null ? "Нет данных" : `${number.format(totals.marketValueRub)} ₽`}</Typography.Text>
                 </div>
                 <div className="position-summary-item">
                   <Typography.Text type="secondary">Текущая себестоимость</Typography.Text>

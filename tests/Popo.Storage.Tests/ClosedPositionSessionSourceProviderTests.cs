@@ -207,7 +207,7 @@ public sealed class ClosedPositionSessionSourceProviderTests
     };
 
     private static PortfolioTradeEntity Trade(Guid id, string secId, string boardId, string currencyId,
-        DateOnly date, TradeSide side, double quantity, double price, double commission = 0,
+        DateOnly date, TradeSide side, int quantity, double price, double commission = 0,
         double accruedInterest = 0) => new()
     {
         Id = id,

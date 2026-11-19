@@ -13,8 +13,7 @@ public class PortfolioPositionsValidate
                 throw new ArgumentException("Укажите бумагу, торговую площадку и валюту сделки.");
             }
 
-            if (!double.IsFinite(trade.Quantity) || trade.Quantity <= 0 ||
-                trade.Quantity != Math.Truncate(trade.Quantity)
+            if (trade.Quantity <= 0
                 || !double.IsFinite(trade.Price) || trade.Price <= 0
                 || !double.IsFinite(trade.FaceValue) || trade.FaceValue <= 0
                 || !double.IsFinite(trade.AccruedInterest) || trade.AccruedInterest < 0
@@ -35,10 +34,12 @@ public class PortfolioPositionsValidate
         foreach (var positionTrades in tradeList.GroupBy(x => (x.SecId, x.BoardId, x.CurrencyId)))
         {
             var availableQuantity = 0d;
-            foreach (var day in positionTrades.GroupBy(x => x.TradeDate).OrderBy(x => x.Key))
+            foreach (var trade in positionTrades.OrderBy(x => x.TradeDate)
+                         .ThenBy(x => x.Id.HasValue ? 0 : 1)
+                         .ThenBy(x => x.Id)
+                         .ThenBy(x => x.Side))
             {
-                availableQuantity += day.Where(x => x.Side == TradeSide.Buy).Sum(x => x.Quantity);
-                availableQuantity -= day.Where(x => x.Side == TradeSide.Sell).Sum(x => x.Quantity);
+                availableQuantity += trade.Side == TradeSide.Buy ? trade.Quantity : -trade.Quantity;
                 if (availableQuantity < 0)
                 {
                     throw new InvalidOperationException("Количество продажи не может превышать доступный остаток на дату сделки.");
@@ -47,19 +48,4 @@ public class PortfolioPositionsValidate
         }
     }
 
-    public static void ValidateTrade(PositionIncomeTrade trade, DateOnly asOf)
-    {
-        if (!Enum.IsDefined(trade.Side)
-            || trade.TradeDate > asOf
-            || !double.IsFinite(trade.Quantity) || trade.Quantity <= 0
-            || !double.IsFinite(trade.CleanPrice) || trade.CleanPrice <= 0
-            || trade.ActualCleanPrice.HasValue
-            && (!double.IsFinite(trade.ActualCleanPrice.Value) || trade.ActualCleanPrice.Value <= 0)
-            || trade.CleanPricePercent.HasValue
-            && (!double.IsFinite(trade.CleanPricePercent.Value) || trade.CleanPricePercent.Value <= 0)
-            || !double.IsFinite(trade.Commission) || trade.Commission < 0)
-        {
-            throw new ArgumentException("Данные сделки для расчёта результата позиции некорректны.");
-        }
-    }
 }

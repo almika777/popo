@@ -95,7 +95,8 @@ public sealed class BondsProvider(IDbContextFactory<PopoDbContext> dbContextFact
                 x.CurrencyId,
                 x.ShortName,
                 x.AccruedInt,
-                x.FaceValue))
+                x.FaceValue,
+                x.FaceUnit))
             .ToListAsync(cancellationToken);
     }
 

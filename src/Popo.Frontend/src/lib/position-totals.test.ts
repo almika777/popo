@@ -1,31 +1,67 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculatePositionTotals } from "./position-totals.ts";
+import { portfolioLedgerApi } from "./portfolio-ledger-api.ts";
 
-test("calculates totals across all positions", () => {
-  const result = calculatePositionTotals({
-    positionsValueRub: 2_000,
-    unrealizedPnlRub: -100
-  });
-
-  assert.deepEqual(result, {
-    marketValue: 2_000,
-    investedAmount: 2_100,
-    unrealizedPnl: -100,
-    unrealizedPnlPercent: -100 / 2_100 * 100
-  });
+test("displays fields returned by the open positions API", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    positions: [{ secId: "BOND", boardId: "TQCB", currencyId: "RUB", shortName: "Bond", bondType: "Флоатер",
+      quantity: 3, avgBuyPrice: 1000, marketPrice: 1100, totalCost: 3300,
+      unrealizedPnl: 300, couponIncome: 25, totalPnl: 320 }],
+    totals: { marketValueRub: 3300, investedAmountRub: 3000, unrealizedPnlRub: 300, unrealizedPnlPercent: 10 }
+  }), { status: 200 });
+  try {
+    const row = (await portfolioLedgerApi.getPositionsPage()).positions[0];
+    assert.equal(row.bondType, "Флоатер");
+    assert.equal(row.averageBuyPrice, 1000);
+    assert.equal(row.marketValue, 3300);
+    assert.equal(row.approximateCouponIncome, 25);
+    assert.equal(row.approximateTotalPnl, 320);
+    assert.equal(row.unrealizedPnlPercent, 10);
+    assert.equal(row.approximateTotalPnlPercent, 320 / 3000 * 100);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
-test("returns zero percent when invested amount is zero", () => {
-  const result = calculatePositionTotals({
-    positionsValueRub: 0,
-    unrealizedPnlRub: 0
+test("loads position totals calculated by the API", async () => {
+  const originalFetch = globalThis.fetch;
+  const totals = {
+    marketValueRub: 2_000,
+    investedAmountRub: 2_100,
+    unrealizedPnlRub: -100,
+    unrealizedPnlPercent: -100 / 2_100 * 100
+  };
+  globalThis.fetch = async () => new Response(JSON.stringify({ positions: [], totals }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
   });
 
-  assert.deepEqual(result, {
-    marketValue: 0,
-    investedAmount: 0,
-    unrealizedPnl: 0,
-    unrealizedPnlPercent: 0
+  try {
+    const page = await portfolioLedgerApi.getPositionsPage();
+    assert.deepEqual(page.totals, totals);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("preserves unavailable position totals from the API", async () => {
+  const originalFetch = globalThis.fetch;
+  const totals = {
+    marketValueRub: 0,
+    investedAmountRub: null,
+    unrealizedPnlRub: null,
+    unrealizedPnlPercent: null
+  };
+  globalThis.fetch = async () => new Response(JSON.stringify({ positions: [], totals }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
   });
+
+  try {
+    const page = await portfolioLedgerApi.getPositionsPage();
+    assert.deepEqual(page.totals, totals);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

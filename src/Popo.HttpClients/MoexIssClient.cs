@@ -70,21 +70,6 @@ namespace Popo.HttpClients
             }, ct);
         }
 
-        public async Task<Dictionary<string, List<MoexMarketdataYields>>> GetActiveBondsMarketdataYieldsAsync(
-            CancellationToken ct)
-        {
-            return (await GetOrCreateWithLockAsync(nameof(GetActiveBondsMarketdataYieldsAsync), async () =>
-            {
-                const string columns = "SECID,BOARDID,PRICE,WAPRICE,TRADEMOMENT,EFFECTIVEYIELD";
-
-                return await GetBoardDictionaryAsync<MoexMarketdataYields>(
-                    RelationHelper.BoardCurrency.Keys,
-                    boardId =>
-                        $"engines/stock/markets/bonds/boards/{boardId}/securities.json?iss.only=marketdata_yields&columns={columns}",
-                    "marketdata_yields", ct);
-            }, ct))!;
-        }
-
         public Task<Dictionary<string, List<MoexMarketdata>>> GetBondsMarketdataCachedAsync(CancellationToken ct) =>
             GetOrCreateWithLockAsync(
                 nameof(GetBondsMarketdataCachedAsync),
@@ -403,41 +388,6 @@ namespace Popo.HttpClients
             }
 
             return res;
-        }
-
-        public async Task<List<MoexTrade>> GetBondTradesAsync(string secId, string boardId, CancellationToken ct)
-        {
-            const int limit = 100;
-            var start = 0;
-            var encodedSecId = Uri.EscapeDataString(secId);
-            var encodedBoardId = Uri.EscapeDataString(boardId);
-
-            var result = new List<MoexTrade>();
-
-            while (true)
-            {
-                var url = $"engines/stock/markets/bonds/boards/{encodedBoardId}/securities/{encodedSecId}/trades.json" +
-                          $"?iss.meta=off&iss.only=trades,trades.cursor&start={start}&limit={limit}";
-
-                using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                var trades = ParseMoexResult<MoexTrade>(json, "trades");
-                var cursor = ParseMoexResult<MoexHistoryCursor>(json, "trades.cursor").FirstOrDefault();
-
-                if (trades.Count == 0)
-                    break;
-
-                result.AddRange(trades);
-
-                if (cursor is null || start + limit >= cursor.Total)
-                    break;
-
-                start += limit;
-            }
-
-            return result;
         }
 
         public async Task<MoexBondDescription> GetSecurityDescriptionAsync(string secId, CancellationToken ct)

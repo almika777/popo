@@ -10,14 +10,14 @@ namespace Popo.Storage.Tests;
 public sealed class PortfolioTradesProviderTests
 {
     private IsolatedTestDatabase _database = null!;
-    private PortfolioPositionsProvider _positionsProvider = null!;
+    private PortfolioHoldingsProvider _positionsProvider = null!;
     private PortfolioTradesProvider _tradesProvider = null!;
 
     [OneTimeSetUp]
     public async Task OneTimeSetUp()
     {
         _database = await TestDatabase.CreateIsolatedAsync();
-        _positionsProvider = new PortfolioPositionsProvider(_database.ContextFactory);
+        _positionsProvider = new PortfolioHoldingsProvider(_database.ContextFactory);
         _tradesProvider = new PortfolioTradesProvider(_database.ContextFactory);
     }
 
@@ -38,7 +38,7 @@ public sealed class PortfolioTradesProviderTests
             CancellationToken.None);
 
         Assert.That(
-            (await _positionsProvider.GetPositionsAsync(new DateOnly(2026, 1, 2), CancellationToken.None))
+            (await _positionsProvider.GetHoldingsAsync(new DateOnly(2026, 1, 2), CancellationToken.None))
             .Single(x => x.SecId == secId && x.BoardId == boardId && x.CurrencyId == currencyId)
             .Quantity,
             Is.EqualTo(75));
@@ -48,7 +48,7 @@ public sealed class PortfolioTradesProviderTests
             new PortfolioTrade(secId, boardId, currencyId, new DateOnly(2026, 1, 1), TradeSide.Buy, 80, 98),
             CancellationToken.None), Is.True);
         Assert.That(
-            (await _positionsProvider.GetPositionsAsync(new DateOnly(2026, 1, 2), CancellationToken.None))
+            (await _positionsProvider.GetHoldingsAsync(new DateOnly(2026, 1, 2), CancellationToken.None))
             .Single(x => x.SecId == secId && x.BoardId == boardId && x.CurrencyId == currencyId)
             .Quantity,
             Is.EqualTo(55));
@@ -106,7 +106,7 @@ public sealed class PortfolioTradesProviderTests
             new PortfolioTrade(secId, boardId, currencyId, asOf.AddDays(1), TradeSide.Buy, 10, 99),
             CancellationToken.None);
 
-        var position = (await _positionsProvider.GetPositionsAsync(asOf, CancellationToken.None))
+        var position = (await _positionsProvider.GetHoldingsAsync(asOf, CancellationToken.None))
             .Single(x => x.SecId == secId && x.BoardId == boardId && x.CurrencyId == currencyId);
 
         Assert.That(position.Quantity, Is.EqualTo(100));
@@ -147,6 +147,32 @@ public sealed class PortfolioTradesProviderTests
             new PortfolioTrade(secId, boardId, currencyId, new DateOnly(2026, 1, 3), TradeSide.Buy, 10, 98),
             CancellationToken.None));
 
-        Assert.That((await _tradesProvider.GetTradeAsync(buy.Id, CancellationToken.None))?.TradeDate, Is.EqualTo(new DateOnly(2026, 1, 1)));
+        Assert.That((await _tradesProvider.GetTradesAsync(CancellationToken.None))
+            .Single(x => x.Id == buy.Id).TradeDate, Is.EqualTo(new DateOnly(2026, 1, 1)));
+    }
+
+    [Test]
+    public async Task UpdateTrade_RejectsSaleBeforeSameDayPurchaseInIdOrder()
+    {
+        var secId = $"TEST-{Guid.NewGuid():N}";
+        var ids = new[] { Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7() }.Order().ToArray();
+        await using (var context = await _database.ContextFactory.CreateDbContextAsync())
+        {
+            context.PortfolioTrades.AddRange(
+                new PortfolioTradeEntity { Id = ids[0], SecId = secId, BoardId = "TQCB", CurrencyId = "RUB",
+                    TradeDate = new DateOnly(2026, 1, 1), Side = TradeSide.Buy, Quantity = 4, Price = 100, FaceValue = 1_000 },
+                new PortfolioTradeEntity { Id = ids[1], SecId = secId, BoardId = "TQCB", CurrencyId = "RUB",
+                    TradeDate = new DateOnly(2026, 1, 3), Side = TradeSide.Sell, Quantity = 5, Price = 100, FaceValue = 1_000 },
+                new PortfolioTradeEntity { Id = ids[2], SecId = secId, BoardId = "TQCB", CurrencyId = "RUB",
+                    TradeDate = new DateOnly(2026, 1, 2), Side = TradeSide.Buy, Quantity = 2, Price = 100, FaceValue = 1_000 });
+            await context.SaveChangesAsync();
+        }
+
+        Assert.ThrowsAsync<InvalidOperationException>(() => _tradesProvider.UpdateTradeAsync(ids[1],
+            new PortfolioTrade(secId, "TQCB", "RUB", new DateOnly(2026, 1, 2), TradeSide.Sell, 5, 100),
+            CancellationToken.None));
+
+        var unchanged = (await _tradesProvider.GetTradesAsync(CancellationToken.None)).Single(trade => trade.Id == ids[1]);
+        Assert.That(unchanged.TradeDate, Is.EqualTo(new DateOnly(2026, 1, 3)));
     }
 }

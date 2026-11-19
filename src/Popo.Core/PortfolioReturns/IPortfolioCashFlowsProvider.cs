@@ -7,8 +7,6 @@ public interface IPortfolioCashFlowsProvider
     /// <returns>Сохранённые пополнения, снятия и налоговые списания.</returns>
     Task<IReadOnlyList<PortfolioCashFlowRecord>> GetCashFlowsAsync(CancellationToken cancellationToken);
 
-    Task<PortfolioCashFlowRecord?> GetCashFlowAsync(Guid id, CancellationToken cancellationToken);
-
     Task<PortfolioCashFlowRecord> AddCashFlowAsync(
         DateOnly date,
         PortfolioCashFlowType type,

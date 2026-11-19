@@ -8,7 +8,7 @@ public sealed record UpsertPortfolioTradeRequest(
     string CurrencyId,
     DateOnly TradeDate,
     TradeSide Side,
-    double Quantity,
+    int Quantity,
     double Price,
     double FaceValue,
     double AccruedInterestTotal,
@@ -18,16 +18,6 @@ public sealed record UpsertMoneyMarketFundRequest(
     string SecId,
     double Quantity,
     double AveragePrice);
-
-public sealed record PositionsPageResponse(
-    IReadOnlyList<PortfolioPositionRecord> Positions,
-    PositionTotalsResponse Totals);
-
-public sealed record PositionTotalsResponse(
-    double MarketValueRub,
-    double? InvestedAmountRub,
-    double? UnrealizedPnlRub,
-    double? UnrealizedPnlPercent);
 
 public sealed record MoneyMarketFundOptionResponse(string SecId, string BoardId, string Name);
 

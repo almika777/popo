@@ -67,6 +67,10 @@ public static class ApiServiceCollectionExtensions
         services.AddScoped<IValidator<PortfolioReturnQuery>, PortfolioReturnQueryValidator>();
         services.AddScoped<IValidator<PortfolioCurrencyAnalyticsRequest>, PortfolioCurrencyAnalyticsRequestValidator>();
         services.AddScoped<IValidator<UpsertPortfolioTradeRequest>, UpsertPortfolioTradeRequestValidator>();
+        services.AddScoped<IValidator<DefaultOpenPositionInput>, DefaultOpenPositionInputValidator>();
+        services.AddScoped<IOpenPositionsService, OpenPositionService>();
+        services.AddScoped<IPositionBuilderFactory, PositionBuilderFactory>();
+        services.AddScoped<OpenPositionReferenceDataLoader>();
         services.AddScoped<IPortfolioPositionsService, PortfolioPositionsService>();
         services.AddScoped<PortfolioCurrencyAnalyticsService>();
         services.AddScoped<PortfolioTradesService>();

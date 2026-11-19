@@ -448,9 +448,6 @@ public sealed class BondDailyStatisticsServiceTests
                     point => new DateStatistics(point.Price, point.NumTrades, point.Value))
                 : new Dictionary<SecBoard, DateStatistics>());
 
-        public Task<Dictionary<string, double>> GetMedianDailyVolume(CancellationToken ct) =>
-            Task.FromResult(new Dictionary<string, double>());
-
         public Task<Dictionary<string, DailyVolumeStatistics>> GetDailyVolumeStatistics(CancellationToken ct) =>
             Task.FromResult(new Dictionary<string, DailyVolumeStatistics>());
 

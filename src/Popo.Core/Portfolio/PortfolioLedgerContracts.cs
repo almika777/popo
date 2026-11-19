@@ -1,5 +1,3 @@
-using Popo.Core.Portfolio.Position;
-
 namespace Popo.Core.Portfolio;
 
 public enum TradeSide
@@ -14,12 +12,14 @@ public sealed record PortfolioTrade(
     string CurrencyId,
     DateOnly TradeDate,
     TradeSide Side,
-    double Quantity,
+    int Quantity,
     double Price,
     double FaceValue = 1_000,
     double AccruedInterest = 0,
     double CommissionPercent = 0)
 {
+    public Guid? Id { get; init; }
+
     public double CleanAmount => Quantity * Price;
     public double AccruedInterestAmount => Quantity * AccruedInterest;
     public double GrossAmount => TradeSettlementCalculator.Calculate(Side, Quantity, Price, AccruedInterest, CommissionPercent).GrossAmount;
@@ -35,7 +35,7 @@ public sealed record PortfolioTradeRecord(
     string CurrencyId,
     DateOnly TradeDate,
     TradeSide Side,
-    double Quantity,
+    int Quantity,
     double Price,
     double FaceValue,
     double AccruedInterest,
@@ -44,42 +44,11 @@ public sealed record PortfolioTradeRecord(
     double Amount,
     string ShortName = "");
 
-public sealed record PortfolioPositionRecord(
+public sealed record PortfolioHoldingRecord(
     string SecId,
     string BoardId,
     string CurrencyId,
-    double Quantity,
-    double BoughtQuantity,
-    double SoldQuantity,
-    double BoughtCleanAmount,
-    double BoughtAmount,
-    double SoldAmount,
-    double? AverageBuyPrice,
-    double? MarketPrice = null,
-    double? MarketValue = null,
-    double? UnrealizedPnl = null,
-    double? UnrealizedPnlPercent = null,
-    string ShortName = "",
-    double? AverageDailyVolume = null,
-    double? MedianDailyVolume = null,
-    double? ApproximateCouponIncome = null,
-    double? ApproximateTotalPnl = null,
-    double? ApproximateTotalPnlPercent = null,
-    double? AverageBuyPriceAtCurrentFaceValue = null,
-    double? AverageBuyPricePercent = null,
-    double? CurrentFaceValue = null,
-    string? FaceUnit = null,
-    double? MarketPricePercent = null,
-    bool IsNominalIndexed = false,
-    double? ApproximateAnnualizedTotalPnlPercent = null,
-    PositionAnnualizedReturnBreakdown? ApproximateAnnualizedReturnBreakdown = null,
-    string? ApproximateAnnualizedReturnUnavailableReason = null);
-
-public sealed record PortfolioPositionValuation(
-    double? MarketPrice,
-    double? MarketValue,
-    double? UnrealizedPnl,
-    double? UnrealizedPnlPercent);
+    double Quantity);
 
 public sealed record PortfolioSummaryRecord(
     DateOnly AsOf,
